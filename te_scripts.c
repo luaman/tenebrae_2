@@ -40,6 +40,22 @@ static glident_t blendmodes[] = {
 	{"GL_ONE_MINUS_DST_COLOR", GL_ONE_MINUS_DST_COLOR}
 };
 
+int SHADER_BlendModeForName(char *name) {
+	int i;
+
+	for (i=0 ; i< 10 ; i++)
+	{
+		if (!Q_strcasecmp (blendmodes[i].name, name) )
+			return blendmodes[i].value;
+	}
+	if (i == 10)
+	{
+		return -1;
+	}
+
+	return -1;
+}
+
 int SC_BlendModeForName(char *name) {
 	int i;
 
