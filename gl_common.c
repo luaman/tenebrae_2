@@ -47,6 +47,8 @@ GLCOLORTABLEEXTPFN qglColorTableEXT;
 typedef void (*GL3DFXSETPALETTEEXTPFN) (GLuint *) ;
 GL3DFXSETPALETTEEXTPFN qgl3DfxSetPaletteEXT;
 
+PFNBLENDCOLORPROC qglBlendColorEXT;
+
 
 
 //int		texture_mode = GL_NEAREST;
@@ -279,8 +281,8 @@ void CheckSpecularBumpMappingExtensions(void)
           SAFE_GET_PROC (qglGetCombinerInputParameterivNV,PFNGLGETCOMBINERINPUTPARAMETERIVNVPROC,"glGetCombinerInputParameterivNV");
           SAFE_GET_PROC (qglGetCombinerOutputParameterfvNV,PFNGLGETCOMBINEROUTPUTPARAMETERFVNVPROC,"glGetCombinerOutputParameterfvNV");
           SAFE_GET_PROC (qglGetCombinerOutputParameterivNV,PFNGLGETCOMBINEROUTPUTPARAMETERIVNVPROC,"glGetCombinerOutputParameterivNV");
-          SAFE_GET_PROC (qglGetFinalCombinerInputParameterfvNV,PFNGLGETFINALCOMBINERINPUTPARAMETERFVNVPROC,"glGetFinalCombinerInputfvNV"); 
-          SAFE_GET_PROC (qglGetFinalCombinerInputParameterivNV,PFNGLGETFINALCOMBINERINPUTPARAMETERIVNVPROC,"glGetFinalCombinerInputivNV"); 
+          SAFE_GET_PROC (qglGetFinalCombinerInputParameterfvNV,PFNGLGETFINALCOMBINERINPUTPARAMETERFVNVPROC,"glGetFinalCombinerInputParameterfvNV"); 
+          SAFE_GET_PROC (qglGetFinalCombinerInputParameterivNV,PFNGLGETFINALCOMBINERINPUTPARAMETERIVNVPROC,"glGetFinalCombinerInputParameterivNV"); 
      } 
 
 	 //PENTA: Cg uses register combiners2 also, they only add some constant registers tough...
@@ -304,7 +306,8 @@ void CheckGeforce3Extensions(void)
          && (supportedTmu >= 4)  && (!COM_CheckParm ("-forcegf2"))
          && (gl_cardtype == GEFORCE)
          && strstr(gl_extensions, "GL_NV_vertex_program1_1")
-         && strstr(gl_extensions, "GL_NV_vertex_array_range"))
+         && strstr(gl_extensions, "GL_NV_vertex_array_range")
+		 && strstr(gl_extensions, "ARB_imaging"))
      {
           gl_cardtype = GEFORCE3;
           SAFE_GET_PROC (qglTexImage3DEXT,PFNGLTEXIMAGE3DEXT,"glTexImage3DEXT");
@@ -335,6 +338,10 @@ void CheckGeforce3Extensions(void)
           SAFE_GET_PROC (qglProgramParameters4fvNV,PFNGLPROGRAMPARAMETERS4FVNVPROC,"glProgramParameters4fvNV");
           SAFE_GET_PROC (qglRequestResidentProgramsNV,PFNGLREQUESTRESIDENTPROGRAMSNVPROC,"glRequestResidentProgramsNV");
           SAFE_GET_PROC (qglTrackMatrixNV,PFNGLTRACKMATRIXNVPROC,"glTrackMatrixNV");
+
+		  //get blend color pointers
+		  SAFE_GET_PROC (qglBlendColorEXT,PFNBLENDCOLORPROC,"glBlendColor");
+
 
           //default to trilinear filtering on gf3
           gl_filter_min = GL_LINEAR_MIPMAP_LINEAR;
