@@ -607,7 +607,10 @@ char *ParseShader (char *data, shader_t *shader)
 			GET_SAFE_TOKEN;
 			normalSpecularStage(shader,command, com_token);
 		} else if (!strcmp(command,"surfaceparm")) {
-			data = COM_SkipLine(data);
+			GET_SAFE_TOKEN;
+			if (!strcmp(com_token, "nodraw")) {
+				shader->flags |= SURF_NODRAW;
+			}
 		} else if (!strcmp(command,"nomipmaps")) {
 			shader->mipmap = false;
 		} else if (!strcmp(command,"noshadow")) {
