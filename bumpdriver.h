@@ -1,28 +1,32 @@
+
+DriverPtr GL_WrapUserPointer(void *p);
+DriverPtr GL_OffsetDriverPtr(DriverPtr p, int offset);
+
 /**
 * Gives a definition of the vertices passed to the shedule* functions.
 * Use NULL if the data is not available/applicable to the suff you send.
 */
 typedef struct {
 
-	float *vertices;
+	DriverPtr vertices;
 	int vertexstride;
 
-	float *texcoords;
+	DriverPtr texcoords;
 	int texcoordstride;
 
-	float *lightmapcoords;
+	DriverPtr lightmapcoords;
 	int lightmapstride;
 
-	float *tangents;
+	DriverPtr tangents;
 	int tangentstride;
 
-	float *binormals;
+	DriverPtr binormals;
 	int binormalstride;
 
-	float *normals;
+	DriverPtr normals;
 	int normalstride;
 
-	unsigned char *colors;
+	DriverPtr colors;
 	int colorstride;
 
 } vertexdef_t;
@@ -32,18 +36,6 @@ typedef struct {
 	vec3_t	objectorigin;
 	vec3_t	objectvieworg;
 } lightobject_t;
-
-/**
-* Defines driver managed memory types
-*/
-typedef enum {DM_SLOWREADWRITE, DM_SLOWREAD, DM_NORMAL} drivermem_t;
-
-//DM_SLOWREADWRITE: the memory is slow in writing and reading, won't be updated outside of
-//the driver much
-//DM_SLOWREAD: the memory is slow in reading (uncached or worse...), won't be read outside
-//of the driver much.  It supports decent writing speeds.  (This is probably what you'll want
-//most of the time.)
-//DM_NORMAL: Fast reading and writing
 
 /**
 * This is a generic bumpdriver struct, it contains al the driver routines
@@ -56,18 +48,7 @@ typedef struct {
 	void (*initDriver) (void);
 	void (*freeDriver) (void);
 
-	//gets a pointer to driver memory, it can just return system memory too if the driver
-	//doesn't support it.
-	void *(*getDriverMem) (size_t size, drivermem_t hint);
-
-	//frees all driver mem
-	//FIXME: do we need real deallocation support
-	void (*freeAllDriverMem) (void);
-	
-	//FIXME: Do we need fence like support?
-
 	//drawing code
-
 	void (*drawTriangleListBase) (vertexdef_t *verts, int *indecies, int numIndecies, shader_t *shader, int lightmapIndex);//-1 for no lightmap
 	void (*drawTriangleListBump) (const vertexdef_t *verts, int *indecies, int numIndecies, shader_t *shader, const transform_t *tr, const lightobject_t *lo);
 	void (*drawTriangleListSys) (vertexdef_t *verts, int *indecies, int numIndecies, shader_t *shader);
