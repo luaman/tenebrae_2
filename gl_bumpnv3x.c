@@ -232,11 +232,60 @@ static char bump_fragment_program2_colored[] =
 "MADH H1.xyz, H1, 2, -1;\n"
 "DP3H_SAT H2.z, H0, H1;\n"
 "POWH H2.z, H2.z, 16;\n"
-"TEX H0, f[TEX0], TEX5, CUBE;\n"
+"TEX H0, f[TEX0], TEX5, 2D;\n"
 "MULX H0, H2.z, H0;\n"
 "MADX H3, H3, H2.y, H0;\n"
 "TEX H1, f[TEX3], TEX2, 3D;\n"
 "TEX H2, f[TEX4], TEX4, CUBE;\n"
+"MULX H3, H3, H2;\n"
+"MULX_SAT o[COLH], H3, H1;\n"
+"END";
+
+static char bump_fragment_program3[] =
+"!!FP1.0\n"
+"TEX H0, f[TEX0], TEX0, 2D;\n"
+"TEX H1, f[TEX1], TEX3, CUBE;\n"
+"MADH H0.xyz, H0, 2, -1;\n"
+"MADH H1.xyz, H1, 2, -1;\n"
+"DP3H_SAT H2.x, H0, H1;\n"
+"TEX H3, f[TEX0], TEX1, 2D;\n"
+"MULH H3, H3, H2.x;\n"
+"MULH H3, H3, f[COL0];\n"
+"MULH_SAT H2.y, H1.z, 8;\n"
+"MULH H2.x, H2.x, H2.y;\n"
+"TEX H1, f[TEX2], TEX3, CUBE;\n"
+"MADH H1.xyz, H1, 2, -1;\n"
+"DP3H_SAT H2.z, H0, H1;\n"
+"POWH H2.z, H2.z, 16;\n"
+"MULX H2.z, H2.z, H0.w;\n"
+"MADX H3, H3, H2.y, H2.z;\n"
+"TEX H1, f[TEX3], TEX2, 3D;\n"
+"TEX H2, f[TEX4], TEX4, 2D;\n"
+"MULX H3, H3, H2;\n"
+"MULX_SAT o[COLH], H3, H1;\n"
+"END";
+
+static char bump_fragment_program3_colored[] =
+"!!FP1.0\n"
+"TEX H0, f[TEX0], TEX0, 2D;\n"
+"TEX H1, f[TEX1], TEX3, CUBE;\n"
+"MADH H0.xyz, H0, 2, -1;\n"
+"MADH H1.xyz, H1, 2, -1;\n"
+"DP3H_SAT H2.x, H0, H1;\n"
+"TEX H3, f[TEX0], TEX1, 2D;\n"
+"MULH H3, H3, H2.x;\n"
+"MULH H3, H3, f[COL0];\n"
+"MULH_SAT H2.y, H1.z, 8;\n"
+"MULH H2.x, H2.x, H2.y;\n"
+"TEX H1, f[TEX2], TEX3, CUBE;\n"
+"MADH H1.xyz, H1, 2, -1;\n"
+"DP3H_SAT H2.z, H0, H1;\n"
+"POWH H2.z, H2.z, 16;\n"
+"TEX H0, f[TEX0], TEX5, 2D;\n"
+"MULX H0, H2.z, H0;\n"
+"MADX H3, H3, H2.y, H0;\n"
+"TEX H1, f[TEX3], TEX2, 3D;\n"
+"TEX H2, f[TEX4], TEX4, 2D;\n"
 "MULX H3, H3, H2;\n"
 "MULX_SAT o[COLH], H3, H1;\n"
 "END";
@@ -319,6 +368,8 @@ typedef enum
     F_BUMP_PROGRAM_COLOR,
     F_BUMP_PROGRAM2,
     F_BUMP_PROGRAM2_COLOR,
+    F_BUMP_PROGRAM3,
+    F_BUMP_PROGRAM3_COLOR,
     F_DELUX_PROGRAM,
     F_DELUX_PROGRAM_COLOR,
     MAX_F_PROGRAM
@@ -337,6 +388,8 @@ static char* fragment_progs[MAX_F_PROGRAM] =
     bump_fragment_program_colored,
     bump_fragment_program2,
     bump_fragment_program2_colored,
+    bump_fragment_program3,
+    bump_fragment_program3_colored,
     delux_fragment_program,
     delux_fragment_program_colored
 };
@@ -429,7 +482,7 @@ void NV3x_DisableBumpShader(shader_t* shader)
     GL_SelectTexture(GL_TEXTURE2_ARB);
     glPopMatrix();
 
-    if (currentshadowlight->filtercube)
+    if (currentshadowlight->shader->numstages)
     {        
 	GL_SelectTexture(GL_TEXTURE3_ARB);
 	glPopMatrix();
@@ -439,6 +492,7 @@ void NV3x_DisableBumpShader(shader_t* shader)
     GL_SelectTexture(GL_TEXTURE0_ARB);
 }
 
+void NV3x_SetupTcMods(stage_t *s);
 
 void NV3x_EnableBumpShader(const transform_t *tr, const lightobject_t *lo,
                           qboolean alias, shader_t* shader)
@@ -472,30 +526,62 @@ void NV3x_EnableBumpShader(const transform_t *tr, const lightobject_t *lo,
     GL_SelectTexture(GL_TEXTURE3_ARB);
     glBindTexture(GL_TEXTURE_CUBE_MAP_ARB, normcube_texture_object);
 
-    if (currentshadowlight->filtercube)
+    if (currentshadowlight->shader->numstages)
     {
-	glMatrixMode(GL_TEXTURE);
+        glMatrixMode(GL_TEXTURE);
 	glPushMatrix();
 	glLoadIdentity();
-        GL_SetupCubeMapMatrix(tr);
+        qglBindProgramNV( GL_VERTEX_PROGRAM_NV, vertex_programs[V_BUMP_PROGRAM2] );
+        NV3x_checkerror();
 
-        GL_SelectTexture(GL_TEXTURE4_ARB);
-        glBindTexture(GL_TEXTURE_CUBE_MAP_ARB, currentshadowlight->filtercube);
-
-	qglBindProgramNV( GL_VERTEX_PROGRAM_NV, vertex_programs[V_BUMP_PROGRAM2] );
-	NV3x_checkerror();
-
-        if ( shader->glossstages[0].type == STAGE_GLOSS )
+        if (currentshadowlight->shader->stages[0].texture[0]->gltype == GL_TEXTURE_CUBE_MAP_ARB)
         {
-            qglBindProgramNV( GL_FRAGMENT_PROGRAM_NV, fragment_programs[F_BUMP_PROGRAM2_COLOR] );
-            GL_SelectTexture(GL_TEXTURE5_ARB);
-            GL_BindAdvanced(shader->glossstages[0].texture[0]);
+            NV3x_SetupTcMods(&currentshadowlight->shader->stages[0]);
+            GL_SetupCubeMapMatrix(tr);
+
+            GL_SelectTexture(GL_TEXTURE4_ARB);
+  	    glBindTexture(GL_TEXTURE_CUBE_MAP_ARB, currentshadowlight->shader->stages[0].texture[0]->texnum);
+   
+            if ( shader->glossstages[0].type == STAGE_GLOSS )
+            {
+                qglBindProgramNV( GL_FRAGMENT_PROGRAM_NV, fragment_programs[F_BUMP_PROGRAM2_COLOR] );
+                GL_SelectTexture(GL_TEXTURE5_ARB);
+                GL_BindAdvanced(shader->glossstages[0].texture[0]);
+            }
+            else
+            {
+                qglBindProgramNV( GL_FRAGMENT_PROGRAM_NV, fragment_programs[F_BUMP_PROGRAM2] );
+            }
+	    NV3x_checkerror();
         }
         else
         {
-            qglBindProgramNV( GL_FRAGMENT_PROGRAM_NV, fragment_programs[F_BUMP_PROGRAM2] );
+            // 2D filter
+	    //Default = repeat the texture one time in the light's sphere
+	    //Can be modified with the tcMod shader commands
+	    glTranslatef(0.5,0.5,0.5);
+	    glScalef(0.5,0.5,0.5);
+	    glScalef(1.0f/(currentshadowlight->radiusv[0]), 
+	  		   1.0f/(currentshadowlight->radiusv[1]),
+			   1.0f/(currentshadowlight->radiusv[2]));
+            NV3x_SetupTcMods(&currentshadowlight->shader->stages[0]);
+            GL_SetupCubeMapMatrix(tr);
+
+            GL_SelectTexture(GL_TEXTURE4_ARB);
+            GL_BindAdvanced(currentshadowlight->shader->stages[0].texture[0]);
+
+            if ( shader->glossstages[0].type == STAGE_GLOSS )
+            {
+                qglBindProgramNV( GL_FRAGMENT_PROGRAM_NV, fragment_programs[F_BUMP_PROGRAM3_COLOR] );
+                GL_SelectTexture(GL_TEXTURE5_ARB);
+                GL_BindAdvanced(shader->glossstages[0].texture[0]);
+            }
+            else
+            {
+                qglBindProgramNV( GL_FRAGMENT_PROGRAM_NV, fragment_programs[F_BUMP_PROGRAM3] );
+            }
+	    NV3x_checkerror();
         }
-	NV3x_checkerror();
     }
     else
     {
@@ -584,6 +670,13 @@ void NV3x_SetupTcMod(tcmod_t *tc)
 	glScalef(1.0, 1.0, 1.0);
 	break;
     }
+}
+
+void NV3x_SetupTcMods(stage_t *s)
+{
+    int i;
+    for (i = 0; i < s->numtcmods; i++)
+    	NV3x_SetupTcMod(&s->tcmods[i]);	
 }
 
 
@@ -1291,13 +1384,13 @@ void NV3x_sendSurfacesTA(msurface_t** surfs, int numSurfaces, const transform_t 
             if ( shader->glossstages > 0 )
             {
                 // Bind colored gloss
-                if (currentshadowlight->filtercube)
+                if (currentshadowlight->shader->numstages)
                 {
-                    GL_SelectTexture(GL_TEXTURE4_ARB);
+                    GL_SelectTexture(GL_TEXTURE5_ARB);
                 }
                 else
                 {
-                    GL_SelectTexture(GL_TEXTURE3_ARB);
+                    GL_SelectTexture(GL_TEXTURE4_ARB);
                 }
                 GL_BindAdvanced(shader->glossstages[0].texture[0]);
             }

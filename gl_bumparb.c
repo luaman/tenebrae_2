@@ -283,7 +283,6 @@ static char bump_vertex_program[] =
 "OUTPUT oTex1        = result.texcoord[1];\n"
 "OUTPUT oTex2        = result.texcoord[2];\n"
 "OUTPUT oTex3        = result.texcoord[3];\n"
-"OUTPUT oTex4        = result.texcoord[4];\n"
 "DP4   oTex3.x, texMatrix[0], iPos;\n"
 "DP4   oTex3.y, texMatrix[1], iPos;\n"
 "DP4   oTex3.z, texMatrix[2], iPos;\n"
@@ -399,6 +398,8 @@ static char bump_fragment_program[] =
 "TEMP normalmap, lightvec, halfvec, colormap, atten;\n"
 "TEMP diffdot, specdot, selfshadow, temp\n;"
 "TEX normalmap, tex0, texture[0], 2D;\n"
+"TEX colormap, tex0, texture[1], 2D;\n"
+"TEX atten, tex3, texture[2], 3D;\n" //get attenuation factor
 "MAD normalmap.rgb, normalmap, scaler.b, scaler.a;\n"
 "DP3 temp.w, tex1, tex1;\n"	//normalize to light ("real normalize" no cubemaps)
 "RSQ temp.w, temp.w;\n"
@@ -406,8 +407,6 @@ static char bump_fragment_program[] =
 "DP3 temp.w, tex2, tex2;\n" //normalize to light ("real normalize" no cubemaps)
 "RSQ temp.w, temp.w;\n"
 "MUL halfvec.xyz, temp.w, tex2;\n"
-"TEX colormap, tex0, texture[1], 2D;\n"
-"TEX atten, tex3, texture[2], 3D;\n" //get attenuation factor
 "DP3_SAT diffdot.w, normalmap, lightvec;\n"
 "MUL_SAT selfshadow.a, lightvec.z, scaler.g;\n"
 "DP3_SAT specdot.a, normalmap, halfvec;\n"
@@ -432,23 +431,23 @@ static char bump_fragment_program_colored[] =
 "TEMP normalmap, lightvec, halfvec, colormap, atten;\n"
 "TEMP diffdot, specdot, selfshadow, temp, gloss\n;"
 "TEX normalmap, tex0, texture[0], 2D;\n"
+"TEX colormap, tex0, texture[1], 2D;\n"
+"TEX atten, tex3, texture[2], 3D;\n"
+"TEX gloss, tex0, texture[3], 2D;\n"
 "MAD normalmap.rgb, normalmap, scaler.b, scaler.a;\n"
 "DP3 temp.w, tex1, tex1;\n"
-"RSQ temp.w, temp.x;\n"
+"RSQ temp.w, temp.w;\n"
 "MUL lightvec, temp.w, tex1;\n"
 "DP3 temp.w, tex2, tex2;\n"
 "RSQ temp.w, temp.w;\n"
 "MUL halfvec, temp.w, tex2;\n"
-"TEX colormap, tex0, texture[1], 2D;\n"
-"TEX atten, tex3, texture[2], 3D;\n"
 "DP3_SAT diffdot, normalmap, lightvec;\n"
 "MUL_SAT selfshadow.a, lightvec.z, scaler.g;\n"
 "DP3_SAT specdot.a, normalmap, halfvec;\n"
 "MUL diffdot, diffdot, colormap;\n"
-"TEX gloss, tex0, texture[3], 2D;\n"
 "POW specdot.a, specdot.a, scaler.r;\n"
 "MUL_SAT diffdot, diffdot, selfshadow.a;\n"
-"MUL_SAT specdot, specdot.a, gloss;\n"
+"MUL specdot, specdot.a, gloss;\n"
 "MUL atten, col, atten;\n"
 "ADD diffdot, diffdot, specdot;\n"
 "MUL_SAT outColor, diffdot, atten;\n"
@@ -467,6 +466,9 @@ static char bump_fragment_program2[] =
 "TEMP normalmap, lightvec, halfvec, colormap, atten, filter;\n"
 "TEMP diffdot, specdot, selfshadow, temp\n;"
 "TEX normalmap, tex0, texture[0], 2D;\n"
+"TEX colormap, tex0, texture[1], 2D;\n"
+"TEX atten, tex3, texture[2], 3D;\n"
+"TEX filter, tex4, texture[3], CUBE;\n"
 "MAD normalmap.rgb, normalmap, scaler.b, scaler.a;\n"
 "DP3 temp.w, tex1, tex1;\n"
 "RSQ temp.w, temp.w;\n"
@@ -474,16 +476,13 @@ static char bump_fragment_program2[] =
 "DP3 temp.w, tex2, tex2;\n"
 "RSQ temp.w, temp.w;\n"
 "MUL halfvec, temp.w, tex2;\n"
-"TEX colormap, tex0, texture[1], 2D;\n"
-"TEX atten, tex3, texture[2], 3D;\n"
-"TEX filter, tex4, texture[3], CUBE;\n"
 "DP3_SAT diffdot, normalmap, lightvec;\n"
 "MUL_SAT selfshadow.a, lightvec.z, scaler.g;\n"
 "DP3_SAT specdot.a, normalmap, halfvec;\n"
 "MUL diffdot, diffdot, colormap;\n"
 "POW specdot.a, specdot.a, scaler.r;\n"
 "MUL_SAT diffdot, diffdot, selfshadow.a;\n"
-"MUL_SAT specdot.a, specdot.a, normalmap.a;\n"
+"MUL specdot.a, specdot.a, normalmap.a;\n"
 "MUL atten, col, atten;\n"
 "ADD diffdot, diffdot, specdot.a;\n"
 "MUL diffdot, diffdot, atten;\n"
@@ -503,6 +502,10 @@ static char bump_fragment_program2_colored[] =
 "TEMP normalmap, lightvec, halfvec, colormap, atten, filter;\n"
 "TEMP diffdot, specdot, selfshadow, temp, gloss\n;"
 "TEX normalmap, tex0, texture[0], 2D;\n"
+"TEX colormap, tex0, texture[1], 2D;\n"
+"TEX atten, tex3, texture[2], 3D;\n"
+"TEX filter, tex4, texture[3], CUBE;\n"
+"TEX gloss, tex0, texture[4], 2D;\n"
 "MAD normalmap.rgb, normalmap, scaler.b, scaler.a;\n"
 "DP3 temp.w, tex1, tex1;\n"
 "RSQ temp.w, temp.w;\n"
@@ -510,17 +513,86 @@ static char bump_fragment_program2_colored[] =
 "DP3 temp.w, tex2, tex2;\n"
 "RSQ temp.w, temp.w;\n"
 "MUL halfvec, temp.w, tex2;\n"
-"TEX colormap, tex0, texture[1], 2D;\n"
-"TEX atten, tex3, texture[2], 3D;\n"
-"TEX filter, tex4, texture[3], CUBE;\n"
-"TEX gloss, tex0, texture[4], 2D;\n"
 "DP3_SAT diffdot, normalmap, lightvec;\n"
 "MUL_SAT selfshadow.a, lightvec.z, scaler.g;\n"
 "DP3_SAT specdot.a, normalmap, halfvec;\n"
 "MUL diffdot, diffdot, colormap;\n"
 "POW specdot.a, specdot.a, scaler.r;\n"
 "MUL_SAT diffdot, diffdot, selfshadow.a;\n"
-"MUL_SAT specdot, specdot.a, gloss;\n"
+"MUL specdot, specdot.a, gloss;\n"
+"MUL atten, col, atten;\n"
+"ADD diffdot, diffdot, specdot;\n"
+"MUL diffdot, diffdot, atten;\n"
+"MUL_SAT outColor, diffdot, filter;\n"
+"END";
+
+static char bump_fragment_program3[] =
+"!!ARBfp1.0\n"
+"ATTRIB tex0 = fragment.texcoord[0];\n"
+"ATTRIB tex1 = fragment.texcoord[1];\n"
+"ATTRIB tex2 = fragment.texcoord[2];\n"
+"ATTRIB tex3 = fragment.texcoord[3];\n"
+"ATTRIB tex4 = fragment.texcoord[4];\n"
+"ATTRIB col = fragment.color.primary;\n"
+"PARAM scaler = { 16, 8, 2, -1 };\n"
+"OUTPUT outColor = result.color;\n"
+"TEMP normalmap, lightvec, halfvec, colormap, atten, filter;\n"
+"TEMP diffdot, specdot, selfshadow, temp\n;"
+"TEX normalmap, tex0, texture[0], 2D;\n"
+"TEX colormap, tex0, texture[1], 2D;\n"
+"TEX atten, tex3, texture[2], 3D;\n"
+"TEX filter, tex4, texture[3], 2D;\n"
+"MAD normalmap.rgb, normalmap, scaler.b, scaler.a;\n"
+"DP3 temp.w, tex1, tex1;\n"
+"RSQ temp.w, temp.w;\n"
+"MUL lightvec, temp.w, tex1;\n"
+"DP3 temp.w, tex2, tex2;\n"
+"RSQ temp.w, temp.w;\n"
+"MUL halfvec, temp.w, tex2;\n"
+"DP3_SAT diffdot, normalmap, lightvec;\n"
+"MUL_SAT selfshadow.a, lightvec.z, scaler.g;\n"
+"DP3_SAT specdot.a, normalmap, halfvec;\n"
+"MUL diffdot, diffdot, colormap;\n"
+"POW specdot.a, specdot.a, scaler.r;\n"
+"MUL_SAT diffdot, diffdot, selfshadow.a;\n"
+"MUL specdot.a, specdot.a, normalmap.a;\n"
+"MUL atten, col, atten;\n"
+"ADD diffdot, diffdot, specdot.a;\n"
+"MUL diffdot, diffdot, atten;\n"
+"MUL_SAT outColor, diffdot, filter;\n"
+"END";
+
+static char bump_fragment_program3_colored[] =
+"!!ARBfp1.0\n"
+"ATTRIB tex0 = fragment.texcoord[0];\n"
+"ATTRIB tex1 = fragment.texcoord[1];\n"
+"ATTRIB tex2 = fragment.texcoord[2];\n"
+"ATTRIB tex3 = fragment.texcoord[3];\n"
+"ATTRIB tex4 = fragment.texcoord[4];\n"
+"ATTRIB col = fragment.color.primary;\n"
+"PARAM scaler = { 16, 8, 2, -1 };\n"
+"OUTPUT outColor = result.color;\n"
+"TEMP normalmap, lightvec, halfvec, colormap, atten, filter;\n"
+"TEMP diffdot, specdot, selfshadow, temp, gloss\n;"
+"TEX normalmap, tex0, texture[0], 2D;\n"
+"TEX colormap, tex0, texture[1], 2D;\n"
+"TEX atten, tex3, texture[2], 3D;\n"
+"TEX filter, tex4, texture[3], 2D;\n"
+"TEX gloss, tex0, texture[4], 2D;\n"
+"MAD normalmap.rgb, normalmap, scaler.b, scaler.a;\n"
+"DP3 temp.w, tex1, tex1;\n"
+"RSQ temp.w, temp.w;\n"
+"MUL lightvec, temp.w, tex1;\n"
+"DP3 temp.w, tex2, tex2;\n"
+"RSQ temp.w, temp.w;\n"
+"MUL halfvec, temp.w, tex2;\n"
+"DP3_SAT diffdot, normalmap, lightvec;\n"
+"MUL_SAT selfshadow.a, lightvec.z, scaler.g;\n"
+"DP3_SAT specdot.a, normalmap, halfvec;\n"
+"MUL diffdot, diffdot, colormap;\n"
+"POW specdot.a, specdot.a, scaler.r;\n"
+"MUL_SAT diffdot, diffdot, selfshadow.a;\n"
+"MUL specdot, specdot.a, gloss;\n"
 "MUL atten, col, atten;\n"
 "ADD diffdot, diffdot, specdot;\n"
 "MUL diffdot, diffdot, atten;\n"
@@ -624,6 +696,8 @@ typedef enum
     F_BUMP_PROGRAM_COLOR,
     F_BUMP_PROGRAM2,
     F_BUMP_PROGRAM2_COLOR,
+    F_BUMP_PROGRAM3,
+    F_BUMP_PROGRAM3_COLOR,
     F_DELUX_PROGRAM,
     F_DELUX_PROGRAM_COLOR,
     MAX_F_PROGRAM
@@ -642,6 +716,8 @@ static char* fragment_progs[MAX_F_PROGRAM] =
     bump_fragment_program_colored,
     bump_fragment_program2,
     bump_fragment_program2_colored,
+    bump_fragment_program3,
+    bump_fragment_program3_colored,
     delux_fragment_program,
     delux_fragment_program_colored
 };
@@ -650,7 +726,7 @@ static GLuint vertex_programs[MAX_V_PROGRAM];
 static GLuint fragment_programs[MAX_F_PROGRAM];
 
 
-//#define ARBDEBUG
+#define ARBDEBUG
 
 #if defined(ARBDEBUG) && defined(_WIN32)
 static void Arb_checkerror()
@@ -664,6 +740,7 @@ static void Arb_checkerror()
         glGetIntegerv(GL_PROGRAM_ERROR_POSITION_ARB, &line);
         err = glGetString(GL_PROGRAM_ERROR_STRING_ARB);
         _asm { int 3 };
+        error = 0;
     }
 }
 #else
@@ -803,7 +880,7 @@ void ARB_DisableBumpShader(shader_t* shader)
     GL_SelectTexture(GL_TEXTURE2_ARB);
     glPopMatrix();
 
-    if (currentshadowlight->filtercube)
+    if (currentshadowlight->shader->numstages)
     {        
 	GL_SelectTexture(GL_TEXTURE3_ARB);
 	glPopMatrix();
@@ -813,6 +890,8 @@ void ARB_DisableBumpShader(shader_t* shader)
     GL_SelectTexture(GL_TEXTURE0_ARB);
 }
 
+
+void ARB_SetupTcMods(stage_t *s);
 
 void ARB_EnableBumpShader(const transform_t *tr, const lightobject_t *lo,
                           qboolean alias, shader_t* shader)
@@ -842,29 +921,60 @@ void ARB_EnableBumpShader(const transform_t *tr, const lightobject_t *lo,
     glEnable(GL_FRAGMENT_PROGRAM_ARB);
     Arb_checkerror();
 
-    if (currentshadowlight->filtercube)
+    if (currentshadowlight->shader->numstages)
     {
-	GL_SelectTexture(GL_TEXTURE3_ARB);
-	glMatrixMode(GL_TEXTURE);
+        GL_SelectTexture(GL_TEXTURE3_ARB);
+        glMatrixMode(GL_TEXTURE);
 	glPushMatrix();
 	glLoadIdentity();
-        GL_SetupCubeMapMatrix(tr);
+        qglBindProgramARB( GL_VERTEX_PROGRAM_ARB, vertex_programs[V_BUMP_PROGRAM2] );
+        Arb_checkerror();
 
-        glBindTexture(GL_TEXTURE_CUBE_MAP_ARB, currentshadowlight->filtercube);
-
-	qglBindProgramARB( GL_VERTEX_PROGRAM_ARB, vertex_programs[V_BUMP_PROGRAM2] );
-	Arb_checkerror();
-        if ( shader->glossstages[0].type == STAGE_GLOSS )
+        if (currentshadowlight->shader->stages[0].texture[0]->gltype == GL_TEXTURE_CUBE_MAP_ARB)
         {
-            qglBindProgramARB( GL_FRAGMENT_PROGRAM_ARB, fragment_programs[F_BUMP_PROGRAM2_COLOR] );
-            GL_SelectTexture(GL_TEXTURE4_ARB);
-            GL_BindAdvanced(shader->glossstages[0].texture[0]);
+            ARB_SetupTcMods(&currentshadowlight->shader->stages[0]);
+            GL_SetupCubeMapMatrix(tr);
+
+  	    glBindTexture(GL_TEXTURE_CUBE_MAP_ARB, currentshadowlight->shader->stages[0].texture[0]->texnum);
+   
+            if ( shader->glossstages[0].type == STAGE_GLOSS )
+            {
+                qglBindProgramARB( GL_FRAGMENT_PROGRAM_ARB, fragment_programs[F_BUMP_PROGRAM2_COLOR] );
+                GL_SelectTexture(GL_TEXTURE4_ARB);
+                GL_BindAdvanced(shader->glossstages[0].texture[0]);
+            }
+            else
+            {
+                qglBindProgramARB( GL_FRAGMENT_PROGRAM_ARB, fragment_programs[F_BUMP_PROGRAM2] );
+            }
+	    Arb_checkerror();
         }
         else
         {
-            qglBindProgramARB( GL_FRAGMENT_PROGRAM_ARB, fragment_programs[F_BUMP_PROGRAM2] );
+            // 2D filter
+            GL_BindAdvanced(currentshadowlight->shader->stages[0].texture[0]);
+	    //Default = repeat the texture one time in the light's sphere
+	    //Can be modified with the tcMod shader commands
+	    glTranslatef(0.5,0.5,0.5);
+	    glScalef(0.5,0.5,0.5);
+	    glScalef(1.0f/(currentshadowlight->radiusv[0]), 
+	  		   1.0f/(currentshadowlight->radiusv[1]),
+			   1.0f/(currentshadowlight->radiusv[2]));
+            ARB_SetupTcMods(&currentshadowlight->shader->stages[0]);
+            GL_SetupCubeMapMatrix(tr);
+
+            if ( shader->glossstages[0].type == STAGE_GLOSS )
+            {
+                qglBindProgramARB( GL_FRAGMENT_PROGRAM_ARB, fragment_programs[F_BUMP_PROGRAM3_COLOR] );
+                GL_SelectTexture(GL_TEXTURE4_ARB);
+                GL_BindAdvanced(shader->glossstages[0].texture[0]);
+            }
+            else
+            {
+                qglBindProgramARB( GL_FRAGMENT_PROGRAM_ARB, fragment_programs[F_BUMP_PROGRAM3] );
+            }
+	    Arb_checkerror();
         }
-	Arb_checkerror();
     }
     else
     {
@@ -886,7 +996,7 @@ void ARB_EnableBumpShader(const transform_t *tr, const lightobject_t *lo,
     GL_SelectTexture(GL_TEXTURE0_ARB);
 
     qglProgramEnvParameter4fARB( GL_VERTEX_PROGRAM_ARB, 0, lo->objectorigin[0],
-									lo->objectorigin[1],  lo->objectorigin[2], 0.0);
+				 lo->objectorigin[1],  lo->objectorigin[2], 0.0);
     Arb_checkerror();
     qglProgramEnvParameter4fARB( GL_VERTEX_PROGRAM_ARB, 1, lo->objectvieworg[0],
     		                 lo->objectvieworg[1],  lo->objectvieworg[2], 0.0);
@@ -951,6 +1061,13 @@ void ARB_SetupTcMod(tcmod_t *tc)
 	glScalef(1.0, 1.0, 1.0);
 	break;
     }
+}
+
+void ARB_SetupTcMods(stage_t *s)
+{
+    int i;
+    for (i = 0; i < s->numtcmods; i++)
+    	ARB_SetupTcMod(&s->tcmods[i]);	
 }
 
 
@@ -1407,7 +1524,7 @@ void ARB_drawSurfaceListBase (vertexdef_t* verts, msurface_t** surfs,
     int i;
     int usedelux;
 
-        checkerror();
+    checkerror();
     glVertexPointer(3, GL_FLOAT, verts->vertexstride, verts->vertices);
     glEnableClientState(GL_VERTEX_ARRAY);
 
@@ -1598,7 +1715,8 @@ void ARB_sendSurfacesTA(msurface_t** surfs, int numSurfaces, const transform_t *
 	//less state changes
 	if (lastshader != shader)
 	{
-            if ( lastshader && lastshader->glossstages[0].type != shader->glossstages[0].type )
+//            if ( lastshader && lastshader->glossstages[0].type != shader->glossstages[0].type )
+            if ( lastshader )
             {
                 // disable previous shader if switching between colored and mono gloss
                 ARB_DisableBumpShader(lastshader);
@@ -1626,15 +1744,15 @@ void ARB_sendSurfacesTA(msurface_t** surfs, int numSurfaces, const transform_t *
 	    }
 	    //bind the correct texture
 	    GL_SelectTexture(GL_TEXTURE0_ARB);
-	    if (shader->numbumpstages > 0)
+	    if ( shader->numbumpstages > 0 )
 		GL_BindAdvanced(shader->bumpstages[0].texture[0]);
 	    GL_SelectTexture(GL_TEXTURE1_ARB);
-	    if (shader->numcolorstages > 0)
+	    if ( shader->numcolorstages > 0 )
 		GL_BindAdvanced(shader->colorstages[0].texture[0]);
-            if ( shader->glossstages > 0 )
+            if ( shader->glossstages[0].type == STAGE_GLOSS )
             {
                 // Bind colored gloss
-                if (currentshadowlight->filtercube)
+                if (currentshadowlight->shader->numstages)
                 {
                     GL_SelectTexture(GL_TEXTURE4_ARB);
                 }
