@@ -40,7 +40,15 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define	U_SKIN		(1<<12)
 #define	U_EFFECTS	(1<<13)
 #define	U_LONGENTITY	(1<<14)
-#define U_MOREDATA	(1<<15) //PENTA: all new baseline fields are in the packet
+#define U_TENEBRAEBITS	(1<<15)
+
+// these are special tenebrae bits
+#define U_COLOR		(1<<16)
+#define U_ALPHA		(1<<17)
+#define U_LIGHTLEV	(1<<18)
+#define U_STYLE		(1<<19)
+#define U_PFLAGS	(1<<20)
+#define U_SHADER	(1<<21)
 
 #define	SU_VIEWHEIGHT	(1<<0)
 #define	SU_IDEALPITCH	(1<<1)

@@ -526,22 +526,37 @@ void SV_WriteEntitiesToClient (edict_t	*clent, sizebuf_t *msg)
 		}
 
 		//PENTA: more baseline fields
-		if ((ent->baseline.alpha != ent->v.alpha) ||
-			(ent->baseline.style != ent->v.style) ||
-			(ent->baseline.light_lev != ent->v.light_lev) ||
-			(ent->baseline.color[0] != ent->v.color[0]) ||
-			(ent->baseline.color[1] != ent->v.color[1]) ||
-			(ent->baseline.color[2] != ent->v.color[2]) ||
-			(ent->baseline.pflags != ent->v.pflags) ) {
-			bits |= U_MOREDATA;
+		if (ent->baseline.alpha != ent->v.alpha) {
+			bits |= U_ALPHA;
 		}
 
+		if (ent->baseline.style != ent->v.style) {
+			bits |= U_STYLE;
+		}
+
+		if (ent->baseline.light_lev != ent->v.light_lev) {
+			bits |= U_LIGHTLEV;
+		}
+
+		if ((ent->baseline.color[0] != ent->v.color[0]) ||
+			(ent->baseline.color[1] != ent->v.color[1]) ||
+			(ent->baseline.color[2] != ent->v.color[2]))
+		{
+			bits |= U_COLOR;
+		}
+
+		if (ent->baseline.pflags != ent->v.pflags) {
+			bits |= U_PFLAGS;
+		}
 
 		if (e >= 256)
 			bits |= U_LONGENTITY;
 			
 		if (bits >= 256)
 			bits |= U_MOREBITS;
+
+		if (bits >= 65536) 
+			bits |= U_TENEBRAEBITS;
 
 	//
 	// write the message
@@ -550,6 +565,10 @@ void SV_WriteEntitiesToClient (edict_t	*clent, sizebuf_t *msg)
 		
 		if (bits & U_MOREBITS)
 			MSG_WriteByte (msg, bits>>8);
+
+		if (bits & U_TENEBRAEBITS)
+			MSG_WriteShort (msg, bits>>16);
+
 		if (bits & U_LONGENTITY)
 			MSG_WriteShort (msg,e);
 		else
@@ -577,20 +596,26 @@ void SV_WriteEntitiesToClient (edict_t	*clent, sizebuf_t *msg)
 			MSG_WriteCoord (msg, ent->v.origin[2]);
 		if (bits & U_ANGLE3)
 			MSG_WriteAngle(msg, ent->v.angles[2]);
-		//PENTA: new baseline fields
-		//FIXME: saving (private) bandwith, but these fields are not updated verry much.
-		if (bits & U_MOREDATA) {
 
-			MSG_WriteByte (msg, (int)(ent->v.alpha*255));
-			MSG_WriteByte (msg, ent->v.style);
-			MSG_WriteShort (msg, ent->v.light_lev);
-			MSG_WriteByte (msg, ent->v.pflags);
+		//PENTA: new baseline fields
+		if (bits & U_COLOR) {
 			for (i=0 ; i<3 ; i++)
 			{
 				MSG_WriteByte(msg, (int)(ent->v.color[i]*255));
-			}			
+			}		
 		}
 
+		if (bits & U_ALPHA)
+			MSG_WriteByte (msg, (int)(ent->v.alpha*255));
+
+		if (bits & U_LIGHTLEV)
+			MSG_WriteShort (msg, ent->v.light_lev);
+
+		if (bits & U_STYLE)
+			MSG_WriteByte (msg, ent->v.style);
+
+		if (bits & U_PFLAGS)
+			MSG_WriteByte (msg, ent->v.pflags);
 	}
 }
 
