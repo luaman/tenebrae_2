@@ -534,8 +534,20 @@ void Cmd_TokenizeString (char *text)
 
 		if (cmd_argc < MAX_ARGS)
 		{
-			cmd_argv[cmd_argc] = Z_Malloc (Q_strlen(com_token)+1);
-			Q_strcpy (cmd_argv[cmd_argc], com_token);
+			//PENTA: Add variables tot the command shell, use $ before any var
+			//to insert that variable's value
+			if (com_token[0] == '$') {
+				char *value;
+				cvar_t *v = Cvar_FindVar (com_token+1);
+				if (!v) {
+					Con_Printf("Unknown variable %s\n",com_token+1);
+				}
+				cmd_argv[cmd_argc] = Z_Malloc (Q_strlen(v->string)+1);
+				Q_strcpy (cmd_argv[cmd_argc], v->string);
+			} else {
+				cmd_argv[cmd_argc] = Z_Malloc (Q_strlen(com_token)+1);
+				Q_strcpy (cmd_argv[cmd_argc], com_token);
+			}
 			cmd_argc++;
 		}
 	}
