@@ -53,6 +53,8 @@ kbutton_t	in_strafe, in_speed, in_use, in_jump, in_attack;
 kbutton_t	in_up, in_down;
 
 int			in_impulse;
+int			cl_mouse_x;
+int			cl_mouse_y;
 
 
 void KeyDown (kbutton_t *b)
@@ -158,6 +160,7 @@ void IN_JumpUp (void) {KeyUp(&in_jump);}
 
 void IN_Impulse (void) {in_impulse=Q_atoi(Cmd_Argv(1));}
 
+static void IN_MouseMove(void) {cl_mouse_x=Q_atoi(Cmd_Argv(1)); cl_mouse_y=Q_atoi(Cmd_Argv(2));}
 /*
 ===============
 CL_KeyState
@@ -323,6 +326,40 @@ void CL_BaseMove (usercmd_t *cmd)
 }
 
 
+/**
+	The game mouse movent processing (expects relative coordinates)
+*/
+void CL_MouseMove(usercmd_t *cmd) {
+
+	int mouse_x = cl_mouse_x * sensitivity.value;
+	int mouse_y = cl_mouse_y * sensitivity.value;
+	
+	// add mouse X/Y movement to cmd
+	if ( (in_strafe.state & 1) || (lookstrafe.value && (in_mlook.state & 1) ))
+		cmd->sidemove += m_side.value * mouse_x;
+	else
+		cl.viewangles[YAW] -= m_yaw.value * mouse_x;
+	
+	if (in_mlook.state & 1)
+		V_StopPitchDrift ();
+	
+	if ( (in_mlook.state & 1) && !(in_strafe.state & 1))
+	{
+		cl.viewangles[PITCH] += m_pitch.value * mouse_y;
+		if (cl.viewangles[PITCH] > 80)
+			cl.viewangles[PITCH] = 80;
+		if (cl.viewangles[PITCH] < -70)
+			cl.viewangles[PITCH] = -70;
+	}
+	else
+	{
+		if ((in_strafe.state & 1) && noclip_anglehack)
+			cmd->upmove -= m_forward.value * mouse_y;
+		else
+			cmd->forwardmove -= m_forward.value * mouse_y;
+	}
+	
+}
 
 /*
 ==============
@@ -443,6 +480,7 @@ void CL_InitInput (void)
 	Cmd_AddCommand ("-klook", IN_KLookUp);
 	Cmd_AddCommand ("+mlook", IN_MLookDown);
 	Cmd_AddCommand ("-mlook", IN_MLookUp);
+	Cmd_AddCommand ("mousemove", IN_MouseMove);
 
 }
 

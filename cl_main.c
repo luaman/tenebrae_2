@@ -816,8 +816,11 @@ void CL_SendCmd (void)
 	{
 	// get basic movement from keyboard
 		CL_BaseMove (&cmd);
+
+	// mouse movement
+		CL_MouseMove (&cmd);
 	
-	// allow mice or other external controllers to add to the move
+	// allow joysticks or other external controllers to add to the move
 		IN_Move (&cmd);
 	
 	// send the unreliable message
