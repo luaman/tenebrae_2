@@ -21,7 +21,25 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // draw.h -- these are the only functions outside the refresh allowed
 // to touch the vid buffer
 
-typedef struct drawfont_s drawfont_t ;
+#include "gl_model.h" // for shader_t
+
+typedef struct {
+	int ofsx;	//x offset into the texture
+	int ofsy;	//y offset into the texture
+	int A;		//Width of whitespace to the left of the char
+	int B;		//Width of the char's pixels
+	int C;		//Width of the whiretspace to the right of the char
+} drawchar_t;
+
+typedef struct drawfont_s {
+	char name[64];
+	drawchar_t metrics[256];
+	shader_t *shader;
+	int			width;	//width of the font texture
+	int			height; //height of the font texture
+	int			charHeight; //height of a single character
+} drawfont_t;
+
 
 void Draw_Init (void);
 void Draw_Character (int x, int y, int num);

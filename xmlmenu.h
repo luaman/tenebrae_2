@@ -89,7 +89,7 @@ typedef struct qmelement_s
 
 
 typedef qwidget_t qmelement_t;
-typedef struct drawfont_s drawfont_t;
+
 struct qwidget_s
 {
 	qmtable_t        *mtable;
