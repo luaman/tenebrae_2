@@ -146,5 +146,5 @@ typedef struct {
 //XYZ
 #define MD3_IDENT		(('3'<<24)+('P'<<16)+('D'<<8)+'I')
 #define IDQ3BSPHEADER	(('P'<<24)+('S'<<16)+('B'<<8)+'I')
-
+#define TEKEYFRAMEHEADER (('O'<<24)+('M'<<16)+('K'<<8)+'T')
 
