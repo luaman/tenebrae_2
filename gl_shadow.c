@@ -589,6 +589,8 @@ qboolean CheckSurfInLight(msurface_t *surf, shadowlight_t *light)
 	float		dist;
 	glpoly_t	*poly;
 
+	//return true;
+
 	//Doesn't recieve per pixel light or cast shadows...
 	if (!(surf->flags & SURF_PPLIGHT) && (surf->flags & SURF_NOSHADOW)) {
 		return false;
@@ -2648,6 +2650,8 @@ char *ParseEnt (char *data, qboolean *isLight, entity_t *ent)
 			ent->model = Mod_ForName(com_token, true);
 		} else if (!strcmp(keyname, "skin"))  {
 			ent->skinnum = atoi(com_token);
+		} else if (!strcmp(keyname, "style"))  {
+			ent->style = atoi(com_token);
 		} else if (!strcmp(keyname, "_noautolight")) {
 			Con_Printf("Automatic light gen disabled\n");//XYW \n
 			foundworld = true;
@@ -2695,7 +2699,7 @@ void LoadLightsFromFile (char *data)
 		if (!data)
 			break;
 		if (com_token[0] != '{')
-			Sys_Error ("ED_LoadFromFile: found %s when expecting {",com_token);
+			Sys_Error ("LoadLightsFromFile: found %s when expecting {",com_token);
 
 		isLight = false;
 		Q_memset(&fakeEnt,0,sizeof(entity_t));
