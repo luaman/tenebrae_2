@@ -274,11 +274,12 @@ void R_CalcBrushVolumeVerts(entity_t *e, brushlightinstant_t *ins) {
 		}
 
 		//save visibility info of neighbours
-		for (j=0 ; j<surf->numedges ; j++)
+		for (j=0 ; j<poly->numneighbours ; j++)
 		{
+			mneighbour_t *neigh = &poly->neighbours[j];
 			shadow = false;
-			if (poly->neighbours[j] != NULL) {
-				if ( poly->neighbours[j]->lightTimestamp != poly->lightTimestamp) {
+			if (neigh->n != NULL) {
+				if ( neigh->n->lightTimestamp != poly->lightTimestamp) {
 					shadow = true;
 				}
 			} else {
@@ -312,8 +313,8 @@ void R_CalcBrushAttenCoords(entity_t *e, brushlightinstant_t *ins) {
 
 		poly = psurf->polys;
 
-		VectorCopy(psurf->texinfo->vecs[0],s);
-		VectorCopy(psurf->texinfo->vecs[1],t);
+		VectorCopy(psurf->tangent,s);
+		VectorCopy(psurf->binormal,t);
 		
 		splitplane = psurf->plane;
 		
@@ -393,8 +394,8 @@ void R_SetupBrushLightHAV(entity_t *ent, brushlightinstant_t *ins)
 			} else {
 				ins->tslights[usedts][2]  = DotProduct(lightDir,psurf->plane->normal);
 			}
-			ins->tslights[usedts][1] = -DotProduct(lightDir,psurf->texinfo->vecs[1]);
-			ins->tslights[usedts][0]  = DotProduct(lightDir,psurf->texinfo->vecs[0]);
+			ins->tslights[usedts][1] = -DotProduct(lightDir,psurf->tangent);
+			ins->tslights[usedts][0]  = DotProduct(lightDir,psurf->binormal);
 
 
 			VectorNormalize(lightDir); 
@@ -410,8 +411,8 @@ void R_SetupBrushLightHAV(entity_t *ent, brushlightinstant_t *ins)
 				ins->tshalfangles[usedts][2] = DotProduct(H,psurf->plane->normal);
 			}
 
-			ins->tshalfangles[usedts][1] = -DotProduct(H,psurf->texinfo->vecs[1]);
-			ins->tshalfangles[usedts][0] = DotProduct(H,psurf->texinfo->vecs[0]);
+			ins->tshalfangles[usedts][1] = -DotProduct(H,psurf->tangent);
+			ins->tshalfangles[usedts][0] = DotProduct(H,psurf->binormal);
 			
 			usedts++;
 		}
