@@ -43,14 +43,6 @@ cvar_t  cmdline = {"cmdline","0", false, true};
 
 
 qboolean        com_modified;   // set true if using non-id files
-
-
-qboolean		proghack;
-
-
-int             static_registered = 1;  // only for startup check, then set
-
-
 qboolean		msg_suppress_1 = 0;
 
 
@@ -69,10 +61,6 @@ char	**com_argv;
 
 #define CMDLINE_LENGTH	1024 //upped cmdline_length from 256 to 1024 - Eradicator
 char	com_cmdline[CMDLINE_LENGTH];
-
-
-qboolean		standard_quake = true, rogue, hipnotic;
-
 
 // this graphic needs to be in the pak file to use registered features
 unsigned short pop[] =
@@ -1165,77 +1153,7 @@ int COM_CheckParm (char *parm)
 	return 0;
 }
 
-
-/*
-================
-COM_CheckRegistered
-
-
-Looks for the pop.txt file and verifies it.
-Sets the "registered" cvar.
-Immediately exits out if an alternate game was attempted to be started without
-being registered.
-
-
-PENTA: let unregistred users play.
-We make shure we don't allow them to walk into the 3 episode slipgates by 
-setting Cvar_Set ("registered", "0")
-================
-*/
-void COM_CheckRegistered (void)
-{
-	int             h;
-	unsigned short  check[128];
-	int  		i;
-
-
-	Cvar_Set ("cmdline", com_cmdline);
-	Cvar_Set ("registered", "1");
-	static_registered = 1;
-
-
-	COM_OpenFile("gfx/pop.lmp", &h);
-	static_registered = 0;
-
-
-	if (h == -1)
-	{
-#if WINDED
-	Sys_Error ("This dedicated server requires a full registered copy of Quake");
-#endif
-		Con_Printf ("Playing shareware version.\n");
-//		if (com_modified)
-//			Sys_Error ("You must have the registered version to use modified games");
-//		return;
-		Cvar_Set ("registered", "0");
-		static_registered = 1;
-		return;
-	}
-
-
-	Sys_FileRead (h, check, sizeof(check));
-	COM_CloseFile (h);
-	static_registered = 1;
-	
-	for (i=0 ; i<128 ; i++)
-		if (pop[i] != (unsigned short)BigShort (check[i]))
-			Sys_Error ("Corrupted data file.");
-	
-	Cvar_Set ("cmdline", com_cmdline);
-	Cvar_Set ("registered", "1");
-	static_registered = 1;
-	Con_Printf ("Playing registered version.\n");
-
-
-}
-
-
-
-
 void COM_Path_f (void);
-
-
-
 
 /*
 ================
@@ -1299,20 +1217,6 @@ void COM_InitArgv (int argc, char **argv)
 
 	largv[com_argc] = argvdummy;
 	com_argv = largv;
-
-
-	if (COM_CheckParm ("-rogue"))
-	{
-		rogue = true;
-		standard_quake = false;
-	}
-
-
-	if (COM_CheckParm ("-hipnotic"))
-	{
-		hipnotic = true;
-		standard_quake = false;
-	}
 }
 
 
@@ -1361,9 +1265,7 @@ void COM_Init (char *basedir)
 	Cvar_RegisterVariable (&cmdline);
 	Cmd_AddCommand ("path", COM_Path_f);
 
-
 	COM_InitFilesystem ();
-	COM_CheckRegistered ();
 }
 
 
@@ -1560,6 +1462,13 @@ void    COM_CreatePath (char *path)
 			Sys_mkdir (path);
 			*ofs = '/';
 		}
+
+		if (*ofs == '\\')
+		{       // create the directory
+			*ofs = 0;
+			Sys_mkdir (path);
+			*ofs = '\\';
+		}
 	}
 }
 
@@ -1631,13 +1540,6 @@ int COM_FindFile (const char *filename, int *handle, FILE **file)
 // search through the path, one element at a time
 //
 	search = com_searchpaths;
-	if (proghack)
-	{	// gross hack to use quake 1 progs with quake 2 maps
-		if (!strcmp(filename, "progs.dat"))
-			search = search->next;
-	}
-
-
 	for ( ; search ; search = search->next)
 	{
 	// is the element a pak file?
@@ -1664,15 +1566,9 @@ int COM_FindFile (const char *filename, int *handle, FILE **file)
 					return com_filesize;
 				}
 		}
+	//it's a normal file system file...
 		else
-		{               
-	// check a file in the directory tree
-			if (!static_registered)
-			{       // if not a registered version, don't ever go beyond base
-				if ( strchr (filename, '\\') || strchr (filename,'/'))
-					continue;
-			}
-		
+		{               	
 			//see if the filename is already an absolute path
 			//if it is don't reexpand it
 			//Are absolute paths prefixed with / on mac also???
@@ -2124,23 +2020,8 @@ void COM_AddGameFS (char *basedir)
 //
 // start up with GAMENAME by default (id1)
 //
+	COM_AddGameDirectory (va("%s/legacy", basedir) );
 	COM_AddGameDirectory (va("%s/"GAMENAME, basedir) );
-	
-//PENTA: Make mods possible by making tenebrae part of the game
-
-
-	COM_AddGameDirectory (va("%s/tenebrae", basedir) );
-
-
-	if (COM_CheckParm ("-rogue")){
-		COM_AddGameDirectory (va("%s/rogue", basedir) );
-	}
-	if (COM_CheckParm ("-hipnotic")){
-		COM_AddGameDirectory (va("%s/hipnotic", basedir) );
-	}
-
-
-//
 // -game <gamedir>
 // Adds basedir/gamedir as an override game
 //
@@ -2204,8 +2085,9 @@ void COM_InitFilesystem (void)
 			com_cachedir[0] = 0;
 		else
 			strncpy ( com_cachedir, com_argv[i+1], sizeof(com_cachedir));
-	}
-	else if (host_parms.cachedir)
+	} else if (COM_CheckParm ("-makebuild")) {
+		sprintf(com_cachedir, "%s%s", host_parms.basedir, "/build");
+	} else if (host_parms.cachedir)
 		strncpy ( com_cachedir, host_parms.cachedir, sizeof(com_cachedir));
 	else
 		com_cachedir[0] = 0;
@@ -2259,10 +2141,6 @@ void COM_InitFilesystem (void)
 			com_searchpaths = search;
 		}
 	}
-
-
-	if (COM_CheckParm ("-proghack"))
-		proghack = true;
 }
 
 
