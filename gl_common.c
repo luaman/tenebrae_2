@@ -407,8 +407,6 @@ void CheckRadeonExtensions(void)
           //default to trilinear filtering on Radeon
           gl_filter_min = GL_LINEAR_MIPMAP_LINEAR;
           gl_filter_max = GL_LINEAR;
-          GL_CreateShadersRadeon();
-
      } 
 }
 
@@ -430,7 +428,6 @@ void CheckParheliaExtensions(void)
           //default to trilinear filtering on Parhelia
           gl_filter_min = GL_LINEAR_MIPMAP_LINEAR;
           gl_filter_max = GL_LINEAR;
-          GL_CreateShadersParhelia();
      }
 }
 
@@ -454,7 +451,6 @@ void CheckARBFragmentExtensions(void)
           //default to trilinear filtering
           gl_filter_min = GL_LINEAR_MIPMAP_LINEAR;
           gl_filter_max = GL_LINEAR;
-          GL_CreateShadersARB();
      }
 }
 
