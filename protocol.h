@@ -19,7 +19,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 // protocol.h -- communications protocols
 
-#define	PROTOCOL_VERSION	666 //PENTA: new version!
+//Tenebrae2 first protocol version was 1000
+#define	PROTOCOL_VERSION	1000 //PENTA: new version!
 
 // if the high bit of the servercmd is set, the low bits are fast update flags:
 #define	U_MOREBITS	(1<<0)
@@ -132,6 +133,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #define svc_basicemitter	35		//PENTA: Simple emitter sends less data to the client
 #define svc_extendedemitter	36		//PENTA: More coplex, sends entity velocity and stuff to spawn more complex effects
+#define svc_areaportalstate 37		//PENTA: Bits of area portals currently visible
 
 //
 // client to server

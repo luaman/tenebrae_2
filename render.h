@@ -121,6 +121,8 @@ typedef struct
 	float		fov_x, fov_y;
 
 	int			ambientlight;
+	int			areabytes; //number of used bytes in areabits array
+	byte		areabits[MAX_MAP_AREAS/8]; 
 } refdef_t;
 
 
