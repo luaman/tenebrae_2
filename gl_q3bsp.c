@@ -39,7 +39,7 @@ marea_t		map_areas[MAX_MAP_AREAS];
 =================
 ModQ3_LoadTextures
 
-Touches all the shader, this will make sure all textures are effectively loaded.
+Touches all the shaders, this will make sure all textures are effectively loaded.
 =================
 */
 void ModQ3_LoadTextures (lump_t *l)
@@ -91,10 +91,12 @@ void ModQ3_LoadLighting (lump_t *l)
 	if (l->filelen % sizeof(dq3lightmap_t))
 		Sys_Error ("MOD_LoadLighting: funny lump size in %s",loadmodel->name);
 
-	loadmodel->lightdata = Hunk_AllocName ( l->filelen, loadname);	
-	memcpy (loadmodel->lightdata, mod_base + l->fileofs, l->filelen);
-	loadmodel->numlightmaps =  l->filelen/sizeof(dq3lightmap_t);
+	if (!COM_CheckParm("-externallight")) {
+		loadmodel->lightdata = Hunk_AllocName ( l->filelen, loadname);	
+		memcpy (loadmodel->lightdata, mod_base + l->fileofs, l->filelen);
+	}
 
+	loadmodel->numlightmaps =  l->filelen/sizeof(dq3lightmap_t);
 }
 
 
