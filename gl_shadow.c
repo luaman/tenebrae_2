@@ -683,12 +683,6 @@ qboolean R_ContributeFrame (shadowlight_t *light)
 	//verry soft light, don't bother.
 	if (b < 0.1) return false;
 
-	//not in a visible area => skip it
-	if (!(r_refdef.areabits[light->area>>3] & (1<<(light->area&7)))) {
-		return false;
-	}
-
-
 	//frustum scissor testing
 	dist = SphereInFrustum(light->origin, light->radius);
 	if (dist == 0)  {
@@ -731,6 +725,11 @@ qboolean R_ContributeFrame (shadowlight_t *light)
 		Q_memcpy(&light->vis,lightvis,MAX_MAP_LEAFS/8);
 		Q_memcpy(&light->entvis, lightvis, MAX_MAP_LEAFS/8);
 		light->area = lightleaf->area;
+	}
+
+	//not in a visible area => skip it
+	if (!(r_refdef.areabits[light->area>>3] & (1<<(light->area&7)))) {
+		return false;
 	}
 
 	if (HasSharedLeafs(lightvis,&worldvis[0])) {
@@ -804,6 +803,8 @@ void R_ConstructShadowVolume(shadowlight_t *light) {
 		light->volumeCmds = &volumeCmdsBuff[0];
 		light->volumeVerts = &volumeVertsBuff[0];
 		light->lightCmds = &lightCmdsBuff[0];
+		light->lightCmdsMesh = &lightCmdsBuffMesh[0];
+		light->numlightcmdsmesh = numLightCmdsMesh;
 		light->numlightcmds = numLightCmds;
 	}
 
@@ -2226,7 +2227,7 @@ void LightFromFile(vec3_t orig, vec3_t color, float light_lev) {
 		VectorCopy(color,fakeEnt.color);
 		fakeEnt.model = Mod_ForName("progs/w_light.spr",true);
 		R_CalcSvBsp(&fakeEnt);
-		//Con_Printf("Added file light");
+		Con_Printf("Added file light");
 	}
 
 
@@ -2316,9 +2317,7 @@ char *ParseEnt (char *data, qboolean *isLight, vec3_t origin, vec3_t color, floa
 		} else if (!strcmp(keyname, "_fog_end")) {
 			Cvar_Set("fog_end",com_token);
 		} else {
-
 			//just do nothing
-
 		}
 	}
 
