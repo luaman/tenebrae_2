@@ -26,7 +26,7 @@ AC_PROG_RANLIB
 # autoconf 2.53 doesn't check that
 # AM_PROG_AS
 CCAS="$CC"
-CCASFLAGS="$CFLAGS"
+CCASFLAGS="$CFLAGS -x assembler-with-cpp -DELF"
 AC_SUBST(CCAS)
 AC_SUBST(CCASFLAGS)
 
