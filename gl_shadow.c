@@ -2441,12 +2441,12 @@ int done = 0;
 
 /*
 ================
-R_CalcSvBsp
+R_StaticLightFromEnt
 
-Called for every static ent during spawning of the client
+Spawn a static lights for the given entity.
 ================
 */
-void R_CalcSvBsp(entity_t *ent) {
+void R_StaticLightFromEnt(entity_t *ent) {
 	
 	int i;
 	msurface_t *surf;
@@ -2454,135 +2454,132 @@ void R_CalcSvBsp(entity_t *ent) {
 	mapshader_t	*t;
 
 	//Con_Printf("Shadow volumes start\n");
-
-	if (ent->model == NULL) {
-		Con_Printf("null model");
+	
+	if (!ent->model) {
+		Con_Printf("Light with null model");
 		return;
 	}
-
-	if (true)
-	{
-		shadowchain = NULL;
-		meshshadowchain = NULL;
-		done++;
 		
-		//Con_Printf("->Light %i\n",done);
-		
-
-		r_lightTimestamp++;
-		r_framecount++;
-
-		svBsp_NumCutPolys = 0;
-		svBsp_NumKeptPolys = 0;
-		svBsp_NumAddedPolys = 0;
-
-		//Create a light and make it static
-		R_ShadowFromEntity(ent);
+	shadowchain = NULL;
+	meshshadowchain = NULL;
+	done++;
 	
-		numStaticShadowLights++;
-
-		if (numShadowLights >= MAXSHADOWLIGHTS)  {
-			Con_Printf("R_CalcSvBsp: More than MAXSHADOWLIGHTS lights");
-			return;
-		}
-
-		currentshadowlight = &shadowlights[numShadowLights-1];
-		currentshadowlight->isStatic = true;
-
-		//Get origin / box from the model
-
-		VectorAdd(ent->model->mins, ent->model-> maxs, currentshadowlight->origin);
-		VectorScale(currentshadowlight->origin, 0.5f, currentshadowlight->origin);
-		//Con_Printf("Calulated origin: %f %f %f\n",currentshadowlight->origin[0], currentshadowlight->origin[1], currentshadowlight->origin[2]);
-		//Con_Printf("Calulated mins: %f %f %f\n",ent->model->mins[0], ent->model->mins[1], ent->model->mins[2]);
-		//Con_Printf("Calulated maxs: %f %f %f\n",ent->model->maxs[0], ent->model->maxs[1], ent->model->maxs[2]);
-		VectorCopy(ent->model->mins, currentshadowlight->box.mins);
-		VectorCopy(ent->model->maxs, currentshadowlight->box.maxs);
-		VectorSubtract(ent->model->maxs,ent->model->mins,currentshadowlight->radiusv);
-		VectorScale(currentshadowlight->radiusv, 0.5f, currentshadowlight->radiusv);
-		//Con_Printf("Calulated radius: %f %f %f\n",currentshadowlight->radiusv[0], currentshadowlight->radiusv[1], currentshadowlight->radiusv[2]);
-		currentshadowlight->radius = max(Length(ent->model->mins),Length(ent->model->maxs));
-		//Con_Printf("Calulated radius: %f\n",currentshadowlight->radius);
-
-		//Calculate visible polygons
-		ShadowVolumeBsp();
-
-		//Print stats
-		/*
-		Con_Printf("  Thrown away: %i\n",svBsp_NumAddedPolys-svBsp_NumKeptPolys);
-		Con_Printf("  Total in volume: %i\n",svBsp_NumKeptPolys);
-		*/
-
-		currentshadowlight->visSurf = Hunk_Alloc(4*svBsp_NumKeptPolys);
-		currentshadowlight->numVisSurf = svBsp_NumKeptPolys;
-		surf = shadowchain;
+	//Con_Printf("->Light %i\n",done);
 	
-		//Clear texture chains
-		for (i=0 ; i<cl.worldmodel->nummapshaders; i++)
-		{
- 			cl.worldmodel->mapshaders[i].texturechain = NULL;
-		}
-
-		//Remark polys since polygons may have been removed since the last time stamp
-		r_lightTimestamp++;
-		for (i=0; i<svBsp_NumKeptPolys; i++,surf = surf->shadowchain) {
-			surf->polys->lightTimestamp = r_lightTimestamp;
-			currentshadowlight->visSurf[i] = surf;
-			//put it in the correct texture chain
-			surf->texturechain = surf->shader->texturechain;
-			surf->shader->texturechain = surf;
-		}
-
-		//Sort surfs in our list per texture
-		shadowchain = NULL;
-		//meshshadowchain = NULL;
-		for (i=0 ; i<cl.worldmodel->nummapshaders ; i++)
-		{
-			t = &cl.worldmodel->mapshaders[i];
-			if (!t)
-				continue;
-			s = t->texturechain;
-			if (!s)
-				continue;
-			else
-			{
-				for ( ; s ; s=s->texturechain) {
-					s->shadowchain = shadowchain;
-					shadowchain = s;
-				}
-			}
-			t->texturechain = NULL;
-		}
-
-		//Recalculate vis for this light
-		currentshadowlight->leaf = Mod_PointInLeaf (currentshadowlight->origin, cl.worldmodel);
-		lightvis = Mod_LeafPVS (currentshadowlight->leaf, cl.worldmodel);
-		currentshadowlight->area = currentshadowlight->leaf->area;
-		//Q_memcpy(&currentshadowlight->vis[0], lightvis, MAX_MAP_LEAFS/8);
-		Q_memcpy(&currentshadowlight->entclustervis[0], lightvis, MAX_MAP_LEAFS/8);
-		CutLeafs(lightvis);
-
-		//Precalculate the shadow volume / glow-texcoords
-		PrecalcVolumesForLight(cl.worldmodel);
-		currentshadowlight->volumeCmds = Hunk_Alloc(4*numVolumeCmds);
-		Q_memcpy(currentshadowlight->volumeCmds, &volumeCmdsBuff, 4*numVolumeCmds);
-
-		currentshadowlight->volumeVerts = Hunk_Alloc(4*numVolumeVerts);
-		currentshadowlight->numVolumeVerts = numVolumeVerts;
-		Q_memcpy(currentshadowlight->volumeVerts, &volumeVertsBuff, 4*numVolumeVerts);
-
-		currentshadowlight->lightCmds = Hunk_Alloc(4*numLightCmds);
-		Q_memcpy(currentshadowlight->lightCmds, &lightCmdsBuff, 4*numLightCmds);
-		currentshadowlight->numlightcmds = numLightCmds;
-
-		currentshadowlight->lightCmdsMesh = Hunk_Alloc(4*numLightCmdsMesh);
-		Q_memcpy(currentshadowlight->lightCmdsMesh, &lightCmdsBuffMesh, 4*numLightCmdsMesh);
-		currentshadowlight->numlightcmdsmesh = numLightCmdsMesh;
-
-		//Con_Printf("light done\n");
-	} else {
-		//Con_Printf("thrown away");
+	
+	r_lightTimestamp++;
+	r_framecount++;
+	
+	svBsp_NumCutPolys = 0;
+	svBsp_NumKeptPolys = 0;
+	svBsp_NumAddedPolys = 0;
+	
+	//Create a light and make it static
+	R_ShadowFromEntity(ent);
+	
+	numStaticShadowLights++;
+	
+	if (numShadowLights >= MAXSHADOWLIGHTS)  {
+		Con_Printf("R_StaticLightFromEnt: More than MAXSHADOWLIGHTS lights");
+		return;
 	}
+	
+	currentshadowlight = &shadowlights[numShadowLights-1];
+	currentshadowlight->isStatic = true;
+	
+	//Get origin / box from the model	
+	VectorAdd(ent->model->mins, ent->model-> maxs, currentshadowlight->origin);
+	VectorScale(currentshadowlight->origin, 0.5f, currentshadowlight->origin);
+	VectorCopy(ent->model->mins, currentshadowlight->box.mins);
+	VectorCopy(ent->model->maxs, currentshadowlight->box.maxs);
+	VectorSubtract(ent->model->maxs,ent->model->mins,currentshadowlight->radiusv);
+	VectorScale(currentshadowlight->radiusv, 0.5f, currentshadowlight->radiusv);
+	currentshadowlight->radius = max(Length(ent->model->mins),Length(ent->model->maxs));
+
+	//Shader to use on light == shader on the ent's model
+	if ((ent->model->type == mod_brush) && (ent->model->nummodelbrushes)) {
+		model_t *mod = ent->model;
+		mbrush_t *b = &mod->brushes[mod->firstmodelbrush];
+		mbrushside_t *bs = &mod->brushsides[b->firstbrushside];
+		currentshadowlight->shader = bs->shader->shader;
+	} else {
+		currentshadowlight->shader = GL_ShaderForName("textures/lights/default");
+	}
+	
+	//Calculate visible polygons
+	ShadowVolumeBsp();
+	
+	//Print stats
+	/*
+	Con_Printf("  Thrown away: %i\n",svBsp_NumAddedPolys-svBsp_NumKeptPolys);
+	Con_Printf("  Total in volume: %i\n",svBsp_NumKeptPolys);
+	*/
+	
+	currentshadowlight->visSurf = Hunk_Alloc(4*svBsp_NumKeptPolys);
+	currentshadowlight->numVisSurf = svBsp_NumKeptPolys;
+	surf = shadowchain;
+	
+	//Clear texture chains
+	for (i=0 ; i<cl.worldmodel->nummapshaders; i++)
+	{
+		cl.worldmodel->mapshaders[i].texturechain = NULL;
+	}
+	
+	//Remark polys since polygons may have been removed since the last time stamp
+	r_lightTimestamp++;
+	for (i=0; i<svBsp_NumKeptPolys; i++,surf = surf->shadowchain) {
+		surf->polys->lightTimestamp = r_lightTimestamp;
+		currentshadowlight->visSurf[i] = surf;
+		//put it in the correct texture chain
+		surf->texturechain = surf->shader->texturechain;
+		surf->shader->texturechain = surf;
+	}
+	
+	//Sort surfs in our list per texture
+	shadowchain = NULL;
+	//meshshadowchain = NULL;
+	for (i=0 ; i<cl.worldmodel->nummapshaders ; i++)
+	{
+		t = &cl.worldmodel->mapshaders[i];
+		if (!t)
+			continue;
+		s = t->texturechain;
+		if (!s)
+			continue;
+		else
+		{
+			for ( ; s ; s=s->texturechain) {
+				s->shadowchain = shadowchain;
+				shadowchain = s;
+			}
+		}
+		t->texturechain = NULL;
+	}
+	
+	//Recalculate vis for this light
+	currentshadowlight->leaf = Mod_PointInLeaf (currentshadowlight->origin, cl.worldmodel);
+	lightvis = Mod_LeafPVS (currentshadowlight->leaf, cl.worldmodel);
+	currentshadowlight->area = currentshadowlight->leaf->area;
+	//Q_memcpy(&currentshadowlight->vis[0], lightvis, MAX_MAP_LEAFS/8);
+	Q_memcpy(&currentshadowlight->entclustervis[0], lightvis, MAX_MAP_LEAFS/8);
+	CutLeafs(lightvis);
+	
+	//Precalculate the shadow volume / glow-texcoords
+	PrecalcVolumesForLight(cl.worldmodel);
+	currentshadowlight->volumeCmds = Hunk_Alloc(4*numVolumeCmds);
+	Q_memcpy(currentshadowlight->volumeCmds, &volumeCmdsBuff, 4*numVolumeCmds);
+	
+	currentshadowlight->volumeVerts = Hunk_Alloc(4*numVolumeVerts);
+	currentshadowlight->numVolumeVerts = numVolumeVerts;
+	Q_memcpy(currentshadowlight->volumeVerts, &volumeVertsBuff, 4*numVolumeVerts);
+	
+	currentshadowlight->lightCmds = Hunk_Alloc(4*numLightCmds);
+	Q_memcpy(currentshadowlight->lightCmds, &lightCmdsBuff, 4*numLightCmds);
+	currentshadowlight->numlightcmds = numLightCmds;
+	
+	currentshadowlight->lightCmdsMesh = Hunk_Alloc(4*numLightCmdsMesh);
+	Q_memcpy(currentshadowlight->lightCmdsMesh, &lightCmdsBuffMesh, 4*numLightCmdsMesh);
+	currentshadowlight->numlightcmdsmesh = numLightCmdsMesh;
 
 }
 
@@ -2594,50 +2591,6 @@ void R_CalcSvBsp(entity_t *ent) {
 
 ***************************************************************/
 
-#define surfaceLightRadius 350.0
-
-/*
-	Not used places lights in front of things that look like lights in a map
-*/
-void LightFromSurface(msurface_t *surf) {
-	vec3_t center, orig, normal;
-	glpoly_t *poly;
-	float	*v, invnum;
-	int i;
-	shadowlight_t *light;
-	qboolean	tooClose;
-	entity_t	fakeEnt;
-
-	poly = surf->polys;
-	invnum = 1.0/poly->numverts;
-
-	//Calculate origin for the light we are possibly going to spawn
-	//v = poly->verts[0];
-	v = (float *)(&globalVertexTable[poly->firstvertex]);
-	center[0] = center[1] = center[2] = 0;
-	for (i=0 ; i<poly->numverts ; i++, v+= VERTEXSIZE)
-	{
-		VectorAdd(center,v,center);
-	}
-	VectorScale(center,invnum,center);
-
-	if (surf->flags & SURF_PLANEBACK)	{
-		VectorScale(surf->plane->normal,-1,normal);
-	} else {
-		VectorCopy(surf->plane->normal,normal);
-	}
-
-	VectorMA(center,16,normal,orig);
-
-	Q_memset(&fakeEnt,0,sizeof(entity_t));
-	fakeEnt.light_lev = surfaceLightRadius;
-	VectorCopy(orig,fakeEnt.origin);
-	fakeEnt.model = Mod_ForName("progs/w_light.spr",true);
-	R_CalcSvBsp(&fakeEnt);
-	Con_Printf("Added surface light");
-
-}
-
 /**
 
 Hacked entitiy loading code, this parses the entities client side to find lights in it
@@ -2646,7 +2599,7 @@ Hacked entitiy loading code, this parses the entities client side to find lights
 
 void LightFromFile(entity_t *fakeEnt)
 {
-	R_CalcSvBsp(fakeEnt);
+	R_StaticLightFromEnt(fakeEnt);
 }
 
 
