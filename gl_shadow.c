@@ -645,8 +645,45 @@ qboolean CheckSurfInLight(msurface_t *surf, shadowlight_t *light)
 		return false;
 	}
 
+	//Doesn't intersect light volume
+	if (light->isStatic)
+	{
+		vec3_t mins = {10e10,10e10,10e10};
+		vec3_t maxs = {-10e10,-10e10,-10e10};
+		int i;
+		for (i=0; i<poly->numindecies; i++) {
+			VectorMax(maxs,globalVertexTable[poly->indecies[i]].position,maxs);
+			VectorMin(mins,globalVertexTable[poly->indecies[i]].position,mins);
+		}
+
+		if (!intersectsMinsMaxs(&light->box, mins, maxs)) {
+			return false;
+		}
+	}
+
 	poly->lightTimestamp = r_lightTimestamp;
 
+	return true;
+}
+
+qboolean CheckMeshInLight(mesh_t *mesh, shadowlight_t *light) {
+
+	//Doesn't recieve per pixel light or cast shadows...
+	if (!(mesh->shader->shader->flags & SURF_PPLIGHT) && (mesh->shader->shader->flags & SURF_NOSHADOW)) {
+		return false;
+	}
+
+	//Already flagged
+	if (mesh->lightTimestamp == r_lightTimestamp) {
+		return false;
+	}
+
+	//Doesn't intersect light volume
+	if (!intersectsMinsMaxs(&light->box, mesh->mins, mesh->maxs)) {
+		return false;
+	}
+
+	mesh->lightTimestamp = r_lightTimestamp;
 	return true;
 }
 
@@ -709,10 +746,10 @@ void R_MarkLightSurfaces (shadowlight_t *light, mnode_t *node)
 		c = leaf->nummeshes;
 		for (c=0; c<leaf->nummeshes; c++) {
 			mesh = &cl.worldmodel->meshes[cl.worldmodel->leafmeshes[leaf->firstmesh+c]];
-			if (mesh->lightTimestamp == r_lightTimestamp) continue;
-			mesh->shadowchain = meshshadowchain;
-			meshshadowchain = mesh;
-			mesh->lightTimestamp = r_lightTimestamp;
+			if (CheckMeshInLight(mesh, light)) {
+				mesh->shadowchain = meshshadowchain;
+				meshshadowchain = mesh;
+			}
 		}
 		return;
 	}
@@ -2592,31 +2629,12 @@ void LightFromSurface(msurface_t *surf) {
 
 	VectorMA(center,16,normal,orig);
 
-
-	//not to close to other lights then add it
-
-	tooClose = false;
-	for (i=0; i<numShadowLights; i++) {
-		vec3_t dist;
-		float length;
-		light = &shadowlights[i];
-		VectorSubtract(orig,light->origin,dist);
-		length = Length(dist);
-
-		if (length < (surfaceLightRadius*sh_radiusscale.value + light->radius*sh_radiusscale.value)) {
-			tooClose = true;
-		}
-	}
-
-
-	if (!tooClose) {
-		Q_memset(&fakeEnt,0,sizeof(entity_t));
-		fakeEnt.light_lev = surfaceLightRadius;
-		VectorCopy(orig,fakeEnt.origin);
-		fakeEnt.model = Mod_ForName("progs/w_light.spr",true);
-		R_CalcSvBsp(&fakeEnt);
-		Con_Printf("Added surface light");
-	}
+	Q_memset(&fakeEnt,0,sizeof(entity_t));
+	fakeEnt.light_lev = surfaceLightRadius;
+	VectorCopy(orig,fakeEnt.origin);
+	fakeEnt.model = Mod_ForName("progs/w_light.spr",true);
+	R_CalcSvBsp(&fakeEnt);
+	Con_Printf("Added surface light");
 
 }
 
@@ -2626,34 +2644,9 @@ Hacked entitiy loading code, this parses the entities client side to find lights
 
 **/
 
-void LightFromFile(entity_t *fakeEnt) {
-	int i;
-	shadowlight_t *light;
-	qboolean	tooClose;
-
-	//not to close to other lights then add it
-
-	tooClose = false;
-	for (i=0; i<numShadowLights; i++) {
-		vec3_t dist;
-		float length;
-		light = &shadowlights[i];
-		VectorSubtract(fakeEnt->origin,light->origin,dist);
-		length = Length(dist);
-
-		if (length < (fakeEnt->light_lev*sh_radiusscale.value + light->radius*sh_radiusscale.value)) {
-			tooClose = true;
-		}
-	}
-
-
-	if (!tooClose) {
-		R_CalcSvBsp(fakeEnt);
-		//Con_Printf("Client light: org(%f %f %f) level(%i)\n",
-		//			fakeEnt->origin[0],fakeEnt->origin[1],fakeEnt->origin[2],fakeEnt->light_lev);
-	}
-
-
+void LightFromFile(entity_t *fakeEnt)
+{
+	R_CalcSvBsp(fakeEnt);
 }
 
 
