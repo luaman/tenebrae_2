@@ -1237,6 +1237,12 @@ void SaveTGA (const char *filename, unsigned char *pixels, int width, int height
 	int i;
 
 	fout = fopen(filename, "wb");
+        if (!fout)
+        {
+	    Con_Printf("Could not create file %s", filename);
+	    return;
+        }
+   
 	//fwrite(pixels, 1, width*height*4, fout);
 	for (i=0; i<width*height; i++) {
 		int ind = i*3;
