@@ -380,7 +380,7 @@ void CheckVertexArrayRange(void)
 /*
   PA: if we have these we draw optimized
 */
-/*
+
 void CheckRadeonExtensions(void)
 {
      int supportedTmu;
@@ -451,7 +451,7 @@ void CheckARBFragmentExtensions(void)
      }
 }
 
-*/
+
 void CheckAnisotropicExtension(void)
 {
      if (strstr(gl_extensions, "GL_EXT_texture_filter_anisotropic") &&
@@ -519,21 +519,20 @@ void GL_Init (void)
 
      Con_Printf ("Checking diffuse bumpmap extensions\n");
      CheckDiffuseBumpMappingExtensions ();
-/*
+
      Con_Printf ("Checking ARB extensions\n");
      CheckARBFragmentExtensions ();
-*/
+
      if ( gl_cardtype != ARB )
      {
           Con_Printf ("Checking GeForce 1/2/4-MX\n");
           CheckSpecularBumpMappingExtensions (); 
           Con_Printf ("Checking GeForce 3/4\n");
           CheckGeforce3Extensions ();
-		  /*
           Con_Printf ("Checking Radeon 8500+\n");
           CheckRadeonExtensions ();
           Con_Printf ("Checking Parhelia\n");
-          CheckParheliaExtensions ();*/
+          CheckParheliaExtensions ();
      }
 
      Con_Printf ("Checking VAR\n");
@@ -543,33 +542,33 @@ void GL_Init (void)
      Con_Printf ("Checking TC\n");
      CheckTextureCompressionExtension ();
 
-	 //if something goes wrong here throw an sys_error as we don't want to end up
-	 //having invalid function pointers called...
+     //if something goes wrong here throw an sys_error as we don't want to end up
+     //having invalid function pointers called...
      switch (gl_cardtype)
      {
      case GENERIC:
           Con_Printf ("Using generic path.\n");
-		  Sys_Error("No generic path yet\n");
+	  Sys_Error("No generic path yet\n");
           break;
      case GEFORCE:
           Con_Printf ("Using GeForce 1/2/4-MX path\n");
-		  Sys_Error("No geforce2 path yet\n");
+	  Sys_Error("No geforce2 path yet\n");
           break;
      case GEFORCE3:
           Con_Printf ("Using GeForce 3/4 path\n");
-		  BUMP_InitGeforce3();
+          BUMP_InitGeforce3();
           break;
      case RADEON:
           Con_Printf ("Using Radeon path.\n");
-		  Sys_Error("No Radeon path yet\n");
+	  BUMP_InitRadeon();
           break;
      case PARHELIA:
           Con_Printf ("Using Parhelia path.\n");
-		  Sys_Error("No Parhelia path yet\n");
+	  BUMP_InitParhelia();
           break;
      case ARB:
           Con_Printf ("Using ARB_fragment_program path.\n");
-		  Sys_Error("No ARB2 path yet\n");
+          BUMP_InitARB();
           break;
      }
             
