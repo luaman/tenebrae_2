@@ -901,9 +901,6 @@ int             m_return_state;
 qboolean        m_return_onerror;
 char            m_return_reason [32];
 
-
-extern cvar_t con_spiral;
-
 enum {m_none, m_menu } m_state;
 
 void M_SetFocus(qwindow_t *w, qwidget_t *newFocus) {
