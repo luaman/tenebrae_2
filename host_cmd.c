@@ -1582,126 +1582,23 @@ void Host_Give_f (void)
    case '7':
    case '8':
    case '9':
-      // MED 01/04/97 added hipnotic give stuff
-      if (hipnotic)
-      {
-         if (t[0] == '6')
-         {
-            if (t[1] == 'a')
-               sv_player->v.items = (int)sv_player->v.items | HIT_PROXIMITY_GUN;
-            else
-               sv_player->v.items = (int)sv_player->v.items | IT_GRENADE_LAUNCHER;
-         }
-         else if (t[0] == '9')
-            sv_player->v.items = (int)sv_player->v.items | HIT_LASER_CANNON;
-         else if (t[0] == '0')
-            sv_player->v.items = (int)sv_player->v.items | HIT_MJOLNIR;
-         else if (t[0] >= '2')
-            sv_player->v.items = (int)sv_player->v.items | (IT_SHOTGUN << (t[0] - '2'));
-      }
-      else
-      {
          if (t[0] >= '2')
             sv_player->v.items = (int)sv_player->v.items | (IT_SHOTGUN << (t[0] - '2'));
-      }
 		break;
-	
     case 's':
-		if (rogue)
-		{
-	        val = GetEdictFieldValue(sv_player, "ammo_shells1");
-		    if (val)
-			    val->_float = v;
-		}
-
         sv_player->v.ammo_shells = v;
         break;		
     case 'n':
-		if (rogue)
-		{
-			val = GetEdictFieldValue(sv_player, "ammo_nails1");
-			if (val)
-			{
-				val->_float = v;
-				if (sv_player->v.weapon <= IT_LIGHTNING)
-					sv_player->v.ammo_nails = v;
-			}
-		}
-		else
-		{
-			sv_player->v.ammo_nails = v;
-		}
+		sv_player->v.ammo_nails = v;
         break;		
-    case 'l':
-		if (rogue)
-		{
-			val = GetEdictFieldValue(sv_player, "ammo_lava_nails");
-			if (val)
-			{
-				val->_float = v;
-				if (sv_player->v.weapon > IT_LIGHTNING)
-					sv_player->v.ammo_nails = v;
-			}
-		}
-        break;
     case 'r':
-		if (rogue)
-		{
-			val = GetEdictFieldValue(sv_player, "ammo_rockets1");
-			if (val)
-			{
-				val->_float = v;
-				if (sv_player->v.weapon <= IT_LIGHTNING)
-					sv_player->v.ammo_rockets = v;
-			}
-		}
-		else
-		{
-			sv_player->v.ammo_rockets = v;
-		}
-        break;		
-    case 'm':
-		if (rogue)
-		{
-			val = GetEdictFieldValue(sv_player, "ammo_multi_rockets");
-			if (val)
-			{
-				val->_float = v;
-				if (sv_player->v.weapon > IT_LIGHTNING)
-					sv_player->v.ammo_rockets = v;
-			}
-		}
+		sv_player->v.ammo_rockets = v;
         break;		
     case 'h':
         sv_player->v.health = v;
         break;		
     case 'c':
-		if (rogue)
-		{
-			val = GetEdictFieldValue(sv_player, "ammo_cells1");
-			if (val)
-			{
-				val->_float = v;
-				if (sv_player->v.weapon <= IT_LIGHTNING)
-					sv_player->v.ammo_cells = v;
-			}
-		}
-		else
-		{
-			sv_player->v.ammo_cells = v;
-		}
-        break;		
-    case 'p':
-		if (rogue)
-		{
-			val = GetEdictFieldValue(sv_player, "ammo_plasma");
-			if (val)
-			{
-				val->_float = v;
-				if (sv_player->v.weapon > IT_LIGHTNING)
-					sv_player->v.ammo_cells = v;
-			}
-		}
+		sv_player->v.ammo_cells = v;
         break;		
     }
 }
