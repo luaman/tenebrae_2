@@ -406,10 +406,7 @@ if (bits&(1<<i))
 		}
 		else
 			forcelink = true;	// hack to make null model players work
-#ifdef GLQUAKE
-		if (num > 0 && num <= cl.maxclients)
-			R_TranslatePlayerSkin (num - 1);
-#endif
+
 		R_FillEntityLeafs (ent);
 	}
 	
@@ -438,8 +435,6 @@ if (bits&(1<<i))
 		skin = ent->baseline.skin;
 	if (skin != ent->skinnum) {
 		ent->skinnum = skin;
-		if (num > 0 && num <= cl.maxclients)
-			R_TranslatePlayerSkin (num - 1);
 	}
 
 #else
@@ -704,9 +699,6 @@ void CL_NewTranslation (int slot)
 	memcpy (dest, vid.colormap, sizeof(cl.scores[slot].translations));
 	top = cl.scores[slot].colors & 0xf0;
 	bottom = (cl.scores[slot].colors &15)<<4;
-#ifdef GLQUAKE
-	R_TranslatePlayerSkin (slot);
-#endif
 
 	for (i=0 ; i<VID_GRADES ; i++, dest += 256, source+=256)
 	{

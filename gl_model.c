@@ -1868,7 +1868,7 @@ void * Mod_LoadSpriteFrame (void * pin, mspriteframe_t **ppframe, int framenum)
 	pspriteframe->right = width + origin[0];
 
 	sprintf (name, "%s_%i", loadmodel->name, framenum);
-	pspriteframe->gl_texturenum = GL_LoadTexture (name, width, height, (byte *)(pinframe + 1), true, true, false);
+	pspriteframe->gl_texturenum = 0;//GL_LoadTexture (name, width, height, (byte *)(pinframe + 1), true, true, false);
 
 	return (void *)((byte *)pinframe + sizeof (dspriteframe_t) + size);
 }
