@@ -402,21 +402,27 @@ char *Sys_InitUserDir(void)
   char *home;
   char *userdir;
   struct stat stat_buf;
+  int ulen;
 
   home = getenv("HOME");
   if (!home){
     Sys_Error("Environment variable HOME not found.\n");
   }
-  userdir = (char *)malloc(strlen(home)+strlen(prefdir)+1);
-  strcpy(userdir,home);
-  if (home[strlen(home)-1]!='/')
-    strcat(userdir,"/");
+  ulen = strlen(home)+strlen(prefdir);
+  userdir = (char *)malloc(ulen+2);
+  strncpy(userdir,home,ulen);
+  if (home[strlen(home)-1]!='/'){
+    ulen++;
+    strncat(userdir,"/",ulen);
+  }
 
   if (stat(userdir,&stat_buf)){
     Sys_Error("could not stat %s\n",userdir);
   }
-  
-  strcat(userdir,prefdir);
+
+  strncat(userdir,prefdir,ulen);
+  userdir[ulen]=0;
+
   if (stat(userdir,&stat_buf)){
     if (errno == ENOENT)
       Sys_mkdir(userdir);
