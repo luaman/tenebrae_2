@@ -214,6 +214,8 @@ void R_Init (void)
 	Cvar_RegisterVariable (&r_tangentscale);
 	Cvar_RegisterVariable (&sh_delux);
 	Cvar_RegisterVariable (&sh_rtlights);
+	Cvar_RegisterVariable (&gl_clipboth);
+	Cvar_RegisterVariable (&gl_displacement);
 
 	R_InitParticleEffects();
 	R_InitParticles ();
