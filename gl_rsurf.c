@@ -1441,7 +1441,7 @@ void DrawTextureChains (void)
 			while (s) {
 				//R_RenderBrushPoly (s);
 				GL_Bind (lightmap_textures + s->lightmaptexturenum);
-				glDrawArrays(GL_POLYGON,s->polys->firstvertex,s->polys->numverts);
+				glDrawArrays(GL_TRIANGLE_FAN,s->polys->firstvertex,s->polys->numverts);
 				s=s->texturechain;
 				c_brush_polys ++;
 			}
@@ -1464,7 +1464,7 @@ void DrawTextureChains (void)
 
 				for ( ; s ; s=s->texturechain) {
 					//R_RenderBrushPolyLuma (s);
-					glDrawArrays(GL_POLYGON,s->polys->firstvertex,s->polys->numverts);
+					glDrawArrays(GL_TRIANGLE_FAN,s->polys->firstvertex,s->polys->numverts);
 				}
 
 				glColor3f(sh_lightmapbright.value,sh_lightmapbright.value,sh_lightmapbright.value);
