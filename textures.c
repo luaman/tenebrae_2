@@ -1499,6 +1499,8 @@ int GL_LoadCubemapTexture (gltexture_t *glt)
 		texturemode = GL_RGBA;
 	}
 
+	glt->type = GL_TEXTURE_CUBE_MAP_ARB;
+
 	glEnable(GL_TEXTURE_CUBE_MAP_ARB);
 	glBindTexture(GL_TEXTURE_CUBE_MAP_ARB, glt->texnum);
 	glTexParameteri(GL_TEXTURE_CUBE_MAP_ARB, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE );
@@ -1508,9 +1510,13 @@ int GL_LoadCubemapTexture (gltexture_t *glt)
 	
 	for (i = 0; i < 6; i++) 
 	{
-		sprintf(filename,"%i%s.tga", glt->identifier, face_names[i]);	
+		sprintf(filename,"%s%s.tga", glt->identifier, face_names[i]);	
 		LoadTextureInPlace(filename, 4, (unsigned char*)&trans[0], &width, &height);
-		glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X_ARB+i, 0, texturemode, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, &trans[0]);
+		if ((width == 0) || (height == 0)) {
+			Con_Printf("Texture not found: %s\n",filename);
+		} else {
+			glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X_ARB+i, 0, texturemode, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, &trans[0]);
+		}
 	}
 	
 	//glEnable(GL_TEXTURE_2D);
@@ -1586,7 +1592,11 @@ int GL_LoadCubeMap (int identifier)
 	{
 		sprintf(filename,"cubemaps/%i%s.tga", identifier, face_names[i]);	
 		LoadTextureInPlace(filename, 4, (unsigned char*)&trans[0], &width, &height);
-		glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X_ARB+i, 0, texturemode, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, &trans[0]);
+		if ((width == 0) || (height == 0)) {
+			Con_Printf("Texture not found: %s\n",filename);
+		} else {
+			glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X_ARB+i, 0, texturemode, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, &trans[0]);
+		}
 	}
 	
 	//glEnable(GL_TEXTURE_2D);
