@@ -36,11 +36,15 @@ shadowlight_t *currentshadowlight;
 int volumeCmdsBuff[MAX_VOLUME_COMMANDS+128]; //Hack protect against slight overflows
 float volumeVertsBuff[MAX_VOLUME_VERTS+128];
 lightcmd_t	lightCmdsBuff[MAX_LIGHT_COMMANDS+128];
+lightcmd_t	lightCmdsBuffMesh[MAX_LIGHT_COMMANDS+128];
 int numVolumeCmds;
 int numLightCmds;
+int numLightCmdsMesh;
 int numVolumeVerts;
 
 msurface_t *shadowchain; //linked list of polygons that are shadowed
+mesh_t *meshshadowchain;
+
 byte *lightvis;
 byte worldvis[MAX_MAP_LEAFS/8];
 
@@ -585,6 +589,7 @@ void R_MarkShadowCasting (shadowlight_t *light, mnode_t *node)
 	msurface_t	**surf;
 	mleaf_t		*leaf;
 	int			c,leafindex;
+	mesh_t		*mesh;
 
 	if (node->contents & CONTENTS_LEAF) {
 		//we are in a leaf
@@ -608,6 +613,15 @@ void R_MarkShadowCasting (shadowlight_t *light, mnode_t *node)
 			}
 		}
 
+
+		c = leaf->nummeshes;
+		for (c=0; c<leaf->nummeshes; c++) {
+			mesh = &cl.worldmodel->meshes[cl.worldmodel->leafmeshes[leaf->firstmesh+c]];
+			if (mesh->lightTimestamp == r_lightTimestamp) continue;
+			mesh->shadowchain = meshshadowchain;
+			meshshadowchain = mesh;
+			mesh->lightTimestamp = r_lightTimestamp;
+		}
 		return;
 	}
 
@@ -665,6 +679,12 @@ qboolean R_ContributeFrame (shadowlight_t *light)
 	//verry soft light, don't bother.
 	if (b < 0.1) return false;
 
+	//not in a visible area => skip it
+	if (!(r_refdef.areabits[light->area>>3] & (1<<(light->area&7)))) {
+		return false;
+	}
+
+
 	//frustum scissor testing
 	dist = SphereInFrustum(light->origin, light->radius);
 	if (dist == 0)  {
@@ -698,6 +718,7 @@ qboolean R_ContributeFrame (shadowlight_t *light)
 	//r_lightTimestamp++;
 
 	shadowchain = NULL;
+	meshshadowchain = NULL;
 	if (light->isStatic) {
 		lightvis = &light->vis[0];
 	} else {
@@ -705,6 +726,7 @@ qboolean R_ContributeFrame (shadowlight_t *light)
 		lightvis = Mod_LeafPVS (lightleaf, cl.worldmodel);
 		Q_memcpy(&light->vis,lightvis,MAX_MAP_LEAFS/8);
 		Q_memcpy(&light->entvis, lightvis, MAX_MAP_LEAFS/8);
+		light->area = lightleaf->area;
 	}
 
 	if (HasSharedLeafs(lightvis,&worldvis[0])) {
@@ -744,6 +766,7 @@ qboolean R_FillShadowChain (shadowlight_t *light)
 	r_lightTimestamp++;
 
 	shadowchain = NULL;
+	meshshadowchain = NULL;
 
 	lightvis = &light->vis[0];
 	//numUsedShadowLights++;
@@ -758,7 +781,7 @@ qboolean R_FillShadowChain (shadowlight_t *light)
 	       return true;
 	}
 	
-	return (shadowchain) ? true : false;
+	return (shadowchain || meshshadowchain) ? true : false;
 }
 
 void *VolumeVertsPointer;
@@ -777,6 +800,7 @@ void R_ConstructShadowVolume(shadowlight_t *light) {
 		light->volumeCmds = &volumeCmdsBuff[0];
 		light->volumeVerts = &volumeVertsBuff[0];
 		light->lightCmds = &lightCmdsBuff[0];
+		light->numlightcmds = numLightCmds;
 	}
 
 	VolumeVertsPointer = light->volumeVerts;
@@ -1074,7 +1098,7 @@ void R_DrawBrushModelVolumes(entity_t *e) {
 	glpoly_t	*poly;
 	int		i, j, count;
 	brushlightinstant_t *ins = e->brushlightinstant;
-
+	float *v;
 	count = 0;
 
 
@@ -1091,21 +1115,27 @@ void R_DrawBrushModelVolumes(entity_t *e) {
 
 		poly = surf->polys;
 		//extrude edges
-		for (j=0 ; j<surf->numedges ; j++)
+		for (j=0 ; j<poly->numneighbours ; j++)
 		{
+			mneighbour_t *neigh = &poly->neighbours[j];
 			if (ins->neighbourVis[count+j]) {
 				glBegin(GL_QUAD_STRIP);
+
+					//Note: The neighbour p1,p2 are absolute vertex indecies, for the extruded ones
+					//we want polygon relative indecies.
+
 					//glVertex3fv(&poly->verts[j][0]);
-					glVertex3fv((float *)(&globalVertexTable[surf->polys->firstvertex+j]));
-					glVertex3fv(&ins->extvertices[count+j][0]);
+					glVertex3fv((float *)(&globalVertexTable[neigh->p1]));
+					glVertex3fv(&ins->extvertices[count+neigh->p1-poly->firstvertex][0]);
 					//glVertex3fv(&poly->verts[((j+1)% poly->numverts)][0]);
-					glVertex3fv((float *)(&globalVertexTable[surf->polys->firstvertex+((j+1)% poly->numverts)]));
-					glVertex3fv(&ins->extvertices[count+((j+1)% poly->numverts) ][0]);
+					glVertex3fv((float *)(&globalVertexTable[neigh->p2]));
+					glVertex3fv(&ins->extvertices[count+neigh->p2-poly->firstvertex][0]);
 				glEnd();			
 			}
 		}
 
 		//Draw near light cap
+		/*
 		glBegin(GL_TRIANGLE_FAN);
 		for (j=0; j<surf->numedges ; j++)
 		{
@@ -1113,12 +1143,30 @@ void R_DrawBrushModelVolumes(entity_t *e) {
 			glVertex3fv((float *)(&globalVertexTable[surf->polys->firstvertex+j]));
 		}
 		glEnd();
+		*/
+		glBegin(GL_TRIANGLES);
+		//v = surf->polys->verts[0];
+		for (j=0; j<surf->polys->numindecies; j++) {
+			v = (float *)(&globalVertexTable[surf->polys->indecies[j]]);
+			glVertex3fv(&v[0]);
+		}
+		glEnd();
+
 
 		//Draw extruded cap
+		/*
 		glBegin(GL_TRIANGLE_FAN);
 		for (j=surf->numedges-1; j>=0 ; j--)
 		{
 			glVertex3fv(&ins->extvertices[count+j][0]);
+		}
+		glEnd();
+		*/
+		glBegin(GL_TRIANGLES);
+		//v = surf->polys->verts[0];
+		for (j=surf->polys->numindecies-1; j>=0; j--) {
+			v = (float *)(&ins->extvertices[count+surf->polys->indecies[j]-surf->polys->firstvertex]);
+			glVertex3fv(&v[0]);
 		}
 		glEnd();
 
@@ -1184,9 +1232,11 @@ void PrecalcVolumesForLight(model_t *model) {
 
 	int *volumeCmds = &volumeCmdsBuff[0];
 	lightcmd_t *lightCmds = &lightCmdsBuff[0];
+	lightcmd_t *lightCmdsMesh = &lightCmdsBuffMesh[0];
 	float *volumeVerts = &volumeVertsBuff[0];
 	int volumePos = 0;
 	int lightPos = 0;
+	int lightPosMesh = 0;
 	int vertPos = 0;
 	int startVerts, startNearVerts, numPos = 0, stripLen = 0, i;
 	glpoly_t *poly;
@@ -1200,6 +1250,7 @@ void PrecalcVolumesForLight(model_t *model) {
 	mplane_t *splitplane;
 	int		j;
 	float	*v;
+	mesh_t	*mesh;
 
 	surf = shadowchain;
 
@@ -1219,9 +1270,10 @@ void PrecalcVolumesForLight(model_t *model) {
 		
 		//a. far cap
 //		volumeCmds[volumePos++] = GL_POLYGON;
-		volumeCmds[volumePos++] = GL_TRIANGLE_FAN;
-		volumeCmds[volumePos++] = surf->numedges;
+		volumeCmds[volumePos++] = GL_TRIANGLES;
+		volumeCmds[volumePos++] = poly->numindecies;
 
+		//extrude verts
 		startVerts = (int)vertPos/3;
 		for (i=0 ; i<surf->numedges ; i++)
 		{
@@ -1243,8 +1295,12 @@ void PrecalcVolumesForLight(model_t *model) {
 			VectorAdd (v1, (*v2) ,vert1);
 			VectorCopy (vert1, ((vec3_t *)(volumeVerts+vertPos))[0]);
 			vertPos+=3;
+		}
 
-			volumeCmds[volumePos++] = startVerts+(surf->numedges-(i+1));
+		//create indexes
+		for (i=poly->numindecies-1; i>=0; i--)
+		{
+			volumeCmds[volumePos++] = startVerts+poly->indecies[i]-poly->firstvertex;
 		}
 
 		//copy vertices
@@ -1269,22 +1325,22 @@ void PrecalcVolumesForLight(model_t *model) {
 		//we make quad strips if we have continuous borders
 		lastshadow = false;
 
-		for (i=0 ; i<surf->numedges ; i++)
+		for (i=0 ; i<poly->numneighbours ; i++)
 		{
-
+			mneighbour_t *neigh = &poly->neighbours[i];
 			shadow = false;
 
-			if (poly->neighbours[i] != NULL) {
-				if ( poly->neighbours[i]->lightTimestamp != poly->lightTimestamp) {
+			if (neigh->n != NULL) {
+				if ( neigh->n->lightTimestamp != poly->lightTimestamp) {
 					shadow = true;
 				}
 			} else {
 				shadow = true;
 			}
 
-			if (shadow) {
+			//if (shadow) {
 
-				if (!lastshadow) {
+			//	if (!lastshadow) {
 					//begin new strip
 					volumeCmds[volumePos++] = GL_QUAD_STRIP;
 					numPos = volumePos;
@@ -1292,23 +1348,23 @@ void PrecalcVolumesForLight(model_t *model) {
 					stripLen = 2;
 
 					//copy vertices
-					volumeCmds[volumePos++] = startNearVerts+i;//-getVertexIndexFromSurf(surf, i, model);
-					volumeCmds[volumePos++] = startVerts+i;
+					volumeCmds[volumePos++] = startNearVerts+neigh->p1-poly->firstvertex;//-getVertexIndexFromSurf(surf, i, model);
+					volumeCmds[volumePos++] = startVerts+neigh->p1-poly->firstvertex;
 
-				}
+			//	}
 
-				volumeCmds[volumePos++] = startNearVerts+((i+1)%poly->numverts);//-getVertexIndexFromSurf(surf, (i+1)%poly->numverts, model);
-				volumeCmds[volumePos++] = startVerts+((i+1)%poly->numverts);
+				volumeCmds[volumePos++] = startNearVerts+neigh->p2-poly->firstvertex;//-getVertexIndexFromSurf(surf, (i+1)%poly->numverts, model);
+				volumeCmds[volumePos++] = startVerts+neigh->p2-poly->firstvertex;
 
 				stripLen+=2;
 				
-			} else {
-				if (lastshadow) {
+		//	} else {
+		//		if (lastshadow) {
 					//close list up
 					volumeCmds[numPos] = stripLen;
-				}
-			}
-			lastshadow = shadow;
+			//	}
+		//	}
+		//	lastshadow = shadow;
 		}
 		
 		if (lastshadow) {
@@ -1321,15 +1377,20 @@ void PrecalcVolumesForLight(model_t *model) {
 			break;
 		}
 		
+		lightCmds[lightPos++].asVoid = surf;
+
 		//c. glow surfaces/texture coordinates
 			//leftright vectors of plane
-			s = (vec3_t *)&surf->texinfo->vecs[0];
-			t = (vec3_t *)&surf->texinfo->vecs[1];
-
+			
+		
 			/*
-			VectorNormalize(*s);
-			VectorNormalize(*t);
-			*/
+			s = (vec3_t *)&surf->tangent;
+			t = (vec3_t *)&surf->binormal;
+
+			
+			//VectorNormalize(*s);
+			//VectorNormalize(*t);
+			
 
 			splitplane = surf->plane;
 
@@ -1384,6 +1445,7 @@ void PrecalcVolumesForLight(model_t *model) {
 					lightCmds[lightPos++].asVec = tsLightDir[2];
 				}
 			}
+			*/
 		if (lightPos >  MAX_LIGHT_COMMANDS) {
 			Con_Printf ("More than MAX_LIGHT_COMMANDS commands %i\n", lightPos);
 			break;
@@ -1392,12 +1454,21 @@ void PrecalcVolumesForLight(model_t *model) {
 		surf = surf->shadowchain;
 	}
 
+	lightPosMesh = 0;
+	mesh = meshshadowchain;
+	while (mesh) {
+		lightCmdsMesh[lightPosMesh++].asVoid = mesh;
+		mesh = mesh->shadowchain;
+	}
+
 	//Con_Printf("used %i\n",volumePos);
 	//finish them off with 0
-	lightCmds[lightPos++].asInt = 0;
+	lightCmds[lightPos++].asVoid = NULL;
+	lightCmdsMesh[lightPosMesh++].asVoid = NULL;
 	volumeCmds[volumePos++] = 0;
 
 	numLightCmds = lightPos;
+	numLightCmdsMesh = lightPosMesh;
 	numVolumeCmds = volumePos;
 	numVolumeVerts = vertPos;
 }
@@ -1424,7 +1495,7 @@ void DrawVolumeFromCmds(int *volumeCmds, lightcmd_t *lightCmds, float *volumeVer
 		command = volumeCmds[volumePos++];
 		if (command == 0) break; //end of list
 		num = volumeCmds[volumePos++];
-
+		
 		glDrawElements(command,num,GL_UNSIGNED_INT,&volumeCmds[volumePos]);
 		volumePos+=num;
 
@@ -1459,13 +1530,27 @@ void DrawVolumeFromCmds(int *volumeCmds, lightcmd_t *lightCmds, float *volumeVer
 
 	while (1) {
 		
+		/*
 		command = lightCmds[lightPos++].asInt;
 		if (command == 0) break; //end of list
 
 		surf = lightCmds[lightPos++].asVoid;
 		lightPos+=4;  //skip color
 		num = surf->polys->numverts; 
+		*/
+		surf = lightCmds[lightPos++].asVoid;
+		if (surf == NULL)
+			break;
 
+		glBegin(GL_TRIANGLES);
+		//v = surf->polys->verts[0];
+		for (i=0; i<surf->polys->numindecies; i++) {
+			v = (float *)(&globalVertexTable[surf->polys->indecies[i]]);
+			glVertex3fv(&v[0]);
+		}
+		glEnd();
+
+		/*
 		glBegin(command);
 		//v = surf->polys->verts[0];
 		v = (float *)(&globalVertexTable[surf->polys->firstvertex]);
@@ -1477,6 +1562,7 @@ void DrawVolumeFromCmds(int *volumeCmds, lightcmd_t *lightCmds, float *volumeVer
 			glVertex3fv(&v[0]);
 		}
 		glEnd();
+		*/
 	}
 	
 }
@@ -1896,7 +1982,7 @@ void R_CalcSvBsp(entity_t *ent) {
 	int i;
 	msurface_t *surf;
 	msurface_t	*s;
-	texture_t	*t;
+	mapshader_t	*t;
 
 	//Con_Printf("Shadow volumes start\n");
 
@@ -1912,6 +1998,7 @@ void R_CalcSvBsp(entity_t *ent) {
 		|| !strcmp (ent->model->name, "progs/w_light.spr"))
 	{
 		shadowchain = NULL;
+		meshshadowchain = NULL;
 		done++;
 		
 		Con_Printf("->Light %i\n",done);
@@ -1966,10 +2053,9 @@ void R_CalcSvBsp(entity_t *ent) {
 		surf = shadowchain;
 	
 		//Clear texture chains
-		for (i=0 ; i<cl.worldmodel->numtextures ; i++)
+		for (i=0 ; i<cl.worldmodel->nummapshaders; i++)
 		{
-			if (!cl.worldmodel->textures[i]) continue;
- 			cl.worldmodel->textures[i]->texturechain = NULL;
+ 			cl.worldmodel->mapshaders[i].texturechain = NULL;
 		}
 
 		//Remark polys since polygons may have been removed since the last time stamp
@@ -1978,15 +2064,16 @@ void R_CalcSvBsp(entity_t *ent) {
 			surf->polys->lightTimestamp = r_lightTimestamp;
 			currentshadowlight->visSurf[i] = surf;
 			//put it in the correct texture chain
-			surf->texturechain = surf->texinfo->texture->texturechain;
-			surf->texinfo->texture->texturechain = surf;
+			surf->texturechain = surf->shader->texturechain;
+			surf->shader->texturechain = surf;
 		}
 
 		//Sort surfs in our list per texture
 		shadowchain = NULL;
-		for (i=0 ; i<cl.worldmodel->numtextures ; i++)
+		//meshshadowchain = NULL;
+		for (i=0 ; i<cl.worldmodel->nummapshaders ; i++)
 		{
-			t = cl.worldmodel->textures[i];
+			t = &cl.worldmodel->mapshaders[i];
 			if (!t)
 				continue;
 			s = t->texturechain;
@@ -2005,6 +2092,7 @@ void R_CalcSvBsp(entity_t *ent) {
 		//Recalculate vis for this light
 		currentshadowlight->leaf = Mod_PointInLeaf (currentshadowlight->origin, cl.worldmodel);
 		lightvis = Mod_LeafPVS (currentshadowlight->leaf, cl.worldmodel);
+		currentshadowlight->area = currentshadowlight->leaf->area;
 		Q_memcpy(&currentshadowlight->vis[0], lightvis, MAX_MAP_LEAFS/8);
 		Q_memcpy(&currentshadowlight->entvis[0], lightvis, MAX_MAP_LEAFS/8);
 		CutLeafs(currentshadowlight->vis);
@@ -2020,6 +2108,12 @@ void R_CalcSvBsp(entity_t *ent) {
 
 		currentshadowlight->lightCmds = Hunk_Alloc(4*numLightCmds);
 		Q_memcpy(currentshadowlight->lightCmds, &lightCmdsBuff, 4*numLightCmds);
+		currentshadowlight->numlightcmds = numLightCmds;
+
+		currentshadowlight->lightCmdsMesh = Hunk_Alloc(4*numLightCmdsMesh);
+		Q_memcpy(currentshadowlight->lightCmdsMesh, &lightCmdsBuffMesh, 4*numLightCmdsMesh);
+		currentshadowlight->numlightcmdsmesh = numLightCmdsMesh;
+
 		//Con_Printf("light done\n");
 	} else {
 		//Con_Printf("thrown away");
