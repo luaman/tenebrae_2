@@ -415,23 +415,12 @@ static void Draw_EmitFontChar(drawfont_t *f, char ch, int y, int *linepos) {
 	Draw a string with the given font
 */
 void Draw_StringFont(int x, int y, char *str, drawfont_t *font) {
-	
-	float *lighmapscoords = NULL; 
-	float *tangents = NULL; 
-	float *binormals = NULL; 
-	float *normals = NULL; 
-	unsigned char *colors = NULL; 
 	int xofs;
+	vertexdef_t vertDef;
 
-	vertexdef_t vertDef[]={ 
-		&vertBuff[0],0,           // vertices 
-		&texBuff[0],0,             // texcoords 
-		lighmapscoords,0,        // lightmapcoords 
-		tangents,0,              // tangents 
-		binormals,0,             // binormals 
-		normals,0,               // normals 
-		colors,0                 // colors 
-	}; 
+	memset(&vertDef, 0, sizeof(vertDef));
+	vertDef.vertices = GL_WrapUserPointer(&vertBuff[0]);
+	vertDef.texcoords = GL_WrapUserPointer(&texBuff[0]);
     
 	numIndices = 0;
 	numVerts = 0;
@@ -454,7 +443,7 @@ void Draw_StringFont(int x, int y, char *str, drawfont_t *font) {
 
 		//Draw in 64 char batches
 		if (numIndices >= MAX_CHARI) {
-			gl_bumpdriver.drawTriangleListBase ( vertDef, indexBuff, numIndices, font->shader, -1);
+			gl_bumpdriver.drawTriangleListBase ( &vertDef, indexBuff, numIndices, font->shader, -1);
 			numIndices = 0;
 			numVerts = 0;
 			verts = &vertBuff[0];
@@ -465,7 +454,7 @@ void Draw_StringFont(int x, int y, char *str, drawfont_t *font) {
 	}
 
 	if (numIndices) {
-		gl_bumpdriver.drawTriangleListBase ( vertDef, indexBuff, numIndices, font->shader, -1);
+		gl_bumpdriver.drawTriangleListBase ( &vertDef, indexBuff, numIndices, font->shader, -1);
 		numIndices = 0;
 	}
 }
@@ -539,25 +528,20 @@ void Draw_Pic (int x1, int y1, int x2, int y2, shader_t *shader)
 		1.0f,1.0f 
 	}; 
 
-	float *lighmapscoords = NULL; 
-	float *tangents = NULL; 
-	float *binormals = NULL; 
-	float *normals = NULL; 
-	unsigned char *colors = NULL; 
+	DriverPtr lighmapscoords = DRVNULL; 
+	DriverPtr tangents = DRVNULL; 
+	DriverPtr binormals = DRVNULL; 
+	DriverPtr normals = DRVNULL; 
+	DriverPtr colors = DRVNULL; 
     
 	int indecies[]={0,1,2,2,1,3}; 
-    
-	vertexdef_t verts[]={ 
-		vertices[0],0,           // vertices 
-		texcoords,0,             // texcoords 
-		lighmapscoords,0,        // lightmapcoords 
-		tangents,0,              // tangents 
-		binormals,0,             // binormals 
-		normals,0,               // normals 
-		colors,0                 // colors 
-	}; 
-    
-	gl_bumpdriver.drawTriangleListBase ( verts, indecies, 6, shader, -1); 
+	vertexdef_t verts;
+
+	memset(&verts, 0, sizeof(verts));
+	verts.vertices = GL_WrapUserPointer(vertices);
+	verts.texcoords = GL_WrapUserPointer(texcoords);
+
+	gl_bumpdriver.drawTriangleListBase ( &verts, indecies, 6, shader, -1); 
 }
 
 /*
@@ -593,21 +577,17 @@ void Draw_Border (int x1, int y1, int x2, int y2, int borderWidth, shader_t *sha
 		{x1+borderWidth,y2-borderWidth,0.0f}
 	}; 
 
-	float *lighmapscoords = NULL; 
-	float *tangents = NULL; 
-	float *binormals = NULL; 
-	float *normals = NULL; 
-	unsigned char *colors = NULL; 
+	DriverPtr lighmapscoords = DRVNULL; 
+	DriverPtr tangents = DRVNULL; 
+	DriverPtr binormals = DRVNULL; 
+	DriverPtr normals = DRVNULL; 
+	DriverPtr colors = DRVNULL; 
         
-	vertexdef_t verts[]={ 
-		vertices[0],0,           // vertices 
-		texcoords,0,             // texcoords 
-		lighmapscoords,0,        // lightmapcoords 
-		tangents,0,              // tangents 
-		binormals,0,             // binormals 
-		normals,0,               // normals 
-		colors,0                 // colors 
-	}; 
+	vertexdef_t verts;
+	memset(&verts, 0, sizeof(verts));
+	verts.vertices = GL_WrapUserPointer(vertices);
+	verts.texcoords = GL_WrapUserPointer(texcoords);
+
 
 	//FIXME: Make some parts static so we don't have to redo for every border we draw
 	for (i=0; i<4; i++) {
@@ -621,7 +601,7 @@ void Draw_Border (int x1, int y1, int x2, int y2, int borderWidth, shader_t *sha
 
 	}
     
-	gl_bumpdriver.drawTriangleListBase ( verts, indecies, 24, shader, -1); 
+	gl_bumpdriver.drawTriangleListBase ( &verts, indecies, 24, shader, -1); 
 }
 
 /*
