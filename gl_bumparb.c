@@ -265,8 +265,9 @@ static glIsProgramARBPROC qglIsProgramARB = NULL;
 // ARB_fragment_program
 #define GL_FRAGMENT_PROGRAM_ARB                                 0x8804
 
-static char vertexprogram[] =
+static char bump_vertex_program[] =
 "!!ARBvp1.0\n"
+"OPTION ARB_position_invariant;\n"
 "ATTRIB iPos         = vertex.position;\n"
 "ATTRIB iNormal      = vertex.normal;\n"
 "ATTRIB iColor       = vertex.color;\n"
@@ -276,12 +277,12 @@ static char vertexprogram[] =
 "ATTRIB iTex3        = vertex.texcoord[3];\n"
 "PARAM  mvp[4]       = { state.matrix.mvp };\n"
 "PARAM  modelview[4] = { state.matrix.modelview[0] };\n"
-"PARAM  texMatrix[4] = { state.matrix.texture[4] };\n"
+"PARAM  texMatrix[4] = { state.matrix.texture[2] };\n"
 "PARAM  fogparams    = state.fog.params;\n"
 "PARAM  lightPos     = program.env[0];\n"
 "PARAM  eyePos       = program.env[1];\n"
+"PARAM  half = { 0.5, 0.5, 0.5, 0.5 };\n"
 "TEMP   disttemp, lightVec, halfVec, temp;\n"
-"OUTPUT oPos         = result.position;\n"
 "OUTPUT oColor       = result.color;\n"
 "OUTPUT oTex0        = result.texcoord[0];\n"
 "OUTPUT oTex1        = result.texcoord[1];\n"
@@ -289,10 +290,6 @@ static char vertexprogram[] =
 "OUTPUT oTex3        = result.texcoord[3];\n"
 "OUTPUT oTex4        = result.texcoord[4];\n"
 "OUTPUT oFog         = result.fogcoord;\n"
-"DP4   oPos.x, mvp[0], iPos;\n"
-"DP4   oPos.y, mvp[1], iPos;\n"
-"DP4   oPos.z, mvp[2], iPos;\n"
-"DP4   oPos.w, mvp[3], iPos;\n"
 "DP4   oTex3.x, texMatrix[0], iPos;\n"
 "DP4   oTex3.y, texMatrix[1], iPos;\n"
 "DP4   oTex3.z, texMatrix[2], iPos;\n"
@@ -303,24 +300,27 @@ static char vertexprogram[] =
 "RSQ   temp.x, temp.x;\n"
 "MUL   lightVec, lightVec, temp.x;\n"
 "ADD   halfVec, eyePos, -iPos;\n"
-"ADD   halfVec, halfVec, lightVec;\n"
 "DP3   temp.x, halfVec, halfVec;\n"
 "RSQ   temp.x, temp.x;\n"
 "MUL   halfVec, halfVec, temp.x;\n"
-"DP4   oTex1.x, lightVec, iTex1;\n"
-"DP4   oTex1.y, lightVec, iTex2;\n"
-"DP4   oTex1.z, lightVec, iTex3;\n"
-"DP4   oTex2.x, halfVec, iTex1;\n"
-"DP4   oTex2.y, halfVec, iTex2;\n"
-"DP4   oTex2.z, halfVec, iTex3;\n"
+"ADD   halfVec, halfVec, lightVec;\n"
+"MUL   halfVec, halfVec, half;\n"
+"DP3   oTex1.x, lightVec, iTex1;\n"
+"DP3   oTex1.y, lightVec, iTex2;\n"
+"DP3   oTex1.z, lightVec, iTex3;\n"
+"DP3   oTex2.x, halfVec, iTex1;\n"
+"DP3   oTex2.y, halfVec, iTex2;\n"
+"DP3   oTex2.z, halfVec, iTex3;\n"
 "MOV   oColor, iColor;\n"
 "DP4   disttemp.x, modelview[2], iPos;\n"
 "SUB   disttemp.x, fogparams.z, disttemp.x;\n"
 "MUL   oFog.x, disttemp.x, fogparams.w;\n"
 "END";
 
-static char vertexprogram2[] =
+
+static char bump_vertex_program2[] =
 "!!ARBvp1.0\n"
+"OPTION ARB_position_invariant;\n"
 "ATTRIB iPos         = vertex.position;\n"
 "ATTRIB iNormal      = vertex.normal;\n"
 "ATTRIB iColor       = vertex.color;\n"
@@ -330,13 +330,13 @@ static char vertexprogram2[] =
 "ATTRIB iTex3        = vertex.texcoord[3];\n"
 "PARAM  mvp[4]       = { state.matrix.mvp };\n"
 "PARAM  modelview[4] = { state.matrix.modelview[0] };\n"
-"PARAM  texMatrix[4] = { state.matrix.texture[4] };\n"
-"PARAM  texMatrix2[4]= { state.matrix.texture[5] };\n"
+"PARAM  texMatrix[4] = { state.matrix.texture[2] };\n"
+"PARAM  texMatrix2[4]= { state.matrix.texture[3] };\n"
 "PARAM  fogparams    = state.fog.params;\n"
 "PARAM  lightPos     = program.env[0];\n"
 "PARAM  eyePos       = program.env[1];\n"
+"PARAM  half = { 0.5, 0.5, 0.5, 0.5 };\n"
 "TEMP   disttemp, lightVec, halfVec, temp;\n"
-"OUTPUT oPos         = result.position;\n"
 "OUTPUT oColor       = result.color;\n"
 "OUTPUT oTex0        = result.texcoord[0];\n"
 "OUTPUT oTex1        = result.texcoord[1];\n"
@@ -344,10 +344,6 @@ static char vertexprogram2[] =
 "OUTPUT oTex3        = result.texcoord[3];\n"
 "OUTPUT oTex4        = result.texcoord[4];\n"
 "OUTPUT oFog         = result.fogcoord;\n"
-"DP4   oPos.x, mvp[0], iPos;\n"
-"DP4   oPos.y, mvp[1], iPos;\n"
-"DP4   oPos.z, mvp[2], iPos;\n"
-"DP4   oPos.w, mvp[3], iPos;\n"
 "DP4   oTex3.x, texMatrix[0], iPos;\n"
 "DP4   oTex3.y, texMatrix[1], iPos;\n"
 "DP4   oTex3.z, texMatrix[2], iPos;\n"
@@ -362,23 +358,59 @@ static char vertexprogram2[] =
 "RSQ   temp.x, temp.x;\n"
 "MUL   lightVec, lightVec, temp.x;\n"
 "ADD   halfVec, eyePos, -iPos;\n"
-"ADD   halfVec, halfVec, lightVec;\n"
 "DP3   temp.x, halfVec, halfVec;\n"
 "RSQ   temp.x, temp.x;\n"
 "MUL   halfVec, halfVec, temp.x;\n"
-"DP4   oTex1.x, lightVec, iTex1;\n"
-"DP4   oTex1.y, lightVec, iTex2;\n"
-"DP4   oTex1.z, lightVec, iTex3;\n"
-"DP4   oTex2.x, halfVec, iTex1;\n"
-"DP4   oTex2.y, halfVec, iTex2;\n"
-"DP4   oTex2.z, halfVec, iTex3;\n"
+"ADD   halfVec, halfVec, lightVec;\n"
+"MUL   halfVec, halfVec, half;\n"
+"DP3   oTex1.x, lightVec, iTex1;\n"
+"DP3   oTex1.y, lightVec, iTex2;\n"
+"DP3   oTex1.z, lightVec, iTex3;\n"
+"DP3   oTex2.x, halfVec, iTex1;\n"
+"DP3   oTex2.y, halfVec, iTex2;\n"
+"DP3   oTex2.z, halfVec, iTex3;\n"
 "MOV   oColor, iColor;\n"
 "DP4   disttemp.x, modelview[2], iPos;\n"
 "SUB   disttemp.x, fogparams.z, disttemp.x;\n"
 "MUL   oFog.x, disttemp.x, fogparams.w;\n"
 "END";
 
-static char fragmentprogram[] =
+static char delux_vertex_program[] = 
+"!!ARBvp1.0\n"
+"OPTION ARB_position_invariant;\n"
+"ATTRIB iPos         = vertex.position;\n"
+"ATTRIB iNormal      = vertex.normal;\n"
+"ATTRIB iColor       = vertex.color;\n"
+"ATTRIB iTex0        = vertex.texcoord[0];\n"
+"ATTRIB iTex1        = vertex.texcoord[1];\n"
+"ATTRIB iTex2        = vertex.texcoord[2];\n"
+"ATTRIB iTex3        = vertex.texcoord[3];\n"
+"ATTRIB iTex4        = vertex.texcoord[4];\n"
+"PARAM  mvp[4]       = { state.matrix.mvp };\n"
+"PARAM  modelview[4] = { state.matrix.modelview[0] };\n"
+"PARAM  fogparams    = state.fog.params;\n"
+"TEMP   disttemp;\n"
+"OUTPUT oColor       = result.color;\n"
+"OUTPUT oTex0        = result.texcoord[0];\n"
+"OUTPUT oTex1        = result.texcoord[1];\n"
+"OUTPUT oTex2        = result.texcoord[2];\n"
+"OUTPUT oTex3        = result.texcoord[3];\n"
+"OUTPUT oTex4        = result.texcoord[4];\n"
+"OUTPUT oTex5        = result.texcoord[5];\n"
+"OUTPUT oFog         = result.fogcoord;\n"
+"MOV   oTex0, iTex0;\n"
+"MOV   oTex1, iTex1;\n"
+"MOV   oTex2, iTex2;\n"
+"MOV   oTex3, iTex3;\n"
+"MOV   oTex4, iTex4;\n"
+"MOV   oTex5, iPos;\n"
+"DP4   disttemp.x, modelview[2], iPos;\n"
+"SUB   disttemp.x, fogparams.z, disttemp.x;\n"
+"MUL   oFog.x, disttemp.x, fogparams.w;\n"
+"END";
+
+
+static char bump_fragment_program[] =
 "!!ARBfp1.0\n"
 "ATTRIB tex0 = fragment.texcoord[0];\n"
 "ATTRIB tex1 = fragment.texcoord[1];\n"
@@ -388,15 +420,17 @@ static char fragmentprogram[] =
 "PARAM scaler = { 16, 8, 2, -1 };\n"
 "OUTPUT outColor = result.color;\n"
 "TEMP normalmap, lightvec, halfvec, colormap, atten;\n"
-"TEMP diffdot, specdot, selfshadow\n;"
+"TEMP diffdot, specdot, selfshadow, temp\n;"
 "TEX normalmap, tex0, texture[0], 2D;\n"
 "MAD normalmap.rgb, normalmap, scaler.b, scaler.a;\n"
-"TEX lightvec, tex1, texture[1], CUBE;\n"
-"MAD lightvec, lightvec, scaler.b, scaler.a;\n"
-"TEX halfvec, tex2, texture[2], CUBE;\n"
-"MAD halfvec, halfvec, scaler.b, scaler.a;\n"
-"TEX colormap, tex0, texture[3], 2D;\n"
-"TEX atten, tex3, texture[4], 3D;\n"
+"DP3 temp.x, tex1, tex1;\n"
+"RSQ temp.x, temp.x;\n"
+"MUL lightvec, temp.x, tex1;\n"
+"DP3 temp.x, tex2, tex2;\n"
+"RSQ temp.x, temp.x;\n"
+"MUL halfvec, temp.x, tex2;\n"
+"TEX colormap, tex0, texture[1], 2D;\n"
+"TEX atten, tex3, texture[2], 3D;\n"
 "DP3_SAT diffdot, normalmap, lightvec;\n"
 "MUL_SAT selfshadow.r, lightvec.z, scaler.g;\n"
 "DP3_SAT specdot.a, normalmap, halfvec;\n"
@@ -409,8 +443,41 @@ static char fragmentprogram[] =
 "MUL_SAT outColor, diffdot, atten;\n"
 "END";
 
+static char bump_fragment_program_colored[] =
+"!!ARBfp1.0\n"
+"ATTRIB tex0 = fragment.texcoord[0];\n"
+"ATTRIB tex1 = fragment.texcoord[1];\n"
+"ATTRIB tex2 = fragment.texcoord[2];\n"
+"ATTRIB tex3 = fragment.texcoord[3];\n"
+"ATTRIB col = fragment.color.primary;\n"
+"PARAM scaler = { 16, 8, 2, -1 };\n"
+"OUTPUT outColor = result.color;\n"
+"TEMP normalmap, lightvec, halfvec, colormap, atten;\n"
+"TEMP diffdot, specdot, selfshadow, temp, gloss\n;"
+"TEX normalmap, tex0, texture[0], 2D;\n"
+"MAD normalmap.rgb, normalmap, scaler.b, scaler.a;\n"
+"DP3 temp.x, tex1, tex1;\n"
+"RSQ temp.x, temp.x;\n"
+"MUL lightvec, temp.x, tex1;\n"
+"DP3 temp.x, tex2, tex2;\n"
+"RSQ temp.x, temp.x;\n"
+"MUL halfvec, temp.x, tex2;\n"
+"TEX colormap, tex0, texture[1], 2D;\n"
+"TEX atten, tex3, texture[2], 3D;\n"
+"DP3_SAT diffdot, normalmap, lightvec;\n"
+"MUL_SAT selfshadow.r, lightvec.z, scaler.g;\n"
+"DP3_SAT specdot.a, normalmap, halfvec;\n"
+"MUL diffdot, diffdot, colormap;\n"
+"TEX gloss, tex0, texture[3], 2D;\n"
+"POW specdot.a, specdot.a, scaler.r;\n"
+"MUL_SAT diffdot, diffdot, selfshadow.r;\n"
+"MUL_SAT specdot, specdot.a, gloss;\n"
+"MUL atten, col, atten;\n"
+"ADD diffdot, diffdot, specdot;\n"
+"MUL_SAT outColor, diffdot, atten;\n"
+"END";
 
-static char fragmentprogram2[] =
+static char bump_fragment_program2[] =
 "!!ARBfp1.0\n"
 "ATTRIB tex0 = fragment.texcoord[0];\n"
 "ATTRIB tex1 = fragment.texcoord[1];\n"
@@ -421,16 +488,18 @@ static char fragmentprogram2[] =
 "PARAM scaler = { 16, 8, 2, -1 };\n"
 "OUTPUT outColor = result.color;\n"
 "TEMP normalmap, lightvec, halfvec, colormap, atten, filter;\n"
-"TEMP diffdot, specdot, selfshadow\n;"
+"TEMP diffdot, specdot, selfshadow, temp\n;"
 "TEX normalmap, tex0, texture[0], 2D;\n"
 "MAD normalmap.rgb, normalmap, scaler.b, scaler.a;\n"
-"TEX lightvec, tex1, texture[1], CUBE;\n"
-"MAD lightvec, lightvec, scaler.b, scaler.a;\n"
-"TEX halfvec, tex2, texture[2], CUBE;\n"
-"MAD halfvec, halfvec, scaler.b, scaler.a;\n"
-"TEX colormap, tex0, texture[3], 2D;\n"
-"TEX atten, tex3, texture[4], 3D;\n"
-"TEX filter, tex4, texture[5], CUBE;\n"
+"DP3 temp.x, tex1, tex1;\n"
+"RSQ temp.x, temp.x;\n"
+"MUL lightvec, temp.x, tex1;\n"
+"DP3 temp.x, tex2, tex2;\n"
+"RSQ temp.x, temp.x;\n"
+"MUL halfvec, temp.x, tex2;\n"
+"TEX colormap, tex0, texture[1], 2D;\n"
+"TEX atten, tex3, texture[2], 3D;\n"
+"TEX filter, tex4, texture[3], CUBE;\n"
 "DP3_SAT diffdot, normalmap, lightvec;\n"
 "MUL_SAT selfshadow.r, lightvec.z, scaler.g;\n"
 "DP3_SAT specdot.a, normalmap, halfvec;\n"
@@ -444,9 +513,163 @@ static char fragmentprogram2[] =
 "MUL_SAT outColor, diffdot, filter;\n"
 "END";
 
+static char bump_fragment_program2_colored[] =
+"!!ARBfp1.0\n"
+"ATTRIB tex0 = fragment.texcoord[0];\n"
+"ATTRIB tex1 = fragment.texcoord[1];\n"
+"ATTRIB tex2 = fragment.texcoord[2];\n"
+"ATTRIB tex3 = fragment.texcoord[3];\n"
+"ATTRIB tex4 = fragment.texcoord[4];\n"
+"ATTRIB col = fragment.color.primary;\n"
+"PARAM scaler = { 16, 8, 2, -1 };\n"
+"OUTPUT outColor = result.color;\n"
+"TEMP normalmap, lightvec, halfvec, colormap, atten, filter;\n"
+"TEMP diffdot, specdot, selfshadow, temp, gloss\n;"
+"TEX normalmap, tex0, texture[0], 2D;\n"
+"MAD normalmap.rgb, normalmap, scaler.b, scaler.a;\n"
+"DP3 temp.x, tex1, tex1;\n"
+"RSQ temp.x, temp.x;\n"
+"MUL lightvec, temp.x, tex1;\n"
+"DP3 temp.x, tex2, tex2;\n"
+"RSQ temp.x, temp.x;\n"
+"MUL halfvec, temp.x, tex2;\n"
+"TEX colormap, tex0, texture[1], 2D;\n"
+"TEX atten, tex3, texture[2], 3D;\n"
+"TEX filter, tex4, texture[3], CUBE;\n"
+"TEX gloss, tex0, texture[4], 2D;\n"
+"DP3_SAT diffdot, normalmap, lightvec;\n"
+"MUL_SAT selfshadow.r, lightvec.z, scaler.g;\n"
+"DP3_SAT specdot.a, normalmap, halfvec;\n"
+"MUL diffdot, diffdot, colormap;\n"
+"POW specdot.a, specdot.a, scaler.r;\n"
+"MUL_SAT diffdot, diffdot, selfshadow.r;\n"
+"MUL_SAT specdot, specdot.a, gloss;\n"
+"MUL atten, col, atten;\n"
+"ADD diffdot, diffdot, specdot;\n"
+"MUL diffdot, diffdot, atten;\n"
+"MUL_SAT outColor, diffdot, filter;\n"
+"END";
 
-static GLuint fragment_programs[2];
-static GLuint vertex_programs[2];
+static char delux_fragment_program[] =
+"!!ARBfp1.0\n"
+"PARAM u0 = program.env[0];\n"
+"PARAM c0 = {2, 2, 2, 16};\n"
+"PARAM c1 = {-1, 1, 1, 0};\n"
+"PARAM c2 = {0.5, 0.5, 0.5, 0};\n"
+"TEMP R0;\n"
+"TEMP R1;\n"
+"TEMP R2;\n"
+"TEMP R3;\n"
+"TEMP R4;\n"
+"TEX R0.xyz, fragment.texcoord[1], texture[1], 2D;\n"
+"TEX R1, fragment.texcoord[0], texture[2], 2D;\n"
+"MAD R0.xyz, c0.x, R0, c1.x;\n"
+"DP3 R2.x, R0, fragment.texcoord[2];\n"
+"ADD R3.xyz, u0, -fragment.texcoord[5];\n"
+"DP3 R4.x, R3, fragment.texcoord[2];\n"
+"DP3 R2.y, R0, fragment.texcoord[3];\n"
+"DP3 R2.z, R0, fragment.texcoord[4];\n"
+"DP3 R4.y, R3, fragment.texcoord[3];\n"
+"DP3 R4.z, R3, fragment.texcoord[4];\n"
+"DP3 R0.x, R2, R2;\n"
+"RSQ R0.x, R0.x;\n"
+"MUL R2.xyz, R0.x, R2;\n"
+"DP3 R0.x, R4, R4;\n"
+"RSQ R0.x, R0.x;\n"
+"MAD R4.xyz, R0.x, R4, R2;\n"
+"MUL R4.xyz, R4, c2.x;\n"
+"MAD R1.xyz, c0.x, R1, c1.x;\n"
+"DP3_SAT R0.x, R4, R1;\n"
+"POW R0.x, R0.x, c0.w;\n"
+"DP3_SAT R0.y, R2, R1;\n"
+"MUL R0.x, R0.x, R1.w;\n"
+"MAD R0.y, R0.y, c2.x, c2.x;\n"
+"TEX R1.xyz, fragment.texcoord[0], texture[3], 2D;\n"
+"TEX R2.xyz, fragment.texcoord[1], texture[0], 2D;\n"
+"MAD R0.xyz, R1, R0.y, R0.x;\n"
+"MUL result.color, R0, R2;\n"
+"END";
+
+static char delux_fragment_program_colored[] =
+"!!ARBfp1.0\n"
+"PARAM u0 = program.env[0];\n"
+"PARAM c0 = {2, 2, 2, 16};\n"
+"PARAM c1 = {-1, 1, 1, 0};\n"
+"PARAM c2 = {0.5, 0.5, 0.5, 0};\n"
+"TEMP R0;\n"
+"TEMP R1;\n"
+"TEMP R2;\n"
+"TEMP R3;\n"
+"TEMP R4;\n"
+"TEMP gloss;\n"
+"TEX R0.xyz, fragment.texcoord[1], texture[1], 2D;\n"
+"TEX R1, fragment.texcoord[0], texture[2], 2D;\n"
+"MAD R0.xyz, c0.x, R0, c1.x;\n"
+"DP3 R2.x, R0, fragment.texcoord[2];\n"
+"ADD R3.xyz, u0, -fragment.texcoord[5];\n"
+"DP3 R4.x, R3, fragment.texcoord[2];\n"
+"DP3 R2.y, R0, fragment.texcoord[3];\n"
+"DP3 R2.z, R0, fragment.texcoord[4];\n"
+"DP3 R4.y, R3, fragment.texcoord[3];\n"
+"DP3 R4.z, R3, fragment.texcoord[4];\n"
+"DP3 R0.x, R2, R2;\n"
+"RSQ R0.x, R0.x;\n"
+"MUL R2.xyz, R0.x, R2;\n"
+"DP3 R0.x, R4, R4;\n"
+"RSQ R0.x, R0.x;\n"
+"MAD R4.xyz, R0.x, R4, R2;\n"
+"MUL R4.xyz, R4, c2.x;\n"
+"MAD R1.xyz, c0.x, R1, c1.x;\n"
+"DP3_SAT R0.x, R4, R1;\n"
+"POW R0.x, R0.x, c0.w;\n"
+"DP3_SAT R0.y, R2, R1;\n"
+"TEX gloss, fragment.texcoord[0], texture[4], 2D;\n"
+"MUL gloss, R0.x, gloss;\n"
+"TEX R1.xyz, fragment.texcoord[0], texture[3], 2D;\n"
+"MAD R0.y, R0.y, c2.x, c2.x;\n"
+"TEX R2.xyz, fragment.texcoord[1], texture[0], 2D;\n"
+"MAD R0.xyz, R1, R0.y, gloss;\n"
+"MUL result.color, R0, R2;\n"
+"END";
+
+typedef enum
+{
+    V_BUMP_PROGRAM = 0,
+    V_BUMP_PROGRAM2,
+    V_DELUX_PROGRAM,
+    MAX_V_PROGRAM
+} v_programs;
+
+typedef enum
+{
+    F_BUMP_PROGRAM = 0,
+    F_BUMP_PROGRAM_COLOR,
+    F_BUMP_PROGRAM2,
+    F_BUMP_PROGRAM2_COLOR,
+    F_DELUX_PROGRAM,
+    F_DELUX_PROGRAM_COLOR,
+    MAX_F_PROGRAM
+} f_programs;
+
+static char* vertex_progs[MAX_V_PROGRAM] = 
+{
+    bump_vertex_program,
+    bump_vertex_program2,
+    delux_vertex_program
+};
+
+static char* fragment_progs[MAX_F_PROGRAM] = 
+{
+    bump_fragment_program,
+    bump_fragment_program_colored,
+    bump_fragment_program2,
+    bump_fragment_program2_colored,
+    delux_fragment_program,
+    delux_fragment_program_colored
+};
+
+static GLuint vertex_programs[MAX_V_PROGRAM];
+static GLuint fragment_programs[MAX_F_PROGRAM];
 
 
 //#define ARBDEBUG
@@ -472,9 +695,10 @@ static void checkerror()
 #endif
 
 
-void GL_CreateShadersARB()
+void ARB_CreateShaders()
 {
     float scaler[4] = {0.5f, 0.5f, 0.5f, 0.5f};
+    int i;
 
 #if !defined(__APPLE__) && !defined (MACOSX)
     SAFE_GET_PROC(qglVertexAttrib1sARB,glVertexAttrib1sARBPROC,"glVertexAttrib1sARB");
@@ -550,19 +774,16 @@ void GL_CreateShadersARB()
     glEnable(GL_VERTEX_PROGRAM_ARB);
     checkerror();
 
-    qglGenProgramsARB(2, &vertex_programs[0]);
+    qglGenProgramsARB(MAX_V_PROGRAM, &vertex_programs[0]);
     checkerror();
-    qglBindProgramARB(GL_VERTEX_PROGRAM_ARB, vertex_programs[0]);
-    checkerror();
-    qglProgramStringARB(GL_VERTEX_PROGRAM_ARB, GL_PROGRAM_FORMAT_ASCII_ARB,
-		        sizeof(vertexprogram)-1, vertexprogram);
-    checkerror();
-
-    qglBindProgramARB(GL_VERTEX_PROGRAM_ARB, vertex_programs[1]);
-    checkerror();
-    qglProgramStringARB(GL_VERTEX_PROGRAM_ARB, GL_PROGRAM_FORMAT_ASCII_ARB,
-		        sizeof(vertexprogram2)-1, vertexprogram2);
-    checkerror();
+    for ( i = 0; i < MAX_V_PROGRAM; i++ )
+    {
+        qglBindProgramARB(GL_VERTEX_PROGRAM_ARB, vertex_programs[i]);
+        checkerror();
+        qglProgramStringARB(GL_VERTEX_PROGRAM_ARB, GL_PROGRAM_FORMAT_ASCII_ARB,
+	    	            strlen(vertex_progs[i]), vertex_progs[i]);
+        checkerror();
+    }
 
     glDisable(GL_VERTEX_PROGRAM_ARB);
     checkerror();
@@ -570,54 +791,57 @@ void GL_CreateShadersARB()
     glEnable(GL_FRAGMENT_PROGRAM_ARB);
     checkerror();
 
-    qglGenProgramsARB(2, &fragment_programs[0]);
+    qglGenProgramsARB(MAX_F_PROGRAM, &fragment_programs[0]);
     checkerror();
-    qglBindProgramARB(GL_FRAGMENT_PROGRAM_ARB, fragment_programs[0]);
-    checkerror();
-    qglProgramStringARB(GL_FRAGMENT_PROGRAM_ARB, GL_PROGRAM_FORMAT_ASCII_ARB,
-		                sizeof(fragmentprogram)-1, fragmentprogram);
-    checkerror();
-
-    qglBindProgramARB(GL_FRAGMENT_PROGRAM_ARB, fragment_programs[1]);
-    checkerror();
-    qglProgramStringARB(GL_FRAGMENT_PROGRAM_ARB, GL_PROGRAM_FORMAT_ASCII_ARB,
-		                sizeof(fragmentprogram2)-1, fragmentprogram2);
-    checkerror();
+    for ( i = 0; i < MAX_F_PROGRAM; i++ )
+    {
+        qglBindProgramARB(GL_FRAGMENT_PROGRAM_ARB, fragment_programs[i]);
+        checkerror();
+        qglProgramStringARB(GL_FRAGMENT_PROGRAM_ARB, GL_PROGRAM_FORMAT_ASCII_ARB,
+	    	            strlen(fragment_progs[i]), fragment_progs[i]);
+        checkerror();
+    }
 
     glDisable(GL_FRAGMENT_PROGRAM_ARB);
     checkerror();
 }
 
-void GL_DisableDiffuseShaderARB()
+void ARB_DisableBumpShader(shader_t* shader)
 {
     //tex 0 = normal map
-    //tex 1 = normalization cube map (tangent space light vector)
-    //tex 2 = normalization cube map (tangent space half vector)
-    //tex 3 = color map
-    //tex 4 = attenuation
-    //tex 5 = (optional light filter, depends on light settings)
+    //tex 1 = color map
+    //tex 2 = attenuation
+    //tex 3 = (optional light filter, depends on light settings)
+    //tex 3/4 = colored gloss map if used
 
     glDisable(GL_FRAGMENT_PROGRAM_ARB);
     glDisable(GL_VERTEX_PROGRAM_ARB);
 
     GL_SelectTexture(GL_TEXTURE1_ARB);
-    glDisable(GL_TEXTURE_CUBE_MAP_ARB);
-
-    GL_SelectTexture(GL_TEXTURE2_ARB);
-    glDisable(GL_TEXTURE_CUBE_MAP_ARB);
-
-    GL_SelectTexture(GL_TEXTURE3_ARB);
     glDisable(GL_TEXTURE_2D);
 
-    GL_SelectTexture(GL_TEXTURE4_ARB);
+    GL_SelectTexture(GL_TEXTURE2_ARB);
     glDisable(GL_TEXTURE_3D);
     glPopMatrix();
 
     if (currentshadowlight->filtercube)
-    {
-	GL_SelectTexture(GL_TEXTURE5_ARB);
+    {        
+	GL_SelectTexture(GL_TEXTURE3_ARB);
 	glDisable(GL_TEXTURE_CUBE_MAP_ARB);
 	glPopMatrix();
+        if ( shader->glossstages[0].type == STAGE_GLOSS )
+        {
+	    GL_SelectTexture(GL_TEXTURE4_ARB);
+            glDisable(GL_TEXTURE_2D);
+        }
+    }
+    else
+    {
+        if ( shader->glossstages[0].type == STAGE_GLOSS )
+        {
+	    GL_SelectTexture(GL_TEXTURE3_ARB);
+            glDisable(GL_TEXTURE_2D);
+        }
     }
     glMatrixMode(GL_MODELVIEW);
 
@@ -625,30 +849,20 @@ void GL_DisableDiffuseShaderARB()
 }
 
 
-void GL_EnableDiffuseSpecularShaderARB(const transform_t *tr, vec3_t lightOrig,
-				       qboolean alias)
+void ARB_EnableBumpShader(const transform_t *tr, vec3_t lightOrig,
+                          qboolean alias, shader_t* shader)
 {
     float invrad = 1/currentshadowlight->radius;
 
     //tex 0 = normal map
-    //tex 1 = normalization cube map (tangent space light vector)
-    //tex 2 = normalization cube map (tangent space half vector)
-    //tex 3 = color map
-    //tex 4 = attenuation
-    //tex 5 = (optional light filter, depends on light settings)
-
+    //tex 1 = color map
+    //tex 2 = attenuation
+    //tex 3 = (optional light filter, depends on light settings)
+    //tex 3/4 = colored gloss map if used
     GL_SelectTexture(GL_TEXTURE1_ARB);
-    glEnable(GL_TEXTURE_CUBE_MAP_ARB);
-    glBindTexture(GL_TEXTURE_CUBE_MAP_ARB, normcube_texture_object);
-
-    GL_SelectTexture(GL_TEXTURE2_ARB);
-    glEnable(GL_TEXTURE_CUBE_MAP_ARB);
-    glBindTexture(GL_TEXTURE_CUBE_MAP_ARB, normcube_texture_object);
-
-    GL_SelectTexture(GL_TEXTURE3_ARB);
     glEnable(GL_TEXTURE_2D);
 
-    GL_SelectTexture(GL_TEXTURE4_ARB);
+    GL_SelectTexture(GL_TEXTURE2_ARB);
     glMatrixMode(GL_TEXTURE);
     glPushMatrix();
     glLoadIdentity();
@@ -669,7 +883,7 @@ void GL_EnableDiffuseSpecularShaderARB(const transform_t *tr, vec3_t lightOrig,
 
     if (currentshadowlight->filtercube)
     {
-	GL_SelectTexture(GL_TEXTURE5_ARB);
+	GL_SelectTexture(GL_TEXTURE3_ARB);
 	glMatrixMode(GL_TEXTURE);
 	glPushMatrix();
 	glLoadIdentity();
@@ -678,26 +892,84 @@ void GL_EnableDiffuseSpecularShaderARB(const transform_t *tr, vec3_t lightOrig,
         glBindTexture(GL_TEXTURE_CUBE_MAP_ARB, currentshadowlight->filtercube);
         GL_SetupCubeMapMatrix(tr);
 
-	qglBindProgramARB( GL_VERTEX_PROGRAM_ARB, vertex_programs[1] );
+	qglBindProgramARB( GL_VERTEX_PROGRAM_ARB, vertex_programs[V_BUMP_PROGRAM2] );
 	checkerror();
-	qglBindProgramARB( GL_FRAGMENT_PROGRAM_ARB, fragment_programs[1] );
+        if ( shader->glossstages[0].type == STAGE_GLOSS )
+        {
+            qglBindProgramARB( GL_FRAGMENT_PROGRAM_ARB, fragment_programs[F_BUMP_PROGRAM2_COLOR] );
+            GL_SelectTexture(GL_TEXTURE4_ARB);
+            glEnable(GL_TEXTURE_2D);
+            GL_BindAdvanced(shader->glossstages[0].texture[0]);
+        }
+        else
+        {
+            qglBindProgramARB( GL_FRAGMENT_PROGRAM_ARB, fragment_programs[F_BUMP_PROGRAM2] );
+        }
 	checkerror();
     }
     else
     {
-	qglBindProgramARB( GL_VERTEX_PROGRAM_ARB, vertex_programs[0] );
+	qglBindProgramARB( GL_VERTEX_PROGRAM_ARB, vertex_programs[V_BUMP_PROGRAM] );
 	checkerror();
-	qglBindProgramARB( GL_FRAGMENT_PROGRAM_ARB, fragment_programs[0] );
+        if ( shader->glossstages[0].type == STAGE_GLOSS )
+        {
+	    qglBindProgramARB( GL_FRAGMENT_PROGRAM_ARB, fragment_programs[F_BUMP_PROGRAM_COLOR] );
+            GL_SelectTexture(GL_TEXTURE3_ARB);
+            glEnable(GL_TEXTURE_2D);
+            GL_BindAdvanced(shader->glossstages[0].texture[0]);
+        }
+        else
+        {
+	    qglBindProgramARB( GL_FRAGMENT_PROGRAM_ARB, fragment_programs[F_BUMP_PROGRAM] );
+        }
 	checkerror();
     }
 
     GL_SelectTexture(GL_TEXTURE0_ARB);
 
     qglProgramEnvParameter4fARB( GL_VERTEX_PROGRAM_ARB, 0, currentshadowlight->origin[0],
-                                 currentshadowlight->origin[1],  currentshadowlight->origin[2], 1.0);
+                                 currentshadowlight->origin[1],  currentshadowlight->origin[2], 0.0);
+    checkerror();
     qglProgramEnvParameter4fARB( GL_VERTEX_PROGRAM_ARB, 1, r_refdef.vieworg[0],
-    		                 r_refdef.vieworg[1],  r_refdef.vieworg[2], 1.0);
+    		                 r_refdef.vieworg[1],  r_refdef.vieworg[2], 0.0);
+    checkerror();
+}
 
+void ARB_EnableDeluxShader(shader_t* shader)
+{
+    glEnable(GL_VERTEX_PROGRAM_ARB);
+    checkerror();
+    glEnable(GL_FRAGMENT_PROGRAM_ARB);
+    checkerror();
+    qglBindProgramARB( GL_VERTEX_PROGRAM_ARB, vertex_programs[V_DELUX_PROGRAM] );
+    checkerror();
+    if ( shader->glossstages[0].type == STAGE_GLOSS )
+    {
+        qglBindProgramARB( GL_FRAGMENT_PROGRAM_ARB, fragment_programs[F_DELUX_PROGRAM_COLOR] );
+        GL_SelectTexture(GL_TEXTURE4_ARB);
+        glEnable(GL_TEXTURE_2D);
+        GL_BindAdvanced(shader->glossstages[0].texture[0]);
+    }
+    else
+    {
+        qglBindProgramARB( GL_FRAGMENT_PROGRAM_ARB, fragment_programs[F_DELUX_PROGRAM] );
+    }
+    checkerror();
+    qglProgramEnvParameter4fARB( GL_FRAGMENT_PROGRAM_ARB, 0,
+				 r_refdef.vieworg[0], r_refdef.vieworg[1],
+				 r_refdef.vieworg[2], 0.0);
+    checkerror();
+}
+
+void ARB_DisableDeluxShader(shader_t* shader)
+{
+    glDisable(GL_FRAGMENT_PROGRAM_ARB);
+    glDisable(GL_VERTEX_PROGRAM_ARB);
+    if ( shader->glossstages[0].type == STAGE_GLOSS )
+    {
+        GL_SelectTexture(GL_TEXTURE4_ARB);
+        glDisable(GL_TEXTURE_2D);
+    }
 }
 
 /************************
@@ -761,7 +1033,7 @@ void ARB_SetupSimpleStage(stage_t *s)
     }
 
     if ((s->numtextures > 0) && (s->texture[0]))
-	GL_Bind(s->texture[0]->texnum);
+	GL_BindAdvanced(s->texture[0]);
 }
 
 /************************
@@ -772,99 +1044,81 @@ Generic triangle list routines
 
 void FormatError(); // In gl_bumpgf.c
 
-void ARB_sendTriangleListWV(const vertexdef_t *verts, int *indecies,
-			    int numIndecies)
-{
-
-    glVertexPointer(3, GL_FLOAT, verts->vertexstride, verts->vertices);
-    glEnableClientState(GL_VERTEX_ARRAY);
-
-    qglClientActiveTextureARB(GL_TEXTURE0_ARB);
-    glTexCoordPointer(3, GL_FLOAT, verts->vertexstride, verts->vertices);
-    glEnableClientState(GL_TEXTURE_COORD_ARRAY);
-
-    //draw them
-    glDrawElements(GL_TRIANGLES, numIndecies, GL_UNSIGNED_INT, indecies);
-
-    glDisableClientState(GL_VERTEX_ARRAY);
-    glDisableClientState(GL_TEXTURE_COORD_ARRAY);
-}
-
-void ARB_sendTriangleListTA(const vertexdef_t *verts, int *indecies,
-			    int numIndecies)
-{
-    glVertexPointer(3, GL_FLOAT, verts->vertexstride, verts->vertices);
-    glEnableClientState(GL_VERTEX_ARRAY);
-
-    if (!verts->texcoords)
-	FormatError();
-    qglClientActiveTextureARB(GL_TEXTURE0_ARB);
-    glTexCoordPointer(2, GL_FLOAT, verts->texcoordstride, verts->texcoords);
-    glEnableClientState(GL_TEXTURE_COORD_ARRAY);
-
-    if (!verts->tangents)
-	FormatError();
-    qglClientActiveTextureARB(GL_TEXTURE1_ARB);
-    glTexCoordPointer(3, GL_FLOAT, verts->tangentstride, verts->tangents);
-    glEnableClientState(GL_TEXTURE_COORD_ARRAY);
-
-    if (!verts->binormals)
-	FormatError();
-    qglClientActiveTextureARB(GL_TEXTURE2_ARB);
-    glTexCoordPointer(3, GL_FLOAT, verts->binormalstride, verts->binormals);
-    glEnableClientState(GL_TEXTURE_COORD_ARRAY);
-
-    if (!verts->normals)
-	FormatError();
-    qglClientActiveTextureARB(GL_TEXTURE3_ARB);
-    glTexCoordPointer(3, GL_FLOAT, verts->normalstride, verts->normals);
-    glEnableClientState(GL_TEXTURE_COORD_ARRAY);
-
-    //draw them
-    glDrawElements(GL_TRIANGLES, numIndecies, GL_UNSIGNED_INT, indecies);
-
-    glDisableClientState(GL_VERTEX_ARRAY);
-    glDisableClientState(GL_TEXTURE_COORD_ARRAY);
-
-    qglClientActiveTextureARB(GL_TEXTURE2_ARB);
-    glDisableClientState(GL_TEXTURE_COORD_ARRAY);
-
-    qglClientActiveTextureARB(GL_TEXTURE1_ARB);
-    glDisableClientState(GL_TEXTURE_COORD_ARRAY);
-
-    qglClientActiveTextureARB(GL_TEXTURE0_ARB);
-    GL_SelectTexture(GL_TEXTURE0_ARB);
-    glDisableClientState(GL_TEXTURE_COORD_ARRAY);
-}
-
 void ARB_drawTriangleListBump (const vertexdef_t *verts, int *indecies,
 			       int numIndecies, shader_t *shader,
 			       const transform_t *tr)
 {
+    int foo;
+    void* foo2;
+
+    glEnableClientState(GL_VERTEX_ARRAY);
+    glVertexPointer(3, GL_FLOAT, verts->vertexstride, verts->vertices);
+
     GL_AddColor();
     glColor3fv(&currentshadowlight->color[0]);
 
-    GL_EnableDiffuseSpecularShaderARB(tr,currentshadowlight->origin,true);
-    //bind the correct texture
-    GL_SelectTexture(GL_TEXTURE0_ARB);
-    if (shader->numbumpstages > 0)
-	GL_Bind(shader->bumpstages[0].texture[0]->texnum);
-    GL_SelectTexture(GL_TEXTURE3_ARB);
-    if (shader->numcolorstages > 0)
-	GL_Bind(shader->colorstages[0].texture[0]->texnum);
+    ARB_EnableBumpShader(tr,currentshadowlight->origin,true, shader);
 
-    ARB_sendTriangleListTA(verts,indecies,numIndecies);
-    GL_DisableDiffuseShaderARB();
+    //bind the correct textures
+    GL_SelectTexture(GL_TEXTURE0_ARB);
+    qglClientActiveTextureARB(GL_TEXTURE0_ARB);
+    if (shader->numbumpstages > 0)
+	GL_BindAdvanced(shader->bumpstages[0].texture[0]);
+    if (!verts->texcoords)
+	FormatError();
+    glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+    glTexCoordPointer(2, GL_FLOAT, verts->texcoordstride, verts->texcoords);
+
+    GL_SelectTexture(GL_TEXTURE1_ARB);
+    qglClientActiveTextureARB(GL_TEXTURE1_ARB);
+    if (shader->numcolorstages > 0)
+	GL_BindAdvanced(shader->colorstages[0].texture[0]);
+    if (!verts->tangents)
+	FormatError();
+    glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+    glTexCoordPointer(3, GL_FLOAT, verts->tangentstride, verts->tangents);
+
+    if (!verts->binormals)
+	FormatError();
+    GL_SelectTexture(GL_TEXTURE2_ARB);
+    qglClientActiveTextureARB(GL_TEXTURE2_ARB);
+    glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+    glTexCoordPointer(3, GL_FLOAT, verts->binormalstride, verts->binormals);
+
+    if (!verts->normals)
+	FormatError();
+    GL_SelectTexture(GL_TEXTURE3_ARB);
+    qglClientActiveTextureARB(GL_TEXTURE3_ARB);
+    glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+    glTexCoordPointer(3, GL_FLOAT, verts->normalstride, verts->normals);
+
+    glDrawElements(GL_TRIANGLES, numIndecies, GL_UNSIGNED_INT, indecies);
+
+    qglClientActiveTextureARB(GL_TEXTURE3_ARB);
+    glDisableClientState(GL_VERTEX_ARRAY);
+    glDisableClientState(GL_TEXTURE_COORD_ARRAY);
+
+    qglClientActiveTextureARB(GL_TEXTURE2_ARB);
+    glDisableClientState(GL_TEXTURE_COORD_ARRAY);
+
+    qglClientActiveTextureARB(GL_TEXTURE1_ARB);
+    glDisableClientState(GL_TEXTURE_COORD_ARRAY);
+
+    qglClientActiveTextureARB(GL_TEXTURE0_ARB);
+    glDisableClientState(GL_TEXTURE_COORD_ARRAY);
+    ARB_DisableBumpShader(shader);
 }
 
 void ARB_drawTriangleListBase (vertexdef_t *verts, int *indecies,
-			       int numIndecies, shader_t *shader)
+			       int numIndecies, shader_t *shader,
+                               int lightmapIndex)
 {
     int i;
 
     glVertexPointer(3, GL_FLOAT, verts->vertexstride, verts->vertices);
     glEnableClientState(GL_VERTEX_ARRAY);
 
+    GL_SelectTexture(GL_TEXTURE0_ARB);
     qglClientActiveTextureARB(GL_TEXTURE0_ARB);
     glTexCoordPointer(2, GL_FLOAT, verts->texcoordstride, verts->texcoords);
     glEnableClientState(GL_TEXTURE_COORD_ARRAY);
@@ -882,67 +1136,253 @@ void ARB_drawTriangleListBase (vertexdef_t *verts, int *indecies,
     }
     glMatrixMode(GL_MODELVIEW);
 
-    if (verts->colors && (shader->flags & SURF_PPLIGHT))
+    if (verts->lightmapcoords && (lightmapIndex >= 0) && (shader->flags & SURF_PPLIGHT)) 
     {
-	glColorPointer(3, GL_UNSIGNED_BYTE, verts->colorstride, verts->colors);
-	glEnableClientState(GL_COLOR_ARRAY);
-	glShadeModel(GL_SMOOTH);
-
-	if (shader->numstages && shader->numcolorstages)
+	//Delux lightmapping
+	qboolean usedelux = (sh_delux.value != 0);
+	if (shader->numcolorstages)
 	{
-	    if (shader->colorstages[0].src_blend >= 0)
+	    if (shader->colorstages[0].alphatresh > 0)
+		usedelux = false;
+	}
+
+	if (usedelux) 
+	{
+            // Textures:
+            // 0 light map
+            // 1 delux map
+            // 2 normal map
+            // 3 base map
+            // 4 colored gloss if used
+            // Tex coords:
+            // 0 base coord
+            // 1 lightmap coord
+            // 2 tangent
+            // 3 binormal
+            // 4 normal
+            // 5 (position for fragment shader, generated in vertex shader)
+
+	    // Setup blending
+	    if (shader->numstages && shader->numcolorstages)
 	    {
-		glEnable(GL_BLEND);
-		glBlendFunc(shader->colorstages[0].src_blend,
-			    shader->colorstages[0].dst_blend);
+		if (shader->colorstages[0].src_blend >= 0)
+		{
+		    glEnable(GL_BLEND);
+		    glBlendFunc(shader->colorstages[0].src_blend,
+				shader->colorstages[0].dst_blend);
+		}
+		else
+		{
+		    glEnable(GL_BLEND);
+		    glBlendFunc(GL_ONE, GL_ONE);
+		}
+	    }
+	    else 
+            {
+		glDisable(GL_BLEND);
+	    }
+
+	    // Light map
+            GL_SelectTexture(GL_TEXTURE0_ARB);
+	    glEnable(GL_TEXTURE_2D);
+            qglClientActiveTextureARB(GL_TEXTURE0_ARB);
+	    glTexCoordPointer(2, GL_FLOAT, verts->texcoordstride, verts->texcoords);
+	    glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+	    GL_Bind(lightmap_textures+lightmapIndex);
+
+	    // Delux map
+            GL_SelectTexture(GL_TEXTURE1_ARB);
+	    glEnable(GL_TEXTURE_2D);
+            qglClientActiveTextureARB(GL_TEXTURE1_ARB);
+	    glTexCoordPointer(2, GL_FLOAT, verts->lightmapstride,
+			      verts->lightmapcoords);
+	    glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+	    GL_Bind(lightmap_textures+lightmapIndex+1);
+
+	    // Setup normal map
+            GL_SelectTexture(GL_TEXTURE2_ARB);
+	    glEnable(GL_TEXTURE_2D);
+	    if (shader->numbumpstages)
+	    {
+		if (shader->bumpstages[0].numtextures)
+		    GL_BindAdvanced(shader->bumpstages[0].texture[0]);
+	    }
+            qglClientActiveTextureARB(GL_TEXTURE2_ARB);
+	    glTexCoordPointer(3, GL_FLOAT, verts->tangentstride,
+			      verts->tangents);
+	    glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+
+            // Setup base texture
+            GL_SelectTexture(GL_TEXTURE3_ARB);
+	    glEnable(GL_TEXTURE_2D);
+            qglClientActiveTextureARB(GL_TEXTURE3_ARB);
+	    glTexCoordPointer(3, GL_FLOAT, verts->binormalstride,
+			      verts->binormals);
+	    glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+
+	    if (shader->numcolorstages)
+	    {
+		if (shader->colorstages[0].numtextures)
+		    GL_BindAdvanced(shader->colorstages[0].texture[0]);
+
+		if (shader->colorstages[0].alphatresh > 0)
+		{
+		    glEnable(GL_ALPHA_TEST);
+		    glAlphaFunc(GL_GEQUAL, shader->colorstages[0].alphatresh);
+		}	
+	    }
+
+	    // Normals
+            qglClientActiveTextureARB(GL_TEXTURE4_ARB);
+	    glTexCoordPointer(3, GL_FLOAT, verts->normalstride,
+			      verts->normals);
+	    glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+
+	    ARB_EnableDeluxShader(shader);
+	    glDrawElements(GL_TRIANGLES,numIndecies,GL_UNSIGNED_INT,indecies);
+	    ARB_DisableDeluxShader(shader);
+
+            qglClientActiveTextureARB(GL_TEXTURE4_ARB);
+	    glDisableClientState(GL_TEXTURE_COORD_ARRAY);
+            GL_SelectTexture(GL_TEXTURE3_ARB);
+	    glDisable(GL_TEXTURE_2D);
+            qglClientActiveTextureARB(GL_TEXTURE3_ARB);
+	    glDisableClientState(GL_TEXTURE_COORD_ARRAY);
+            GL_SelectTexture(GL_TEXTURE2_ARB);
+	    glDisable(GL_TEXTURE_2D);
+            qglClientActiveTextureARB(GL_TEXTURE2_ARB);
+	    glDisableClientState(GL_TEXTURE_COORD_ARRAY);
+            GL_SelectTexture(GL_TEXTURE1_ARB);
+	    glDisable(GL_TEXTURE_2D);
+            qglClientActiveTextureARB(GL_TEXTURE1_ARB);
+	    glDisableClientState(GL_TEXTURE_COORD_ARRAY);
+	    GL_DisableMultitexture();
+            GL_SelectTexture(GL_TEXTURE0_ARB);
+	}
+	else
+	{
+	    if (shader->numstages && shader->numcolorstages)
+	    {
+		if (shader->colorstages[0].src_blend >= 0)
+		{
+		    glEnable(GL_BLEND);
+		    glBlendFunc(shader->colorstages[0].src_blend, shader->colorstages[0].dst_blend);
+		}
+		else
+		{
+		    glEnable(GL_BLEND);
+		    glBlendFunc(GL_ONE, GL_ONE);
+		}
 	    }
 	    else
 	    {
-		glEnable(GL_BLEND);
-		glBlendFunc(GL_ONE, GL_ONE);
+		glDisable(GL_BLEND);
+	    }
+
+	    if (shader->numcolorstages)
+	    {
+		if (shader->colorstages[0].numtextures)
+		    GL_BindAdvanced(shader->colorstages[0].texture[0]);
+		
+		if (shader->colorstages[0].alphatresh > 0)
+		{
+		    glEnable(GL_ALPHA_TEST);
+		    glAlphaFunc(GL_GEQUAL, shader->colorstages[0].alphatresh);
+		}	
+	    }
+
+	    GL_SelectTexture(GL_TEXTURE0_ARB);
+            qglClientActiveTextureARB(GL_TEXTURE0_ARB);
+	    glTexCoordPointer(2, GL_FLOAT, verts->texcoordstride, verts->texcoords);
+	    glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+	    glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
+
+	    GL_SelectTexture(GL_TEXTURE1_ARB);
+	    glEnable(GL_TEXTURE_2D);
+	    GL_Bind(lightmap_textures+lightmapIndex);
+            qglClientActiveTextureARB(GL_TEXTURE1_ARB);
+	    glTexCoordPointer(2, GL_FLOAT, verts->lightmapstride, verts->lightmapcoords);
+	    glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+
+	    glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+
+	    glDrawElements(GL_TRIANGLES,numIndecies,GL_UNSIGNED_INT,indecies);
+	    
+	    glDisableClientState(GL_TEXTURE_COORD_ARRAY);
+	    glDisable(GL_TEXTURE_2D);
+	    GL_SelectTexture(GL_TEXTURE0_ARB);
+	}
+    }
+    else
+    {
+	if (verts->colors && (shader->flags & SURF_PPLIGHT))
+	{
+	    glColorPointer(3, GL_UNSIGNED_BYTE, verts->colorstride, verts->colors);
+	    glEnableClientState(GL_COLOR_ARRAY);
+	    glShadeModel(GL_SMOOTH);
+
+	    if (shader->numstages && shader->numcolorstages)
+	    {
+		if (shader->colorstages[0].src_blend >= 0)
+		{
+		    glEnable(GL_BLEND);
+		    glBlendFunc(shader->colorstages[0].src_blend, shader->colorstages[0].dst_blend);
+		}
+		else
+		{
+		    glEnable(GL_BLEND);
+		    glBlendFunc(GL_ONE, GL_ONE);
+		}
+	    }
+	    else 
+	    {
+		glDisable(GL_BLEND);
+	    }
+
+	    if (shader->numcolorstages)
+	    {
+		if (shader->colorstages[0].numtextures)
+		    GL_BindAdvanced(shader->colorstages[0].texture[0]);
+
+		if (shader->colorstages[0].alphatresh > 0)
+		{
+		    glEnable(GL_ALPHA_TEST);
+		    glAlphaFunc(GL_GEQUAL, shader->colorstages[0].alphatresh);
+		}	
+	    }
+
+	    glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+
+	    glDrawElements(GL_TRIANGLES,numIndecies,GL_UNSIGNED_INT,indecies);
+
+	    glDisableClientState(GL_COLOR_ARRAY);
+	}
+	else
+	{
+	    if (shader->flags & SURF_PPLIGHT)
+	    {
+		glColor3f(0,0,0);
+		glDisable(GL_TEXTURE_2D);
+		glDrawElements(GL_TRIANGLES,numIndecies,GL_UNSIGNED_INT,indecies);
+		glEnable(GL_TEXTURE_2D);
 	    }
 	}
-	else 
-	{
-	    glDisable(GL_BLEND);
-	}
-
-	if (shader->numcolorstages)
-	{
-	    if (shader->colorstages[0].numtextures)
-		GL_Bind(shader->colorstages[0].texture[0]->texnum);
-
-	    if (shader->colorstages[0].alphatresh > 0)
-	    {
-		glEnable(GL_ALPHA_TEST);
-		glAlphaFunc(GL_GEQUAL, shader->colorstages[0].alphatresh);
-	    }	
-	}
-
-	glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
-
-	glDrawElements(GL_TRIANGLES,numIndecies,GL_UNSIGNED_INT,indecies);
-
-	glDisableClientState(GL_COLOR_ARRAY);
-    }
-    else if (shader->flags & SURF_PPLIGHT)
-    {
-	glColor3f(0,0,0);
-	glDisable(GL_TEXTURE_2D);
-	glDrawElements(GL_TRIANGLES,numIndecies,GL_UNSIGNED_INT,indecies);
-	glEnable(GL_TEXTURE_2D);
     }
 
     if (!shader->cull)
-    { 
-	glEnable(GL_CULL_FACE); 
-    } 
+    {
+	glEnable(GL_CULL_FACE);
+	//Con_Printf("Cullstuff %s\n",shader->name);
+    }
 
+    qglClientActiveTextureARB(GL_TEXTURE0_ARB);
     glDisableClientState(GL_TEXTURE_COORD_ARRAY);
     glDisableClientState(GL_VERTEX_ARRAY);
     glDisable(GL_BLEND);
     glDisable(GL_ALPHA_TEST);
 }
+
+
 
 /*************************
 
@@ -958,7 +1398,7 @@ void ARB_sendSurfacesBase(msurface_t **surfs, int numSurfaces,
     msurface_t *surf;
 
     for ( i = 0; i < numSurfaces; i++)
-    {
+            {
 	surf = surfs[i];
 	if (surf->visframe != r_framecount)
 	    continue;
@@ -974,17 +1414,54 @@ void ARB_sendSurfacesBase(msurface_t **surfs, int numSurfaces,
     }
 }
 
+void ARB_sendSurfacesDeLux(msurface_t **surfs, int numSurfaces,
+			   qboolean bindLightmap)
+{
+    int i;
+    glpoly_t *p;
+    msurface_t *surf;
+
+    for (i=0; i<numSurfaces; i++)
+    {
+	surf = surfs[i];
+	if (surf->visframe != r_framecount)
+	    continue;
+	p = surf->polys;
+
+	if (bindLightmap)
+	{
+	    if (surf->lightmaptexturenum < 0)
+		continue;
+            // Bind light map
+            GL_SelectTexture(GL_TEXTURE0_ARB);
+	    GL_Bind(lightmap_textures+surf->lightmaptexturenum);
+            // Bind delux map
+            GL_SelectTexture(GL_TEXTURE1_ARB);
+	    GL_Bind(lightmap_textures+surf->lightmaptexturenum+1);
+	}
+
+	qglMultiTexCoord3fvARB(GL_TEXTURE2_ARB, &surf->tangent[0]);
+	qglMultiTexCoord3fvARB(GL_TEXTURE3_ARB, &surf->binormal[0]);
+        qglMultiTexCoord3fvARB(GL_TEXTURE4_ARB, &surf->plane->normal[0]);
+
+	glDrawElements(GL_TRIANGLES, p->numindecies, GL_UNSIGNED_INT,
+		       &p->indecies[0]);
+    }
+}
+
 void ARB_drawSurfaceListBase (vertexdef_t* verts, msurface_t** surfs,
 			      int numSurfaces, shader_t* shader)
 {
     int i;
+    int usedelux;
 
     glVertexPointer(3, GL_FLOAT, verts->vertexstride, verts->vertices);
     glEnableClientState(GL_VERTEX_ARRAY);
 
+    GL_SelectTexture(GL_TEXTURE0_ARB);
     qglClientActiveTextureARB(GL_TEXTURE0_ARB);
-    glTexCoordPointer(2, GL_FLOAT, verts->texcoordstride, verts->texcoords);
     glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+    glTexCoordPointer(2, GL_FLOAT, verts->texcoordstride, verts->texcoords);
 
     glColor3ub(255,255,255);
 
@@ -1003,53 +1480,145 @@ void ARB_drawSurfaceListBase (vertexdef_t* verts, msurface_t** surfs,
 
     if (verts->lightmapcoords && (shader->flags & SURF_PPLIGHT))
     {
-	qglClientActiveTextureARB(GL_TEXTURE1_ARB);
+	GL_SelectTexture(GL_TEXTURE1_ARB);
+        qglClientActiveTextureARB(GL_TEXTURE1_ARB);
 	glTexCoordPointer(2, GL_FLOAT, verts->lightmapstride,
-			  verts->lightmapcoords);
+	                  verts->lightmapcoords);
 	glEnableClientState(GL_TEXTURE_COORD_ARRAY);
 
-	if (shader->numstages && shader->numcolorstages)
+	//Delux lightmapping
+	usedelux = (sh_delux.value != 0);
+        if (shader->colorstages[0].alphatresh > 0)
+            usedelux = false;
+
+	if (usedelux)
 	{
-	    if (shader->colorstages[0].src_blend >= 0)
+            // Textures:
+            // 0 light map
+            // 1 delux map
+            // 2 normal map
+            // 3 base map
+            // 4 colored gloss if used
+            // Tex coords:
+            // 0 base coord
+            // 1 lightmap coord
+            // 2 tangent
+            // 3 binormal
+            // 4 normal
+            // 5 (position for fragment shader, generated in vertex shader)
+
+	    // Setup blending
+	    if (shader->numstages && shader->numcolorstages)
 	    {
-		glEnable(GL_BLEND);
-		glBlendFunc(shader->colorstages[0].src_blend,
-			    shader->colorstages[0].dst_blend);
+		if (shader->colorstages[0].src_blend >= 0)
+		{
+		    glEnable(GL_BLEND);
+		    glBlendFunc(shader->colorstages[0].src_blend,
+				shader->colorstages[0].dst_blend);
+		}
+		else
+		{
+		    glEnable(GL_BLEND);
+		    glBlendFunc(GL_ONE, GL_ONE);
+		}
 	    }
-	    else
-	    {
-		glEnable(GL_BLEND);
-		glBlendFunc(GL_ONE, GL_ONE);
+	    else 
+            {
+		glDisable(GL_BLEND);
 	    }
-	}
-	else 
-	{
-	    glDisable(GL_BLEND);
-	}
 
-	if (shader->numcolorstages)
-	{
-	    if (shader->colorstages[0].numtextures)
-		GL_Bind(shader->colorstages[0].texture[0]->texnum);
+            GL_SelectTexture(GL_TEXTURE0_ARB);
+	    glEnable(GL_TEXTURE_2D);
+    
+            GL_SelectTexture(GL_TEXTURE1_ARB);
+	    glEnable(GL_TEXTURE_2D);
 
-	    if (shader->colorstages[0].alphatresh > 0)
+	    // Setup normal map
+            GL_SelectTexture(GL_TEXTURE2_ARB);
+	    glEnable(GL_TEXTURE_2D);
+	    if (shader->numbumpstages)
 	    {
-		glEnable(GL_ALPHA_TEST);
-		glAlphaFunc(GL_GEQUAL, shader->colorstages[0].alphatresh);
-	    }	
+		if (shader->bumpstages[0].numtextures)
+		    GL_BindAdvanced(shader->bumpstages[0].texture[0]);
+	    }
+
+            // Setup base texture
+            GL_SelectTexture(GL_TEXTURE3_ARB);
+	    glEnable(GL_TEXTURE_2D);
+	    if (shader->numcolorstages)
+	    {
+		if (shader->colorstages[0].numtextures)
+		    GL_BindAdvanced(shader->colorstages[0].texture[0]);
+
+		if (shader->colorstages[0].alphatresh > 0)
+		{
+		    glEnable(GL_ALPHA_TEST);
+		    glAlphaFunc(GL_GEQUAL, shader->colorstages[0].alphatresh);
+		}	
+	    }
+
+	    ARB_EnableDeluxShader(shader);
+	    ARB_sendSurfacesDeLux(surfs, numSurfaces, true);
+	    ARB_DisableDeluxShader(shader);
+
+            GL_SelectTexture(GL_TEXTURE3_ARB);
+	    glDisable(GL_TEXTURE_2D);
+            GL_SelectTexture(GL_TEXTURE2_ARB);
+	    glDisable(GL_TEXTURE_2D);
+            GL_SelectTexture(GL_TEXTURE1_ARB);
+	    glDisable(GL_TEXTURE_2D);
+            qglClientActiveTextureARB(GL_TEXTURE1_ARB);
+	    glDisableClientState(GL_TEXTURE_COORD_ARRAY);
+	    GL_DisableMultitexture();
+            GL_SelectTexture(GL_TEXTURE0_ARB);
 	}
+        else
+        {
+	    // Regular lightmapping
+	    if (shader->numstages && shader->numcolorstages)
+	    {
+		if (shader->colorstages[0].src_blend >= 0)
+		{
+		    glEnable(GL_BLEND);
+		    glBlendFunc(shader->colorstages[0].src_blend,
+				shader->colorstages[0].dst_blend);
+		}
+		else
+		{
+		    glEnable(GL_BLEND);
+		    glBlendFunc(GL_ONE, GL_ONE);
+		}
+	    }
+	    else 
+	    {
+		glDisable(GL_BLEND);
+	    }
 
-	glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
-	GL_EnableMultitexture();
-	glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
-	glColor3f(sh_lightmapbright.value, sh_lightmapbright.value,
-		  sh_lightmapbright.value);
+            GL_SelectTexture(GL_TEXTURE0_ARB);
+	    if (shader->numcolorstages)
+	    {
+		if (shader->colorstages[0].numtextures)
+		    GL_BindAdvanced(shader->colorstages[0].texture[0]);
 
-	ARB_sendSurfacesBase(surfs, numSurfaces, true);
+		if (shader->colorstages[0].alphatresh > 0)
+		{
+		    glEnable(GL_ALPHA_TEST);
+		    glAlphaFunc(GL_GEQUAL, shader->colorstages[0].alphatresh);
+		}	
+	    }
 
-	glDisableClientState(GL_TEXTURE_COORD_ARRAY);
-	GL_DisableMultitexture();
-	qglClientActiveTextureARB(GL_TEXTURE0_ARB);
+	    glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+	    GL_EnableMultitexture();
+	    glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+	    glColor3f(sh_lightmapbright.value, sh_lightmapbright.value,
+		      sh_lightmapbright.value);
+
+	    ARB_sendSurfacesBase(surfs, numSurfaces, true);
+
+	    glDisableClientState(GL_TEXTURE_COORD_ARRAY);
+	    GL_DisableMultitexture();
+            GL_SelectTexture(GL_TEXTURE0_ARB);
+        }
     }
 
     if (!shader->cull)
@@ -1059,12 +1628,13 @@ void ARB_drawSurfaceListBase (vertexdef_t* verts, msurface_t** surfs,
 
     glDisable(GL_ALPHA_TEST);
     glMatrixMode(GL_MODELVIEW);
+    qglClientActiveTextureARB(GL_TEXTURE0_ARB);
     glDisableClientState(GL_TEXTURE_COORD_ARRAY);
     glDisableClientState(GL_VERTEX_ARRAY);
     glDisable(GL_BLEND);
 }
 
-void ARB_sendSurfacesTA(msurface_t** surfs, int numSurfaces)
+void ARB_sendSurfacesTA(msurface_t** surfs, int numSurfaces, const transform_t *tr)
 {
     int i,j;
     glpoly_t *p;
@@ -1091,6 +1661,21 @@ void ARB_sendSurfacesTA(msurface_t** surfs, int numSurfaces)
 	//less state changes
 	if (lastshader != shader)
 	{
+            if ( lastshader && lastshader->glossstages[0].type != shader->glossstages[0].type )
+            {
+                // disable previous shader if switching between colored and mono gloss
+                ARB_DisableBumpShader(lastshader);
+                ARB_EnableBumpShader(tr,currentshadowlight->origin,true, shader);
+            }
+            else
+            {
+                if ( !lastshader )
+                {
+                    // Enable shader for the first surface
+                    ARB_EnableBumpShader(tr,currentshadowlight->origin,true, shader);
+                }
+            }
+
 	    if (!shader->cull)
 	    {
 		glDisable(GL_CULL_FACE);
@@ -1105,10 +1690,23 @@ void ARB_sendSurfacesTA(msurface_t** surfs, int numSurfaces)
 	    //bind the correct texture
 	    GL_SelectTexture(GL_TEXTURE0_ARB);
 	    if (shader->numbumpstages > 0)
-		GL_Bind(shader->bumpstages[0].texture[0]->texnum);
-	    GL_SelectTexture(GL_TEXTURE3_ARB);
+		GL_BindAdvanced(shader->bumpstages[0].texture[0]);
+	    GL_SelectTexture(GL_TEXTURE1_ARB);
 	    if (shader->numcolorstages > 0)
-		GL_Bind(shader->colorstages[0].texture[0]->texnum);
+		GL_BindAdvanced(shader->colorstages[0].texture[0]);
+            if ( shader->glossstages > 0 )
+            {
+                // Bind colored gloss
+                if (currentshadowlight->filtercube)
+                {
+                    GL_SelectTexture(GL_TEXTURE4_ARB);
+                }
+                else
+                {
+                    GL_SelectTexture(GL_TEXTURE3_ARB);
+                }
+                GL_BindAdvanced(shader->glossstages[0].texture[0]);
+            }
 	    lastshader = shader;
 	}
 
@@ -1116,81 +1714,17 @@ void ARB_sendSurfacesTA(msurface_t** surfs, int numSurfaces)
 	qglMultiTexCoord3fvARB(GL_TEXTURE1_ARB, &surf->tangent[0]);
 	qglMultiTexCoord3fvARB(GL_TEXTURE2_ARB, &surf->binormal[0]);
 	qglMultiTexCoord3fvARB(GL_TEXTURE3_ARB, &surf->plane->normal[0]);
-	/*
-	  glBegin(GL_POLYGON);
-	  v = (float *)(&globalVertexTable[surf->polys->firstvertex]);
-	  for (j=0; j<p->numverts; j++, v+= VERTEXSIZE) {
-	  qglMultiTexCoord2fARB(GL_TEXTURE0_ARB, v[3], v[4]);
-	  glVertex3fv(&v[0]);
-	  }
-	  glEnd();
-	*/
 	glDrawElements(GL_TRIANGLES, p->numindecies, GL_UNSIGNED_INT, &p->indecies[0]);
     }
 
     if (!cull)
 	glEnable(GL_CULL_FACE);
+
+    if ( lastshader )
+        ARB_DisableBumpShader(lastshader);
 }
 
 
-void ARB_sendSurfacesPlain(msurface_t** surfs, int numSurfaces)
-{
-    int i,j;
-    glpoly_t *p;
-    msurface_t *surf;
-    shader_t *shader, *lastshader;
-    float *v;
-    qboolean cull;
-    lastshader = NULL;
-
-    cull = true;
-
-    for (i = 0; i < numSurfaces; i++)
-    {
-	surf = surfs[i];
-		
-	if (surf->visframe != r_framecount)
-	    continue;
-
-	if (!(surf->flags & SURF_PPLIGHT))
-	    continue;
-
-	p = surf->polys;
-
-	shader = surf->shader->shader;
-
-	//less state changes
-	if (lastshader != shader)
-	{
-	    if (!shader->cull)
-	    {
-		glDisable(GL_CULL_FACE);
-		cull = false;
-	    }
-	    else
-	    {
-		if (!cull)
-		    glEnable(GL_CULL_FACE);
-		cull = true;
-	    }
-	    lastshader = shader;
-	}
-	/*		
-		glBegin(GL_POLYGON);
-		v = (float *)(&globalVertexTable[surf->polys->firstvertex]);
-		for (j=0; j<p->numverts; j++, v+= VERTEXSIZE) {
-		//qglMultiTexCoord2fARB(GL_TEXTURE0_ARB, v[3], v[4]);
-		glVertex3fv(&v[0]);
-		}
-		glEnd();
-	*/
-	glDrawElements(GL_TRIANGLES, p->numindecies, GL_UNSIGNED_INT,
-		       &p->indecies[0]);
-    }
-
-    if (!cull)
-	glEnable(GL_CULL_FACE);
-}
 
 void ARB_drawSurfaceListBump (vertexdef_t *verts, msurface_t **surfs,
 			      int numSurfaces,const transform_t *tr)
@@ -1200,15 +1734,12 @@ void ARB_drawSurfaceListBump (vertexdef_t *verts, msurface_t **surfs,
 
     qglClientActiveTextureARB(GL_TEXTURE0_ARB);
     glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+    glTexCoordPointer(2, GL_FLOAT, verts->texcoordstride, verts->texcoords);
 
     GL_AddColor();
     glColor3fv(&currentshadowlight->color[0]);
 
-    GL_EnableDiffuseSpecularShaderARB(tr,currentshadowlight->origin,true);
-
-    glTexCoordPointer(2, GL_FLOAT, verts->texcoordstride, verts->texcoords);
-    ARB_sendSurfacesTA(surfs,numSurfaces);
-    GL_DisableDiffuseShaderARB();
+    ARB_sendSurfacesTA(surfs,numSurfaces, tr);
 
     glDisableClientState(GL_VERTEX_ARRAY);
     glDisableClientState(GL_TEXTURE_COORD_ARRAY);
@@ -1257,7 +1788,7 @@ void BUMP_InitARB(void)
 
     if ( gl_cardtype != ARB ) return;
 
-    GL_CreateShadersARB();
+    ARB_CreateShaders();
 
 
     //bind the correct stuff to the bump mapping driver
