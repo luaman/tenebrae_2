@@ -56,7 +56,7 @@ void CM_InitBoxHull (model_t *M)
 	box_brush = &M->brushes[M->numbrushes];
 	box_brush->numsides = 6;
 	box_brush->firstbrushside = M->numbrushsides;
-	box_brush->contents = CONTENTS_EMPTY;
+	box_brush->contents = CONTENTS_SOLID;
 
 	for (i=0 ; i<6 ; i++)
 	{
@@ -453,6 +453,10 @@ void CM_ClipBoxToBrush (model_t *M, vec3_t mins, vec3_t maxs, vec3_t p1, vec3_t 
 			trace->allsolid = true;
 		return;
 	}
+	
+	/*if (getout || startout)*/ trace->inopen = true;
+	
+
 	if (enterfrac < leavefrac)
 	{
 		if (enterfrac > -1 && enterfrac < trace->fraction)
@@ -512,8 +516,10 @@ void CM_TestBoxInBrush (model_t *M, vec3_t mins, vec3_t maxs, vec3_t p1,
 		d1 = DotProduct (p1, plane->normal) - dist;
 
 		// if completely in front of face, no intersection
-		if (d1 > 0)
+		if (d1 > 0) {
+			trace->inopen = true;
 			return;
+		}
 
 	}
 
@@ -590,7 +596,6 @@ void CM_TraceToBrushModel (model_t *M, int firstbrush, int numbrushes, vec3_t mi
 	mbrush_t *b;
 
 	//Con_Printf("CM_TraceToBrushModel");
-
 
 	if (!M->numnodes)	// map not loaded
 		return;
