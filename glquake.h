@@ -45,7 +45,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
    func = (type) glXGetProcAddressARB (name)
 #else
 #define SAFE_GET_PROC( func, type, name)     \
-   func = (type) wglGetProcAddress( name)
+   func = (type) wglGetProcAddress( name);	\
+   if (!func) Sys_Error("Could not get addres for %s\n",name)
 #endif
 
 
@@ -387,7 +388,7 @@ extern  cvar_t	fog_end;
 extern  cvar_t	gl_fog;
 extern	float	fog_color[4];
 extern	cvar_t	r_tangentscale; //scale tangent/binormal by this
-
+extern  cvar_t  sh_delux;
 
 extern	int			mirrortexturenum;	// quake texturenum, not gltexturenum
 extern	qboolean	mirror;
@@ -427,6 +428,33 @@ void GL_Bind (int texnum);
 // Multitexture
 //#define    TEXTURE0_SGIS				0x835E
 //#define    TEXTURE1_SGIS				0x835F
+
+/* Arb Imaging stuff
+not an extension: see http://www.opengl.org/developers/documentation/OpenGL12.html#imaging
+*/
+
+typedef void (APIENTRY *PFNBLENDCOLORPROC)(GLclampf red, GLclampf green, GLclampf blue, GLclampf alpha);
+
+#define GL_CONSTANT_COLOR_EXT						0x8001
+#define GL_ONE_MINUS_CONSTANT_COLOR_EXT				0x8002
+#define GL_CONSTANT_ALPHA_EXT						0x8003
+#define GL_ONE_MINUS_CONSTANT_ALPHA_EXT				0x8004
+extern PFNBLENDCOLORPROC qglBlendColor;
+
+#define GL_COLOR_MATRIX				0x80B1
+#define GL_COLOR_MATRIX_STACK_DEPTH		0x80B2
+#define GL_MAX_COLOR_MATRIX_STACK_DEPTH		0x80B3
+
+#define GL_POST_COLOR_MATRIX_RED_SCALE		0x80B4
+#define GL_POST_COLOR_MATRIX_GREEN_SCALE		0x80B5
+#define GL_POST_COLOR_MATRIX_BLUE_SCALE		0x80B6
+#define GL_POST_COLOR_MATRIX_ALPHA_SCALE		0x80B7
+#define GL_POST_COLOR_MATRIX_RED_BIAS		0x80B8
+#define GL_POST_COLOR_MATRIX_GREEN_BIAS		0x80B9
+#define GL_POST_COLOR_MATRIX_BLUE_BIAS		0x80BA
+#define GL_POST_COLOR_MATRIX_ALPHA_BIAS		0x80BB
+
+
 
 // ARB_texture_compression defines
 #define GL_COMPRESSED_RGBA_ARB                0x84EE
