@@ -156,7 +156,7 @@ Breaks a polygon up along axial 64 unit
 boundaries so that turbulent and sky warps
 can be done reasonably.
 ================
-*/
+*//*
 void GL_SubdivideSurface (msurface_t *fa)
 {
     vec3_t		verts[64];
@@ -185,7 +185,7 @@ void GL_SubdivideSurface (msurface_t *fa)
 
     SubdividePolygon (numverts, verts[0]);
 }
-
+*/
 //=========================================================
 
 
