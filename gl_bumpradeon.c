@@ -101,7 +101,7 @@ static unsigned int fragment_shaders;
 static unsigned int vertex_shaders;
 static GLuint lightPos, eyePos; // vertex shader constants
 
-//#define RADEONDEBUG
+#define RADEONDEBUG
 
 #ifdef RADEONDEBUG
 void Radeon_checkerror()
@@ -456,7 +456,7 @@ void Radeon_CreateShaders()
     qglEndFragmentShaderATI();
     Radeon_checkerror();
 
-    // Second shader with cube filter
+    // combined diffuse & specular shader w/ vertex color and colored gloss
     qglBindFragmentShaderATI(fragment_shaders+1);
     Radeon_checkerror();
     qglBeginFragmentShaderATI();
@@ -486,30 +486,30 @@ void Radeon_CreateShaders()
 
     // gloss * atten * light color * specular +
     // dot * color * atten * light color * self shadow =
-    // (gloss * specular + dot * color * self shadow ) * atten * light color * filter
+    // (gloss * specular + dot * color * self shadow ) * atten * light color
     // Alpha ops rule :-)
 
-    // dp3_sat r2.rgb, r0_bx2.rgb, r2_bx2.rgb      // specular
+    // dp3_sat r2.rgb, r0_bx2.rgb, r2_bx2.rgb   // specular
     qglColorFragmentOp2ATI(GL_DOT3_ATI,
                            GL_REG_2_ATI, GL_RED_BIT_ATI|GL_GREEN_BIT_ATI|GL_BLUE_BIT_ATI, GL_SATURATE_BIT_ATI,
                            GL_REG_0_ATI, GL_NONE, GL_2X_BIT_ATI|GL_BIAS_BIT_ATI,
                            GL_REG_2_ATI, GL_NONE, GL_2X_BIT_ATI|GL_BIAS_BIT_ATI);
     Radeon_checkerror();
 
-    // +mov_x8_sat r2.a, r1_bx2.b                  // self shadow term
+    // +mov_x8_sat r2.a, r1_bx2.b               // self shadow term
     qglAlphaFragmentOp1ATI(GL_MOV_ATI,
                            GL_REG_2_ATI, GL_8X_BIT_ATI|GL_SATURATE_BIT_ATI,
                            GL_REG_1_ATI, GL_BLUE, GL_2X_BIT_ATI|GL_BIAS_BIT_ATI);
     Radeon_checkerror();
 
-    // dp3_sat r1.rgb, r0_bx2.rgb, r1_bx2.rgb  // diffuse
+    // dp3_sat r1.rgb, r0_bx2.rgb, r1_bx2.rgb   // diffuse
     qglColorFragmentOp2ATI(GL_DOT3_ATI,
                            GL_REG_1_ATI, GL_RED_BIT_ATI|GL_GREEN_BIT_ATI|GL_BLUE_BIT_ATI, GL_SATURATE_BIT_ATI,
                            GL_REG_0_ATI, GL_NONE, GL_2X_BIT_ATI|GL_BIAS_BIT_ATI,
                            GL_REG_1_ATI, GL_NONE, GL_2X_BIT_ATI|GL_BIAS_BIT_ATI);
     Radeon_checkerror();
 
-    // +mad_x2_sat r1.a, r2.b, r2.b, -c0.b     // specular exponent
+    // +mad_x2_sat r1.a, r2.b, r2.b, -c0.b      // specular exponent
     qglAlphaFragmentOp3ATI(GL_MAD_ATI,
                            GL_REG_1_ATI, GL_2X_BIT_ATI|GL_SATURATE_BIT_ATI,
                            GL_REG_2_ATI, GL_BLUE, GL_NONE,
@@ -517,69 +517,55 @@ void Radeon_CreateShaders()
                            GL_CON_0_ATI, GL_BLUE, GL_NEGATE_BIT_ATI);
     Radeon_checkerror();
 
-    // mul r1.rgb, r1.rgb, r3.rgb              // diffuse color * diffuse bump
+    // mul r1.rgb, r1.rgb, r3.rgb               // diffuse color * diffuse bump
     qglColorFragmentOp2ATI(GL_MUL_ATI,
                            GL_REG_1_ATI, GL_RED_BIT_ATI|GL_GREEN_BIT_ATI|GL_BLUE_BIT_ATI, GL_NONE,
                            GL_REG_1_ATI, GL_NONE, GL_NONE,
                            GL_REG_3_ATI, GL_NONE, GL_NONE);
     Radeon_checkerror();
 
-    // +mul r1.a, r1.a, r1.a                   // raise exponent
+    // +mul r1.a, r1.a, r1.a                    // raise exponent
     qglAlphaFragmentOp2ATI(GL_MUL_ATI,
                            GL_REG_1_ATI, GL_NONE,
                            GL_REG_1_ATI, GL_NONE, GL_NONE,
                            GL_REG_1_ATI, GL_NONE, GL_NONE);
     Radeon_checkerror();
 
-    // mul r4.rgb, r4.rgb, v0.rgb              // atten * light color
+    // mul r4.rgb, r4.rgb, v0.rgb               // atten * light color
     qglColorFragmentOp2ATI(GL_MUL_ATI,
                            GL_REG_4_ATI, GL_RED_BIT_ATI|GL_GREEN_BIT_ATI|GL_BLUE_BIT_ATI, GL_NONE,
                            GL_REG_4_ATI, GL_NONE, GL_NONE,
                            GL_PRIMARY_COLOR_ARB, GL_NONE, GL_NONE);
     Radeon_checkerror();
 
-    // +mul r1.a, r1.a, r1.a                   // raise exponent
+    // +mul r1.a, r1.a, r1.a                    // raise exponent
     qglAlphaFragmentOp2ATI(GL_MUL_ATI,
                            GL_REG_1_ATI, GL_NONE,
                            GL_REG_1_ATI, GL_NONE, GL_NONE,
                            GL_REG_1_ATI, GL_NONE, GL_NONE);
     Radeon_checkerror();
 
-    // mul r1.rgb, r1.rgb, r2.a               // self shadow * diffuse
+    // mul r1.rgb, r1.rgb, r2.a                 // self shadow * diffuse
     qglColorFragmentOp2ATI(GL_MUL_ATI,
                            GL_REG_1_ATI, GL_RED_BIT_ATI|GL_GREEN_BIT_ATI|GL_BLUE_BIT_ATI, GL_NONE,
                            GL_REG_1_ATI, GL_NONE, GL_NONE,
                            GL_REG_2_ATI, GL_ALPHA, GL_NONE);
     Radeon_checkerror();
 
-    // +mul r0.a, r1.a, r0.a                 // specular * gloss map
-    qglAlphaFragmentOp2ATI(GL_MUL_ATI,
-                           GL_REG_0_ATI, GL_SATURATE_BIT_ATI,
-                           GL_REG_1_ATI, GL_NONE, GL_NONE,
-                           GL_REG_0_ATI, GL_NONE, GL_NONE);
+    // mad_sat r0.rgb, r1.a, r5.rgb, r1.rgb     // specular * gloss + diffuse
+    qglColorFragmentOp3ATI(GL_MAD_ATI,
+                           GL_REG_0_ATI, GL_RED_BIT_ATI|GL_GREEN_BIT_ATI|GL_BLUE_BIT_ATI, GL_SATURATE_BIT_ATI,
+                           GL_REG_1_ATI, GL_ALPHA, GL_NONE,
+                           GL_REG_5_ATI, GL_NONE, GL_NONE,
+                           GL_REG_1_ATI, GL_NONE, GL_NONE);
     Radeon_checkerror();
 
-    // add r0.rgb, r0.rgb, r0.a              // diffuse + specular
-    qglColorFragmentOp2ATI(GL_ADD_ATI,
-                           GL_REG_0_ATI, GL_RED_BIT_ATI|GL_GREEN_BIT_ATI|GL_BLUE_BIT_ATI, GL_NONE,
-                           GL_REG_1_ATI, GL_NONE, GL_NONE,
-                           GL_REG_0_ATI, GL_ALPHA, GL_NONE);
-    Radeon_checkerror();
-
-    // mul r0.rgb, r0.rgb, r4.rgb            // (diffuse + specular)*atten*color
-    qglColorFragmentOp2ATI(GL_MUL_ATI,
-                           GL_REG_0_ATI, GL_NONE, GL_NONE,
-                           GL_REG_0_ATI, GL_NONE, GL_NONE,
-                           GL_REG_4_ATI, GL_NONE, GL_NONE);
-    Radeon_checkerror();
-
-    // mul_sat r0.rgb, r0.rgb, r5.rgb    // (diffuse + specular)*atten*color*filter
+    // mul_sat r0.rgb, r0.rgb, r4.rgb           // (diffuse + specular)*atten*color
     qglColorFragmentOp2ATI(GL_MUL_ATI,
                            GL_REG_0_ATI, GL_NONE, GL_SATURATE_BIT_ATI,
                            GL_REG_0_ATI, GL_NONE, GL_NONE,
-                           GL_REG_5_ATI, GL_NONE, GL_NONE);
+                           GL_REG_4_ATI, GL_NONE, GL_NONE);
     Radeon_checkerror();
-
 
     qglEndFragmentShaderATI();
     Radeon_checkerror();
@@ -589,7 +575,7 @@ void Radeon_CreateShaders()
 
     glEnable(GL_VERTEX_SHADER_EXT);
 
-    vertex_shaders = qglGenVertexShadersEXT(2);
+    vertex_shaders = qglGenVertexShadersEXT(1);
     Radeon_checkerror();
     lightPos = qglGenSymbolsEXT(GL_VECTOR_EXT, GL_INVARIANT_EXT, 
 				GL_FULL_RANGE_EXT, 1);
@@ -647,133 +633,7 @@ void Radeon_CreateShaders()
     Radeon_checkerror();
     qglShaderOp1EXT( GL_OP_MOV_EXT, GL_OUTPUT_TEXTURE_COORD3_EXT, texcoord0);
     Radeon_checkerror();
-    qglShaderOp1EXT( GL_OP_MOV_EXT, GL_OUTPUT_COLOR0_EXT, color);
-    Radeon_checkerror();
-
-    // Transform vertex and take z for fog
-    qglExtractComponentEXT( zcomp, modelview, 2);
-    Radeon_checkerror();
-    qglShaderOp2EXT( GL_OP_DOT4_EXT, disttemp, zcomp, vertex );
-    Radeon_checkerror();
-
-    // calculate fog values end - z and end - start
-    qglShaderOp2EXT( GL_OP_SUB_EXT, disttemp, fogend, disttemp);
-    Radeon_checkerror();
-    qglShaderOp2EXT( GL_OP_SUB_EXT, disttemp2, fogend, fogstart);
-    Radeon_checkerror();
-
-    // divide end - z by end - start, that's it
-    qglShaderOp1EXT( GL_OP_RECIP_EXT, disttemp2, disttemp2);
-    Radeon_checkerror();
-    qglShaderOp2EXT( GL_OP_MUL_EXT, GL_OUTPUT_FOG_EXT, disttemp, disttemp2);
-    Radeon_checkerror();
-
-    // calculate light position
-    qglShaderOp2EXT( GL_OP_SUB_EXT, tempvec, lightPos, vertex);
-    Radeon_checkerror();
-    qglShaderOp2EXT( GL_OP_DOT3_EXT, disttemp, tempvec, tempvec);
-    Radeon_checkerror();
-    qglShaderOp1EXT( GL_OP_RECIP_SQRT_EXT, disttemp, disttemp);
-    Radeon_checkerror();
-    qglShaderOp2EXT( GL_OP_MUL_EXT, tempvec, tempvec, disttemp);
-    Radeon_checkerror();
-    // Normalized light vec now in tempvec, transform to tex1
-    qglShaderOp2EXT( GL_OP_DOT4_EXT, disttemp, tempvec, texcoord1);
-    Radeon_checkerror();
-    qglInsertComponentEXT( GL_OUTPUT_TEXTURE_COORD1_EXT, disttemp, 0);
-    Radeon_checkerror();
-    qglShaderOp2EXT( GL_OP_DOT4_EXT, disttemp, tempvec, texcoord2);
-    Radeon_checkerror();
-    qglInsertComponentEXT( GL_OUTPUT_TEXTURE_COORD1_EXT, disttemp, 1);
-    Radeon_checkerror();
-    qglShaderOp2EXT( GL_OP_DOT4_EXT, disttemp, tempvec, texcoord3);
-    Radeon_checkerror();
-    qglInsertComponentEXT( GL_OUTPUT_TEXTURE_COORD1_EXT, disttemp, 2);
-    Radeon_checkerror();
-
-    // Now, calculate halfvec
-    qglShaderOp2EXT( GL_OP_SUB_EXT, zcomp, eyePos, vertex);
-    Radeon_checkerror();
-    qglShaderOp2EXT( GL_OP_ADD_EXT, tempvec, tempvec, zcomp);
-    Radeon_checkerror();
-    qglShaderOp2EXT( GL_OP_DOT3_EXT, disttemp, tempvec, tempvec);
-    Radeon_checkerror();
-    qglShaderOp1EXT( GL_OP_RECIP_SQRT_EXT, disttemp, disttemp);
-    Radeon_checkerror();
-    qglShaderOp2EXT( GL_OP_MUL_EXT, tempvec, tempvec, disttemp);
-    Radeon_checkerror();
-    // Normalized half vec now in tempvec, transform to tex1
-    qglShaderOp2EXT( GL_OP_DOT4_EXT, disttemp, tempvec, texcoord1);
-    Radeon_checkerror();
-    qglInsertComponentEXT( GL_OUTPUT_TEXTURE_COORD2_EXT, disttemp, 0);
-    Radeon_checkerror();
-    qglShaderOp2EXT( GL_OP_DOT4_EXT, disttemp, tempvec, texcoord2);
-    Radeon_checkerror();
-    qglInsertComponentEXT( GL_OUTPUT_TEXTURE_COORD2_EXT, disttemp, 1);
-    Radeon_checkerror();
-    qglShaderOp2EXT( GL_OP_DOT4_EXT, disttemp, tempvec, texcoord3);
-    Radeon_checkerror();
-    qglInsertComponentEXT( GL_OUTPUT_TEXTURE_COORD2_EXT, disttemp, 2);
-
-    qglEndVertexShaderEXT();
-    Radeon_checkerror();
-
-    // And the same with two transformed textures
-    qglBindVertexShaderEXT(vertex_shaders+1);
-    Radeon_checkerror();
-    qglBeginVertexShaderEXT();
-    Radeon_checkerror();
-
-    // Generates a necessary input for the diffuse bumpmapping registers
-    mvp           = qglBindParameterEXT( GL_MVP_MATRIX_EXT );
-    Radeon_checkerror();
-    modelview     = qglBindParameterEXT( GL_MODELVIEW_MATRIX );
-    Radeon_checkerror();
-    vertex        = qglBindParameterEXT( GL_CURRENT_VERTEX_EXT );
-    Radeon_checkerror();
-    color         = qglBindParameterEXT( GL_CURRENT_COLOR );
-    Radeon_checkerror();
-    texturematrix = qglBindTextureUnitParameterEXT( GL_TEXTURE4_ARB, GL_TEXTURE_MATRIX );
-    Radeon_checkerror();
-    texturematrix2 = qglBindTextureUnitParameterEXT( GL_TEXTURE5_ARB, GL_TEXTURE_MATRIX );
-    Radeon_checkerror();
-    texcoord0     = qglBindTextureUnitParameterEXT( GL_TEXTURE0_ARB, GL_CURRENT_TEXTURE_COORDS );
-    Radeon_checkerror();
-    texcoord1     = qglBindTextureUnitParameterEXT( GL_TEXTURE1_ARB, GL_CURRENT_TEXTURE_COORDS );
-    Radeon_checkerror();
-    texcoord2     = qglBindTextureUnitParameterEXT( GL_TEXTURE2_ARB, GL_CURRENT_TEXTURE_COORDS );
-    Radeon_checkerror();
-    texcoord3     = qglBindTextureUnitParameterEXT( GL_TEXTURE3_ARB, GL_CURRENT_TEXTURE_COORDS );
-    Radeon_checkerror();
-    disttemp      = qglGenSymbolsEXT(GL_SCALAR_EXT, GL_LOCAL_EXT, GL_FULL_RANGE_EXT, 1);
-    Radeon_checkerror();
-    disttemp2     = qglGenSymbolsEXT(GL_SCALAR_EXT, GL_LOCAL_EXT, GL_FULL_RANGE_EXT, 1);
-    Radeon_checkerror();
-    zcomp         = qglGenSymbolsEXT(GL_VECTOR_EXT, GL_LOCAL_EXT, GL_FULL_RANGE_EXT, 1);
-    Radeon_checkerror();
-    tempvec       = qglGenSymbolsEXT(GL_VECTOR_EXT, GL_LOCAL_EXT, GL_FULL_RANGE_EXT, 1);
-    Radeon_checkerror();
-    fogstart      = qglBindParameterEXT( GL_FOG_START );
-    Radeon_checkerror();
-    fogend        = qglBindParameterEXT( GL_FOG_END );
-    Radeon_checkerror();
-
-    // Transform vertex to view-space
-    qglShaderOp2EXT( GL_OP_MULTIPLY_MATRIX_EXT, GL_OUTPUT_VERTEX_EXT, mvp, vertex );
-    Radeon_checkerror();
-    
-    // Transform vertex by texture matrix and copy to output
-    qglShaderOp2EXT( GL_OP_MULTIPLY_MATRIX_EXT, GL_OUTPUT_TEXTURE_COORD4_EXT, texturematrix, vertex );
-    Radeon_checkerror();
-
-    // Transform vertex by texture matrix and copy to output
-    qglShaderOp2EXT( GL_OP_MULTIPLY_MATRIX_EXT, GL_OUTPUT_TEXTURE_COORD5_EXT, texturematrix2, vertex );
-    Radeon_checkerror();
-
-    // copy tex coords of unit 0 to unit 3
-    qglShaderOp1EXT( GL_OP_MOV_EXT, GL_OUTPUT_TEXTURE_COORD0_EXT, texcoord0);
-    Radeon_checkerror();
-    qglShaderOp1EXT( GL_OP_MOV_EXT, GL_OUTPUT_TEXTURE_COORD3_EXT, texcoord0);
+    qglShaderOp1EXT( GL_OP_MOV_EXT, GL_OUTPUT_TEXTURE_COORD5_EXT, texcoord0);
     Radeon_checkerror();
     qglShaderOp1EXT( GL_OP_MOV_EXT, GL_OUTPUT_COLOR0_EXT, color);
     Radeon_checkerror();
@@ -850,7 +710,7 @@ void Radeon_CreateShaders()
 }
 
 
-void Radeon_DisableBumpShader()
+void Radeon_DisableBumpShader(shader_t* shader)
 {
     //tex 0 = normal map
     //tex 1 = normalization cube map (tangent space light vector)
@@ -871,21 +731,41 @@ void Radeon_DisableBumpShader()
     glDisable(GL_TEXTURE_2D);
 
     GL_SelectTexture(GL_TEXTURE4_ARB);
-    if (currentshadowlight->filtercube)
-    {
-        glDisable(GL_TEXTURE_CUBE_MAP_ARB);
+    if (currentshadowlight->shader->numstages)
+    {        
+        if (currentshadowlight->shader->stages[0].texture[0]->gltype == GL_TEXTURE_CUBE_MAP_ARB)
+        {
+            glDisable(GL_TEXTURE_CUBE_MAP_ARB);
+        }
+        else
+        {
+            glDisable(GL_TEXTURE_2D);
+        }
         glPopMatrix();
         GL_SelectTexture(GL_TEXTURE5_ARB);
+        if ( shader->glossstages[0].type == STAGE_GLOSS )
+        {
+            glDisable(GL_TEXTURE_2D);
+        }
     }
-    glDisable(GL_TEXTURE_3D);
-    glPopMatrix();
+    else
+    {
+        glDisable(GL_TEXTURE_3D);
+        glPopMatrix();
+        if ( shader->glossstages[0].type == STAGE_GLOSS )
+        {
+            GL_SelectTexture(GL_TEXTURE5_ARB);
+            glDisable(GL_TEXTURE_2D);
+        }
+    }
     glMatrixMode(GL_MODELVIEW);
-
     GL_SelectTexture(GL_TEXTURE0_ARB);
 }
 
+void Radeon_SetupTcMods(stage_t *s);
+
 void Radeon_EnableBumpShader(const transform_t *tr, vec3_t lightOrig,
-                             qboolean alias)
+                             qboolean alias, shader_t* shader)
 {
     GLfloat temp[4];
 
@@ -894,8 +774,9 @@ void Radeon_EnableBumpShader(const transform_t *tr, vec3_t lightOrig,
     //tex 2 = normalization cube map (tangent space half vector)
     //tex 3 = color map
     //tex 4 = (attenuation or light filter, depends on light settings but the actual
-    //  register combiner setup does not change only the bound texture)
+    //tex 5 = colored gloss if used
 
+    glGetError();
     GL_SelectTexture(GL_TEXTURE1_ARB);
     glEnable(GL_TEXTURE_CUBE_MAP_ARB);
     glBindTexture(GL_TEXTURE_CUBE_MAP_ARB, normcube_texture_object);
@@ -909,46 +790,78 @@ void Radeon_EnableBumpShader(const transform_t *tr, vec3_t lightOrig,
 
     glEnable(GL_FRAGMENT_SHADER_ATI);
     glEnable(GL_VERTEX_SHADER_EXT);
-   
+
+    qglBindVertexShaderEXT( vertex_shaders );
+    Radeon_checkerror();
+
     GL_SelectTexture(GL_TEXTURE4_ARB);
     glMatrixMode(GL_TEXTURE);
     glPushMatrix();
     glLoadIdentity();
-    if (currentshadowlight->filtercube)
-    {
-        glGetError();
-        qglBindFragmentShaderATI( fragment_shaders + 1 );
-        Radeon_checkerror();
-        qglBindVertexShaderEXT( vertex_shaders + 1);
-        Radeon_checkerror();
-
-        glEnable(GL_TEXTURE_CUBE_MAP_ARB);
-        glBindTexture(GL_TEXTURE_CUBE_MAP_ARB, currentshadowlight->filtercube);
+    if (currentshadowlight->shader->numstages)
+    {        
+        if (currentshadowlight->shader->stages[0].texture[0]->gltype == GL_TEXTURE_CUBE_MAP_ARB)
+        {
+            glEnable(GL_TEXTURE_CUBE_MAP_ARB);
+  	    glBindTexture(GL_TEXTURE_CUBE_MAP_ARB, currentshadowlight->shader->stages[0].texture[0]->texnum); 
+        }
+        else
+        {
+            // 2D filter
+            glEnable(GL_TEXTURE_2D);
+            GL_BindAdvanced(currentshadowlight->shader->stages[0].texture[0]);
+	    //Default = repeat the texture one time in the light's sphere
+	    //Can be modified with the tcMod shader commands
+	    glTranslatef(0.5,0.5,0.5);
+	    glScalef(0.5,0.5,0.5);
+	    glScalef(1.0f/(currentshadowlight->radiusv[0]), 
+	  		   1.0f/(currentshadowlight->radiusv[1]),
+			   1.0f/(currentshadowlight->radiusv[2]));
+        }
+        Radeon_SetupTcMods(&currentshadowlight->shader->stages[0]);
         GL_SetupCubeMapMatrix(tr);
 
         GL_SelectTexture(GL_TEXTURE5_ARB);
-        glMatrixMode(GL_TEXTURE);
-        glPushMatrix();
-        glLoadIdentity();
+        if ( shader->glossstages[0].type == STAGE_GLOSS )
+        {
+            GL_BindAdvanced(shader->glossstages[0].texture[0]);
+            glEnable(GL_TEXTURE_2D);
+            qglBindFragmentShaderATI( fragment_shaders + 1 );
+            Radeon_checkerror();
+        }
+        else
+        {
+            qglBindFragmentShaderATI( fragment_shaders );
+            Radeon_checkerror();
+        }
     }
     else
     {
-        glGetError();
-        qglBindFragmentShaderATI( fragment_shaders );
-        Radeon_checkerror();
-        qglBindVertexShaderEXT( vertex_shaders );
-        Radeon_checkerror();
+        glEnable(GL_TEXTURE_3D);
+        glBindTexture(GL_TEXTURE_3D, atten3d_texture_object);
+
+        glTranslatef(0.5,0.5,0.5);
+        glScalef(0.5,0.5,0.5);
+        glScalef(1.0f/(currentshadowlight->radiusv[0]),
+                 1.0f/(currentshadowlight->radiusv[1]),
+		 1.0f/(currentshadowlight->radiusv[2]));
+        GL_SetupAttenMatrix(tr);
+
+        if ( shader->glossstages[0].type == STAGE_GLOSS )
+        {
+            GL_SelectTexture(GL_TEXTURE5_ARB);
+            GL_BindAdvanced(shader->glossstages[0].texture[0]);
+            glEnable(GL_TEXTURE_2D);
+            qglBindFragmentShaderATI( fragment_shaders + 1 );
+            Radeon_checkerror();
+        }
+        else
+        {
+            qglBindFragmentShaderATI( fragment_shaders );
+            Radeon_checkerror();
+        }
+
     }
-
-    glEnable(GL_TEXTURE_3D);
-    glBindTexture(GL_TEXTURE_3D, atten3d_texture_object);
-
-    glTranslatef(0.5,0.5,0.5);
-    glScalef(0.5,0.5,0.5);
-    glScalef(1.0f/(currentshadowlight->radiusv[0]),
-             1.0f/(currentshadowlight->radiusv[1]),
-	     1.0f/(currentshadowlight->radiusv[2]));
-    glTranslatef(-lightOrig[0], -lightOrig[1], -lightOrig[2]);
 
     GL_SelectTexture(GL_TEXTURE0_ARB);
 
@@ -964,6 +877,34 @@ void Radeon_EnableBumpShader(const transform_t *tr, vec3_t lightOrig,
     qglSetInvariantEXT(eyePos, GL_FLOAT, &temp[0]);
 }
 
+void Radeon_EnableAttentShader(const transform_t *tr) {
+
+	float invrad = 1/currentshadowlight->radius;
+
+	GL_SelectTexture(GL_TEXTURE0_ARB);
+	glMatrixMode(GL_TEXTURE);
+	glPushMatrix();
+	glLoadIdentity();
+	glTranslatef(0.5,0.5,0.5);
+	glScalef(0.5,0.5,0.5);
+	glScalef(1.0f/(currentshadowlight->radiusv[0]), 
+				 1.0f/(currentshadowlight->radiusv[1]),
+				 1.0f/(currentshadowlight->radiusv[2]));
+
+	GL_SetupAttenMatrix(tr);
+
+	glDisable(GL_TEXTURE_2D);
+	glEnable(GL_TEXTURE_3D);
+	glBindTexture(GL_TEXTURE_3D, atten3d_texture_object);
+}
+
+void Radeon_DisableAttentShader() {
+
+	glPopMatrix();
+	glMatrixMode(GL_MODELVIEW);
+	glDisable(GL_TEXTURE_3D);
+	glEnable(GL_TEXTURE_2D);
+}
 
 
 /************************
@@ -992,6 +933,13 @@ void Radeon_SetupTcMod(tcmod_t *tc)
             glScalef(1.0, 1.0, 1.0);
             break;
     }
+}
+
+void Radeon_SetupTcMods(stage_t *s)
+{
+    int i;
+    for (i = 0; i < s->numtcmods; i++)
+    	Radeon_SetupTcMod(&s->tcmods[i]);	
 }
 
 
@@ -1107,10 +1055,22 @@ void Radeon_drawTriangleListBump (const vertexdef_t *verts, int *indecies,
 				  int numIndecies, shader_t *shader,
 				  const transform_t *tr,  const lightobject_t *lo)
 {
-    GL_AddColor();
+    if (!(shader->flags & SURF_PPLIGHT)) return;
+
+    if (currentshadowlight->shader->numstages )
+    {
+    	//draw attent into dest alpha
+	GL_DrawAlpha();
+	Radeon_EnableAttentShader(tr);
+	Radeon_sendTriangleListWV(verts,indecies,numIndecies);
+	Radeon_DisableAttentShader();
+	GL_ModulateAlphaDrawColor();
+    } else {
+	GL_AddColor();
+    }
     glColor3fv(&currentshadowlight->color[0]);
 
-    Radeon_EnableBumpShader(tr,currentshadowlight->origin,true);
+    Radeon_EnableBumpShader(tr,currentshadowlight->origin, true, shader);
     //bind the correct texture
     GL_SelectTexture(GL_TEXTURE0_ARB);
     if (shader->numbumpstages > 0)
@@ -1120,7 +1080,7 @@ void Radeon_drawTriangleListBump (const vertexdef_t *verts, int *indecies,
 	GL_BindAdvanced(shader->colorstages[0].texture[0]);
 
     Radeon_sendTriangleListTA(verts,indecies,numIndecies);
-    Radeon_DisableBumpShader();
+    Radeon_DisableBumpShader(shader);
 }
 
 void Radeon_drawTriangleListBase (vertexdef_t *verts, int *indecies,
@@ -1345,7 +1305,7 @@ void Radeon_drawSurfaceListBase (vertexdef_t* verts, msurface_t** surfs,
     glDisable(GL_BLEND);
 }
 
-void Radeon_sendSurfacesTA(msurface_t** surfs, int numSurfaces)
+void Radeon_sendSurfacesTA(msurface_t** surfs, int numSurfaces, const transform_t *tr, const lightobject_t *lo)
 {
     int i,j;
     glpoly_t *p;
@@ -1372,6 +1332,21 @@ void Radeon_sendSurfacesTA(msurface_t** surfs, int numSurfaces)
 	//less state changes
 	if (lastshader != shader)
 	{
+            if ( lastshader && lastshader->glossstages[0].type != shader->glossstages[0].type )
+            {
+                // disable previous shader if switching between colored and mono gloss
+                Radeon_DisableBumpShader(lastshader);
+                Radeon_EnableBumpShader(tr, lo, true, shader);
+            }
+            else
+            {
+                if ( !lastshader )
+                {
+                    // Enable shader for the first surface
+                    Radeon_EnableBumpShader(tr, lo, true, shader);
+                }
+            }
+
 	    if (!shader->cull)
 	    {
 		glDisable(GL_CULL_FACE);
@@ -1390,6 +1365,12 @@ void Radeon_sendSurfacesTA(msurface_t** surfs, int numSurfaces)
 	    GL_SelectTexture(GL_TEXTURE3_ARB);
 	    if (shader->numcolorstages > 0)
 		GL_BindAdvanced(shader->colorstages[0].texture[0]);
+            if ( shader->glossstages > 0 )
+            {
+                // Bind colored gloss
+                GL_SelectTexture(GL_TEXTURE5_ARB);
+                GL_BindAdvanced(shader->glossstages[0].texture[0]);
+            }
 	    lastshader = shader;
 	}
 
@@ -1402,6 +1383,9 @@ void Radeon_sendSurfacesTA(msurface_t** surfs, int numSurfaces)
 
     if (!cull)
 	glEnable(GL_CULL_FACE);
+
+    if ( lastshader )
+        Radeon_DisableBumpShader(lastshader);
 }
 
 
@@ -1456,7 +1440,8 @@ void Radeon_sendSurfacesPlain(msurface_t** surfs, int numSurfaces)
 }
 
 void Radeon_drawSurfaceListBump (vertexdef_t *verts, msurface_t **surfs,
-				 int numSurfaces,const transform_t *tr, const lightobject_t *lo)
+				 int numSurfaces, const transform_t *tr,
+                                 const lightobject_t *lo)
 {
     glVertexPointer(3, GL_FLOAT, verts->vertexstride, verts->vertices);
     glEnableClientState(GL_VERTEX_ARRAY);
@@ -1464,14 +1449,24 @@ void Radeon_drawSurfaceListBump (vertexdef_t *verts, msurface_t **surfs,
     qglClientActiveTextureARB(GL_TEXTURE0_ARB);
     glEnableClientState(GL_TEXTURE_COORD_ARRAY);
 
-    GL_AddColor();
+    if (currentshadowlight->shader->numstages)
+    {
+    	//draw attent into dest alpha
+    	GL_DrawAlpha();
+	Radeon_EnableAttentShader(tr);
+	glTexCoordPointer(3, GL_FLOAT, verts->vertexstride, verts->vertices);
+	Radeon_sendSurfacesPlain(surfs,numSurfaces);
+	Radeon_DisableAttentShader();
+	GL_ModulateAlphaDrawColor();
+    }
+    else
+    {
+	GL_AddColor();
+    }
     glColor3fv(&currentshadowlight->color[0]);
 
-    Radeon_EnableBumpShader(tr,currentshadowlight->origin,true);
-
     glTexCoordPointer(2, GL_FLOAT, verts->texcoordstride, verts->texcoords);
-    Radeon_sendSurfacesTA(surfs,numSurfaces);
-    Radeon_DisableBumpShader();
+    Radeon_sendSurfacesTA(surfs, numSurfaces, tr, lo);
 
     glDisableClientState(GL_VERTEX_ARRAY);
     glDisableClientState(GL_TEXTURE_COORD_ARRAY);
