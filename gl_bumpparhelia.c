@@ -44,7 +44,7 @@ static GLuint lightPos, eyePos; // vertex shader constants
 //#define PARHELIADEBUG
 
 #if defined(PARHELIADEBUG) && defined(_WIN32)
-#define checkerror() checkrealerror(__LINE__)
+#define Parhelia_checkerror() checkrealerror(__LINE__)
 static void checkrealerror(int line)
 {
     GLuint error = glGetError();
@@ -57,7 +57,7 @@ static void checkrealerror(int line)
 }
 #else
 
-#define checkerror() do { } while(0)
+#define Parhelia_checkerror() do { } while(0)
 
 #endif
 
@@ -712,7 +712,7 @@ void Parhelia_CreateShaders()
     // Con_Printf("Specular 2 Status: %s\n",gluErrorString(glGetError()));
 	
     glDisable(GL_FRAGMENT_SHADER_MTX);
-    // checkerror();
+    // Parhelia_checkerror();
     // Con_Printf("----Vertex Shaders----\n");
     // Generate vertex shader
     glEnable(GL_VERTEX_SHADER_EXT);
@@ -757,9 +757,9 @@ void Parhelia_CreateShaders()
     texcoord2     = qglBindTextureUnitParameterEXT( GL_TEXTURE2_ARB, GL_CURRENT_TEXTURE_COORDS );
     texcoord3     = qglBindTextureUnitParameterEXT( GL_TEXTURE3_ARB, GL_CURRENT_TEXTURE_COORDS );
     fogstart      = qglBindParameterEXT( GL_FOG_START );
-    checkerror();
+    Parhelia_checkerror();
     fogend        = qglBindParameterEXT( GL_FOG_END );
-    checkerror();
+    Parhelia_checkerror();
 
 
     disttemp      = qglGenSymbolsEXT(GL_SCALAR_EXT, GL_LOCAL_EXT, GL_FULL_RANGE_EXT, 1);
@@ -828,9 +828,9 @@ void Parhelia_CreateShaders()
     texcoord2     = qglBindTextureUnitParameterEXT( GL_TEXTURE2_ARB, GL_CURRENT_TEXTURE_COORDS );
     texcoord3     = qglBindTextureUnitParameterEXT( GL_TEXTURE3_ARB, GL_CURRENT_TEXTURE_COORDS );
     fogstart      = qglBindParameterEXT( GL_FOG_START );
-    checkerror();
+    Parhelia_checkerror();
     fogend        = qglBindParameterEXT( GL_FOG_END );
-    checkerror();
+    Parhelia_checkerror();
 
 
     disttemp      = qglGenSymbolsEXT(GL_SCALAR_EXT, GL_LOCAL_EXT, GL_FULL_RANGE_EXT, 1);
@@ -892,7 +892,7 @@ void Parhelia_CreateShaders()
         
 		
     glDisable(GL_VERTEX_SHADER_EXT);
-    // checkerror();
+    // Parhelia_checkerror();
 
 }
 
@@ -911,7 +911,7 @@ void Parhelia_EnableDiffuseShader(const transform_t *tr, vec3_t lightOrig)
 
     glEnable(GL_VERTEX_SHADER_EXT);
     qglBindVertexShaderEXT( vertex_shaders );
-    checkerror();
+    Parhelia_checkerror();
 
     glEnable(GL_FRAGMENT_SHADER_MTX );
 
@@ -933,7 +933,7 @@ void Parhelia_EnableDiffuseShader(const transform_t *tr, vec3_t lightOrig)
 	GL_SetupCubeMapMatrix(tr);
 
         qglBindFragShaderMTX( fragment_shaders + 1 );
-        checkerror();
+        Parhelia_checkerror();
       
     }
     else
@@ -949,7 +949,7 @@ void Parhelia_EnableDiffuseShader(const transform_t *tr, vec3_t lightOrig)
 	glTranslatef(-lightOrig[0], -lightOrig[1], -lightOrig[2]);
 
         qglBindFragShaderMTX( fragment_shaders );
-        checkerror();
+        Parhelia_checkerror();
     }
 
     GL_SelectTexture(GL_TEXTURE0_ARB);
@@ -993,7 +993,7 @@ void Parhelia_EnableSpecularShader(const transform_t *tr, vec3_t lightOrig,
     vec3_t scaler = {0.5f, 0.5f, 0.5f};
     glEnable(GL_VERTEX_SHADER_EXT);
     qglBindVertexShaderEXT( vertex_shaders+1 );
-    checkerror();
+    Parhelia_checkerror();
 
     glEnable(GL_FRAGMENT_SHADER_MTX );
 
@@ -1021,7 +1021,7 @@ void Parhelia_EnableSpecularShader(const transform_t *tr, vec3_t lightOrig,
 	GL_SetupCubeMapMatrix(tr);
 
         qglBindFragShaderMTX( fragment_shaders + 3 );
-        checkerror();
+        Parhelia_checkerror();
     }
     else
     {
@@ -1036,7 +1036,7 @@ void Parhelia_EnableSpecularShader(const transform_t *tr, vec3_t lightOrig,
 	glTranslatef(-lightOrig[0], -lightOrig[1], -lightOrig[2]);
 
         qglBindFragShaderMTX( fragment_shaders + 2 );
-        checkerror();
+        Parhelia_checkerror();
     }
 
     GL_SelectTexture(GL_TEXTURE0_ARB);
