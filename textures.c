@@ -27,7 +27,6 @@ where it dind't really belong
 
 extern unsigned char d_15to8table[65536];
 
-cvar_t		gl_nobind = {"gl_nobind", "0"};
 cvar_t		gl_max_size = {"gl_max_size", "1024"};
 cvar_t		gl_picmip = {"gl_picmip", "0"};
 cvar_t          gl_gloss = {"gl_gloss", "0.3"};
@@ -617,6 +616,72 @@ void GL_PackGloss(byte *gloss,unsigned *dest,int length)
     }
 }
 
+#define DETAIL_NORMAL_SCALE 10.0f
+
+//Convert the pixel at x,y in the bump map to a normal (float)
+void NormalFromBump(byte *pixels, int x, int y, int w, int h, vec3_t rez)
+{
+	float c, cx, cy, dcx, dcy, sqlen, reciplen;
+	float oneOver255 = 1/255.0f;
+
+	/* Expand [0,255] texel values to the [0,1] range. */
+	c = pixels[y*w + x] * oneOver255;
+	
+	/* Expand the texel to its right. */
+	cx = pixels[y*w + (x+1)%w] * oneOver255;
+	
+	/* Expand the texel one up. */
+	cy = pixels[((y+1)%h)*w + x] * oneOver255;
+
+	dcx = DETAIL_NORMAL_SCALE * (c - cx);
+	dcy = DETAIL_NORMAL_SCALE * (c - cy);
+
+	/* Normalize the vector. */
+	sqlen = dcx*dcx + dcy*dcy + 1;
+	reciplen = 1.0f/(float)sqrt(sqlen);
+	rez[0] = dcx*reciplen;
+	rez[1] = -dcy*reciplen;
+	rez[2] = reciplen;
+}
+
+
+/*
+===============
+PENTA:
+===============
+*/
+void GL_MixDetailNormal(byte *bump, byte *dest, int w, int h)
+{
+    int i,j;
+	float inv127 = 1/127.0f;
+	vec3_t n1, n2, tan, bin, rez, xn, yn;
+	vec3_t temp = {0,1.0,0};
+
+	for (i=0; i<h; i++) {
+		for (j=0; j<w; j++) {
+
+			//Create 2 normal vectors
+			n2[0] = (inv127*dest[(i*w+j)*4+0]-1.0);
+			n2[1] = (inv127*dest[(i*w+j)*4+1]-1.0);
+            n2[2] = (inv127*dest[(i*w+j)*4+2]-1.0);
+			NormalFromBump(bump, j, i, w, h, n1);
+
+			CrossProduct(temp,n1,tan);
+			CrossProduct(n1,xn,bin);
+			VectorNormalize(tan);
+			VectorNormalize(bin);
+
+			rez[0] = n2[0]*tan[0] + n2[1]*bin[0] + n2[2]*n1[0];
+			rez[1] = n2[0]*tan[1] + n2[1]*bin[1] + n2[2]*n1[1];
+			rez[2] = n2[0]*tan[2] + n2[1]*bin[2] + n2[2]*n1[2];
+
+			dest[(i*w+j)*4+0] = (unsigned char)128 + 127*rez[0];
+			dest[(i*w+j)*4+1] = (unsigned char)128 + 127*rez[1];
+			dest[(i*w+j)*4+2] = (unsigned char)128 + 127*rez[2];
+		}
+    }
+}
+
 /*
 ===============
 GL_Upload32
@@ -736,7 +801,7 @@ unsigned int * genNormalMap(byte *pixels, int w, int h, float scale)
 {
   int i, j, wr, hr;
   unsigned char r, g, b;
-  static unsigned nmap[512*512];
+  static unsigned nmap[1024*1024];
   float sqlen, reciplen, nx, ny, nz;
 
   const float oneOver255 = 1.0f/255.0f;
@@ -988,6 +1053,7 @@ GL_Upload8
 	//XYZ
 unsigned	trans[1024*1024];		// FIXME, temporary
 static	unsigned char	glosspix[1024*1024];
+static	unsigned char	detailpix[1024*1024];
 
 #define RED_MASK 0x00FF0000
 #define GREEN_MASK 0x0000FF00
@@ -1164,7 +1230,7 @@ static	unsigned char	bumppix[1024*1024];	// PENTA: bumped texture (it seems the 
 ================
 GL_LoadTexture
 ================
-*/
+*//*
 int GL_LoadTexture (char *identifier, int width, int height, byte *data, qboolean mipmap, qboolean alpha, qboolean bump)
 {
 	int			i;
@@ -1205,7 +1271,7 @@ int GL_LoadTexture (char *identifier, int width, int height, byte *data, qboolea
 
 	return texture_extension_number-2;
 }
-
+*/
 /*
 ================
 GL_CacheTexture
@@ -1215,11 +1281,12 @@ GL_CacheTexture
 */
 gltexture_t *GL_CacheTexture (char *filename,  qboolean mipmap, int type)
 {
-	int			i, width, height , gwidth, gheight;
+	int			i, width, height, gwidth, gheight, dwidth, dheight;
 	gltexture_t	*glt;
-	char filenameext[MAX_OSPATH];
-	char glossfilenameext[MAX_OSPATH];
-	char buff[MAX_OSPATH];
+
+	char *glossname;
+	char *detailname;
+	char *basename;
 
 	// see if the texture is allready present
 	if (filename[0])
@@ -1259,37 +1326,67 @@ gltexture_t *GL_CacheTexture (char *filename,  qboolean mipmap, int type)
 		return glt;
 	} else {
 		int rez;
+		char b[MAX_QPATH*3+2], *pb, *b2;
 		qboolean hasgloss = false;
-		//has it a packed gloss too?
-		if (type == TEXTURE_NORMAL && strstr(filename,"|")) {
-			//uck hacky, string code from penta!
-			//but strtok kills the buffer it works on!
-			char b[MAX_QPATH*2+1];
-			strcpy(b,filename);
-			strcpy(filenameext,strtok(b,"|"));
-			strcpy(glossfilenameext,strtok(NULL,"|"));
+		qboolean hasdetailbump = false;
 
-			//load the gloss
-			rez = LoadTextureInPlace(glossfilenameext, 1, (unsigned char*)&glosspix[0], &gwidth, &gheight);
-			if (!rez) {
-				trans[0] = LittleLong ((255 << 24)|(255 << 16)|(255 << 8)|(255));
-				width = height = 1;
-				Con_Printf("Texture not found %s\n",glossfilenameext);
-			} else hasgloss = true;
-		} else {
-			strcpy(filenameext,filename);
-		}
+		if (type == TEXTURE_NORMAL) {
 		
-		rez = LoadTextureInPlace(filenameext, 4, (unsigned char*)&trans[0], &width, &height);
+			strcpy(b,filename);
+			pb = b;
+			basename = b;
+
+			//Does it have a detail bumpmap
+			while((*pb) && ((*pb) != '+')) pb++;
+			if ((*pb) == '+')
+			{
+				(*pb) = 0;
+				pb++;
+				//So we found a detail bumpmap load it to the buffer (it's grayscale)
+				detailname = b;
+				basename = pb;
+				rez = LoadTextureInPlace(detailname, 1, (unsigned char*)&detailpix[0], &dwidth, &dheight);			
+				if (!rez) {
+					dwidth = dheight = 1;
+					Con_Printf("Texture not found %s\n",detailname);
+				} else hasdetailbump = true;
+			}
+
+			//Does it have packed gloss?
+			pb = basename;
+			while((*pb) && ((*pb) != '|')) pb++;
+			if ((*pb) == '|')
+			{
+				(*pb) = 0;
+				pb++;
+				glossname = pb;
+				rez = LoadTextureInPlace(glossname, 1, (unsigned char*)&glosspix[0], &gwidth, &gheight);			
+				if (!rez) {
+					gwidth = gheight = 1;
+					Con_Printf("Texture not found %s\n",glossname);
+				} else hasgloss = true;
+			}
+		} else {
+			basename = filename;
+		}
+	
+		rez = LoadTextureInPlace(basename, 4, (unsigned char*)&trans[0], &width, &height);
 		if (!rez) {
 			trans[0] = LittleLong ((255 << 24)|(255 << 16)|(255 << 8)|(255));
 			width = height = 1;
-			Con_Printf("Texture not found %s\n",filenameext);
+			Con_Printf("Texture not found %s\n",basename);
+		}
+
+		if (hasdetailbump) {
+			if ((dwidth != width) || (dheight != height)) {
+				Con_Printf("\002Warning: %s Detail normalmap must have same size as normal map\n",detailname);
+			}
+			GL_MixDetailNormal(detailpix, (unsigned char *)trans, width, height);
 		}
 
 		if (hasgloss) {
 			if ((gwidth != width) || (gheight != height)) {
-				Con_Printf("\002Warning: %s Gray gloss map must have same size as normal map\n",glossfilenameext);
+				Con_Printf("\002Warning: %s Gray gloss map must have same size as normal map\n",glossname);
 			}
 			GL_PackGloss(glosspix, trans, width*height);
 		}
@@ -1463,7 +1560,7 @@ GL_LoadPicTexture
 */
 int GL_LoadPicTexture (qpic_t *pic)
 {
-	return GL_LoadTexture ("", pic->width, pic->height, pic->data, false, true, false);
+	return 0; //FIXME: remove this routine
 }
 
 /****************************************/
