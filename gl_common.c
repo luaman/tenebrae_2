@@ -33,7 +33,7 @@ qcardtype       gl_cardtype = GENERIC;
 qboolean        gl_vbo = false; //PENTA: vertex buffer object is available
 qboolean        gl_texcomp = false; // JP: texture compression available
 qboolean		gl_mirroronce = false; //GL_ATI_texture_mirror_once extension is available
-
+int             gl_twosidedstencil = 0; // none
 
 //void (*qglColorTableEXT) (int, int, int, int, int, const void*);
 //void (*qgl3DfxSetPaletteEXT) (GLuint *);
@@ -46,6 +46,12 @@ GL3DFXSETPALETTEEXTPFN qgl3DfxSetPaletteEXT;
 
 PFNBLENDCOLORPROC qglBlendColorEXT;
 
+// EXT_stencil_two_side
+PFNGLACTIVESTENCILFACEEXTPROC qglActiveStencilFaceEXT;
+
+// ATI_separate_stencil
+PFNGLSTENCILOPSEPARATEATIPROC qglStencilOpSeparateATI;
+PFNGLSTENCILFUNCSEPARATEATIPROC qglStencilFuncSeparateATI;
 
 
 //int		texture_mode = GL_NEAREST;
@@ -449,6 +455,26 @@ void CheckMirrorOnce(void)
 	}
 }
 
+void CheckTwoSidedStencil(void)
+{
+	if (COM_CheckParm ("-notwosidedstencil"))
+		return;
+
+	if (strstr(gl_extensions, "GL_EXT_stencil_two_side"))
+	{
+        SAFE_GET_PROC( qglActiveStencilFaceEXT, PFNGLACTIVESTENCILFACEEXTPROC, "glActiveStencilFaceEXT");
+		gl_twosidedstencil = 1;
+		Con_Printf("Using EXT_stencil_two_side\n");
+	}
+	else if (strstr(gl_extensions, "GL_ATI_separate_stencil"))
+	{
+		SAFE_GET_PROC( qglStencilOpSeparateATI, PFNGLSTENCILOPSEPARATEATIPROC, "glStencilOpSeparateATI");
+		SAFE_GET_PROC( qglStencilFuncSeparateATI, PFNGLSTENCILFUNCSEPARATEATIPROC, "glStencilFuncSeparateATI");
+		gl_twosidedstencil = 2;
+		Con_Printf("Using ATI_separate_stencil\n");
+	}
+}
+
 static int supportedTmu;
 /*
   ===============
@@ -514,6 +540,8 @@ void GL_Init (void)
     CheckOcclusionTest();
     Con_Printf ("Checking MO\n");
     CheckMirrorOnce();
+	Con_Printf ("Checking two-sided stencil\n");
+	CheckTwoSidedStencil();
 
     //if something goes wrong here throw an sys_error as we don't want to end up
     //having invalid function pointers called...

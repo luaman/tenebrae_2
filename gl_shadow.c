@@ -1967,13 +1967,51 @@ void StencilMeshVolume(mesh_t *mesh) {
 	glCullFace(GL_BACK);
 }
 
-void StencilMeshVolumes() {
+void StencilMeshVolume2(mesh_t *mesh)
+{
+    if (mesh->shader->shader->flags & SURF_NOSHADOW) return;
+    SetupMeshToLightVisibility(currentshadowlight, mesh);
+    DrawMeshVolume(mesh);
+}
 
-	int i;
-	for (i=0; i<currentshadowlight->numlightcmdsmesh-1; i++) {
-		StencilMeshVolume((mesh_t *)currentshadowlight->lightCmdsMesh[i].asVoid);
-	}
+void StencilMeshVolumes()
+{
+    int i;
+    switch(gl_twosidedstencil)
+    {
+    case 0:
+	for (i=0; i<currentshadowlight->numlightcmdsmesh-1; i++)
+	    StencilMeshVolume((mesh_t *)currentshadowlight->lightCmdsMesh[i].asVoid);
+	break;
+    case 1:
+	// EXT_stencil_two_side
+	glDisable(GL_CULL_FACE);
+	qglActiveStencilFaceEXT(GL_BACK);
+	glStencilOp(GL_KEEP, GL_INCR_WRAP_EXT, GL_KEEP);
+	glStencilFunc(GL_ALWAYS, 0, ~0);
+	qglActiveStencilFaceEXT(GL_FRONT);
+	glStencilOp(GL_KEEP, GL_DECR_WRAP_EXT, GL_KEEP);
+	glStencilFunc(GL_ALWAYS, 0, ~0);
 
+	for (i=0; i<currentshadowlight->numlightcmdsmesh-1; i++)
+	    StencilMeshVolume2((mesh_t *)currentshadowlight->lightCmdsMesh[i].asVoid);
+	glEnable(GL_CULL_FACE);
+	qglActiveStencilFaceEXT(GL_FRONT_AND_BACK);
+	break;
+
+    case 2:
+	// ATI_separate_stencil
+	glDisable(GL_CULL_FACE);
+	glStencilOp(GL_KEEP, GL_INCR_WRAP_EXT, GL_KEEP);
+	qglStencilFuncSeparateATI(GL_ALWAYS, GL_ALWAYS, 0, ~0);
+	qglStencilOpSeparateATI(GL_FRONT, GL_KEEP, GL_DECR_WRAP_EXT, GL_KEEP);
+	qglStencilOpSeparateATI(GL_BACK, GL_KEEP, GL_INCR_WRAP_EXT, GL_KEEP);
+
+	for (i=0; i<currentshadowlight->numlightcmdsmesh-1; i++)
+	    StencilMeshVolume2((mesh_t *)currentshadowlight->lightCmdsMesh[i].asVoid);
+	glEnable(GL_CULL_FACE);
+	break;
+    }
 }
 
 

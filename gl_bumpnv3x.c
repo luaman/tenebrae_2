@@ -64,18 +64,6 @@ typedef void (APIENTRY * glProgramLocalParameter4fARBPROC) (GLenum target, GLuin
 glProgramLocalParameter4fARBPROC qglProgramLocalParameter4fARB;
 #endif
 
-// EXT_stencil_two_side
-#ifndef GL_EXT_stencil_two_side
-#define GL_STENCIL_TEST_TWO_SIDE_EXT      0x8910
-#define GL_ACTIVE_STENCIL_FACE_EXT        0x8911
-#endif
-
-#ifndef GL_EXT_stencil_two_side
-#define GL_EXT_stencil_two_side 1
-typedef void (APIENTRY * PFNGLACTIVESTENCILFACEEXTPROC) (GLenum face);
-PFNGLACTIVESTENCILFACEEXTPROC qglActiveStencilFaceEXT;
-#endif
-
 static char bump_vertex_program[] =
 "!!VP1.1\n"
 "OPTION NV_position_invariant;\n"
@@ -536,7 +524,7 @@ void NV3x_EnableBumpShader(const transform_t *tr, const lightobject_t *lo,
 
         if (currentshadowlight->shader->stages[0].texture[0]->gltype == GL_TEXTURE_CUBE_MAP_ARB)
         {
-            NV3x_SetupTcMods(&currentshadowlight->shader->stages[0]);
+            SH_SetupTcMods(&currentshadowlight->shader->stages[0]);
             GL_SetupCubeMapMatrix(tr);
 
             GL_SelectTexture(GL_TEXTURE4_ARB);
@@ -564,7 +552,7 @@ void NV3x_EnableBumpShader(const transform_t *tr, const lightobject_t *lo,
 	    glScalef(1.0f/(currentshadowlight->radiusv[0]), 
 	  		   1.0f/(currentshadowlight->radiusv[1]),
 			   1.0f/(currentshadowlight->radiusv[2]));
-            NV3x_SetupTcMods(&currentshadowlight->shader->stages[0]);
+            SH_SetupTcMods(&currentshadowlight->shader->stages[0]);
             GL_SetupCubeMapMatrix(tr);
 
             GL_SelectTexture(GL_TEXTURE4_ARB);
@@ -644,76 +632,6 @@ void NV3x_DisableDeluxShader(shader_t* shader)
 }
 
 
-/************************
-
-Shader utility routines
-
-*************************/
-
-void NV3x_SetupTcMod(tcmod_t *tc)
-{
-    switch (tc->type)
-    {
-    case TCMOD_ROTATE:
-	glTranslatef(0.5,0.5,0.0);
-	glRotatef(realtime * tc->params[0],0,0,1);
-	glTranslatef(-0.5, -0.5, 0.0);
-	break;
-    case TCMOD_SCROLL:
-	glTranslatef(realtime * tc->params[0], realtime * tc->params[1], 0.0);
-	break;
-    case TCMOD_SCALE:
-	glScalef(tc->params[0],tc->params[1],1.0);
-	break;
-    case TCMOD_STRETCH:
-	//PENTA: fixme
-	glScalef(1.0, 1.0, 1.0);
-	break;
-    }
-}
-
-void NV3x_SetupTcMods(stage_t *s)
-{
-    int i;
-    for (i = 0; i < s->numtcmods; i++)
-    	NV3x_SetupTcMod(&s->tcmods[i]);	
-}
-
-
-void NV3x_SetupSimpleStage(stage_t *s)
-{
-    tcmod_t *tc;
-    int i;
-
-    if (s->type != STAGE_SIMPLE)
-    {
-	Con_Printf("Non simple stage, in simple stage list");
-	return;
-    }
-
-    glMatrixMode(GL_TEXTURE);
-    glPushMatrix();
-
-    for (i=0; i<s->numtcmods; i++)
-    {
-	NV3x_SetupTcMod(&s->tcmods[i]);	
-    }
-
-    if (s->src_blend > -1)
-    {
-	glBlendFunc(s->src_blend, s->dst_blend);
-	glEnable(GL_BLEND);
-    }
-
-    if (s->alphatresh > 0)
-    {
-	glEnable(GL_ALPHA_TEST);
-	glAlphaFunc(GL_GREATER, s->alphatresh);
-    }
-
-    if ((s->numtextures > 0) && (s->texture[0]))
-	GL_BindAdvanced(s->texture[0]);
-}
 
 /************************
 
@@ -807,7 +725,7 @@ void NV3x_drawTriangleListBase (vertexdef_t *verts, int *indecies,
 
     for ( i = 0; i < shader->numstages; i++)
     {
-	NV3x_SetupSimpleStage(&shader->stages[i]);
+	SH_SetupSimpleStage(&shader->stages[i]);
 	glDrawElements(GL_TRIANGLES,numIndecies,GL_UNSIGNED_INT,indecies);
 	glPopMatrix();
     }
@@ -1160,7 +1078,7 @@ void NV3x_drawSurfaceListBase (vertexdef_t* verts, msurface_t** surfs,
 
     for (i = 0; i < shader->numstages; i++)
     {
-	NV3x_SetupSimpleStage(&shader->stages[i]);
+	SH_SetupSimpleStage(&shader->stages[i]);
 	NV3x_sendSurfacesBase(surfs, numSurfaces, false);
 	glPopMatrix();
     }

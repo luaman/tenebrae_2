@@ -178,9 +178,6 @@ typedef void (APIENTRY *PFNGLPNTRIANGLESFATIPROC)(GLenum pname, GLfloat param);
 extern PFNGLPNTRIANGLESIATIPROC qglPNTrianglesiATI;
 extern PFNGLPNTRIANGLESFATIPROC qglPNTrianglesfATI;
 
-#define GL_INCR_WRAP_EXT                                        0x8507
-#define GL_DECR_WRAP_EXT                                        0x8508
-
 
 #define	MIN_PLAYER_MIRROR 48 //max size of player bounding box
 
@@ -648,45 +645,51 @@ R_DrawAliasShadowVolume
 
 void R_DrawAliasSurfaceShadowVolume (aliashdr_t	*paliashdr, aliasframeinstant_t *aliasframeinstant)
 {
+    if (paliashdr->shader->flags & SURF_NOSHADOW)
+	return;
 
-	if (paliashdr->shader->flags & SURF_NOSHADOW)
-		return;
-
-#if 1
+    switch(gl_twosidedstencil)
+    {
+    case 0:
 	//
 	//Pass 1 increase
 	//
-	glCullFace(GL_BACK);
-	glStencilOp(GL_KEEP, GL_INCR, GL_KEEP);
 	glCullFace(GL_FRONT);
-
+	glStencilOp(GL_KEEP, GL_INCR, GL_KEEP);
+	
 	R_DrawAliasFrameShadowVolume2 (paliashdr, aliasframeinstant);
-
+	
 	//
 	// Second Pass. Decrease Stencil Value In The Shadow
 	//
-	glCullFace(GL_FRONT);
+	glCullFace(GL_BACK);
 	glStencilOp(GL_KEEP, GL_DECR, GL_KEEP);
-	glCullFace(GL_BACK);
-	
 	R_DrawAliasFrameShadowVolume2 (paliashdr, aliasframeinstant);
-#else
-        glDisable(GL_CULL_FACE);
-	glCullFace(GL_FRONT_AND_BACK);
-        checkerror();
+	break;
+    case 1:
+	// EXT_stencil_two_side
+	glDisable(GL_CULL_FACE);
+	qglActiveStencilFaceEXT(GL_BACK);
 	glStencilOp(GL_KEEP, GL_INCR_WRAP_EXT, GL_KEEP);
-        checkerror();
-	qglStencilFuncSeparateATI(GL_ALWAYS, GL_ALWAYS, 0, ~0);
-        checkerror();
-	qglStencilOpSeparateATI(GL_FRONT, GL_KEEP, GL_DECR_WRAP_EXT, GL_KEEP);
-        checkerror();
-	qglStencilOpSeparateATI(GL_BACK, GL_KEEP, GL_INCR_WRAP_EXT, GL_KEEP);
-        checkerror();
+	glStencilFunc(GL_ALWAYS, 0, ~0);
+	qglActiveStencilFaceEXT(GL_FRONT);
+	glStencilOp(GL_KEEP, GL_DECR_WRAP_EXT, GL_KEEP);
+	glStencilFunc(GL_ALWAYS, 0, ~0);
 	R_DrawAliasFrameShadowVolume2 (paliashdr, aliasframeinstant);
-
-        glEnable(GL_CULL_FACE);
-	glCullFace(GL_BACK);
-#endif
+	glEnable(GL_CULL_FACE);
+	break;
+	
+    case 2:
+	// ATI_separate_stencil
+	glDisable(GL_CULL_FACE);
+	glStencilOp(GL_KEEP, GL_INCR_WRAP_EXT, GL_KEEP);
+	qglStencilFuncSeparateATI(GL_ALWAYS, GL_ALWAYS, 0, ~0);
+	qglStencilOpSeparateATI(GL_FRONT, GL_KEEP, GL_DECR_WRAP_EXT, GL_KEEP);
+	qglStencilOpSeparateATI(GL_BACK, GL_KEEP, GL_INCR_WRAP_EXT, GL_KEEP);
+	R_DrawAliasFrameShadowVolume2 (paliashdr, aliasframeinstant);
+	glEnable(GL_CULL_FACE);
+	break;
+    }
 }
 
 
@@ -1799,23 +1802,6 @@ void pentaGlFrustum( GLdouble xmin, GLdouble xmax, GLdouble ymin, GLdouble ymax,
     glLoadMatrixd(&p[0][0]);	
 }
 
-void MYgluPerspective( GLdouble fovy, GLdouble aspect,
-		     GLdouble zNear, GLdouble zFar )
-{
-/*
-<AWE> Unused. Can be removed.
-   GLdouble xmin, xmax, ymin, ymax;
-
-   ymax = zNear * tan (fovy * M_PI / 360.0);
-   ymin = -ymax;
-
-   xmin = ymin * aspect;
-   xmax = ymax * aspect;
-
-   pentaGlFrustum( xmin, xmax, ymin, ymax, zNear);
-*/
-   pentaGlPerspective(fovy * M_PI / 360.0, aspect, zNear);
-}
 
 /*
 PENTA:
@@ -1986,7 +1972,7 @@ void R_SetupGL (void)
 	//PENTA: decreased zfar from 4096 to reduce z-fighting on alias models
 	// is this ok for quake or do we need to be able to look that far??
 	// seems to work, I incr. znear to 5 instead of 4
-        MYgluPerspective (2.0 *atan((GLdouble) r_refdef.vrect.height / (GLdouble) r_refdef.vrect.width) * 180.0 / M_PI /* r_refdef.fov_y */,  screenaspect,  5.0,  2048.0); 
+    pentaGlPerspective (atan((GLdouble) r_refdef.vrect.height / (GLdouble) r_refdef.vrect.width),  screenaspect,  5.0); 
 
 	if (mirror || glare)
 	{
@@ -2152,10 +2138,14 @@ void R_RenderScene (void)
 		R_MarkEntitiesOnList();
 
 		//Shadow casting is on by default
-		if (l->castShadow) {
-			//Calculate the shadow volume (does nothing when static)
-			R_ConstructShadowVolume(l);
-#if 1
+		if (l->castShadow)
+		{
+		    //Calculate the shadow volume (does nothing when static)
+		    R_ConstructShadowVolume(l);
+
+		    switch(gl_twosidedstencil)
+		    {
+		    case 0:
 			//Pass 1 increase
 			glCullFace(GL_BACK);
 			glStencilOp(GL_KEEP, GL_INCR, GL_KEEP);
@@ -2176,39 +2166,52 @@ void R_RenderScene (void)
 			glCullFace(GL_FRONT);
 			glStencilOp(GL_KEEP, GL_DECR, GL_KEEP);
 			if (sh_entityshadows.value) R_DrawEntitiesShadowVolumes(mod_brush);
+			break;
+		    case 1:
+			// EXT_stencil_two_side
+			glDisable(GL_CULL_FACE);
+			qglActiveStencilFaceEXT(GL_BACK);
+			glStencilOp(GL_KEEP, GL_INCR_WRAP_EXT, GL_KEEP);
+			glStencilFunc(GL_ALWAYS, 0, ~0);
+			qglActiveStencilFaceEXT(GL_FRONT);
+			glStencilOp(GL_KEEP, GL_DECR_WRAP_EXT, GL_KEEP);
+			glStencilFunc(GL_ALWAYS, 0, ~0);
+			if (sh_worldshadows.value) R_DrawShadowVolume(l);
 
-#else
-//                        glCullFace(GL_FRONT_AND_BACK);
-                        glDisable(GL_CULL_FACE);
-                        checkerror();
-    	                glStencilOp(GL_KEEP, GL_INCR_WRAP_EXT, GL_KEEP);
-                        checkerror();
-	                qglStencilFuncSeparateATI(GL_ALWAYS, GL_ALWAYS, 0, ~0);
-                        checkerror();
-	                qglStencilOpSeparateATI(GL_FRONT, GL_KEEP, GL_DECR_WRAP_EXT, GL_KEEP);
-                        checkerror();
-	                qglStencilOpSeparateATI(GL_BACK, GL_KEEP, GL_INCR_WRAP_EXT, GL_KEEP);
-                        checkerror();
+			//PENTA: we could do the same thing for brushes as for aliasses
+			//Pass 1 increase
+			if (sh_entityshadows.value) R_DrawEntitiesShadowVolumes(mod_brush);
+			glEnable(GL_CULL_FACE);
+			qglActiveStencilFaceEXT(GL_FRONT_AND_BACK);
+			break;
+
+		    case 2:
+			// ATI_separate_stencil
+			glDisable(GL_CULL_FACE);
+			glStencilOp(GL_KEEP, GL_INCR_WRAP_EXT, GL_KEEP);
+			qglStencilFuncSeparateATI(GL_ALWAYS, GL_ALWAYS, 0, ~0);
+			qglStencilOpSeparateATI(GL_FRONT, GL_KEEP, GL_DECR_WRAP_EXT, GL_KEEP);
+			qglStencilOpSeparateATI(GL_BACK, GL_KEEP, GL_INCR_WRAP_EXT, GL_KEEP);
 
 			if (sh_worldshadows.value) R_DrawShadowVolume(l);
 
-                        //PENTA: we could do the same thing for brushes as for aliasses
+			//PENTA: we could do the same thing for brushes as for aliasses
 			//Pass 1 increase
 			if (sh_entityshadows.value) R_DrawEntitiesShadowVolumes(mod_brush);
+			glEnable(GL_CULL_FACE);
+			break;
+		    }
+		    if (sh_entityshadows.value)
+			R_DrawEntitiesShadowVolumes(mod_alias);
 
-                        glEnable(GL_CULL_FACE);
-#endif
-			if (sh_entityshadows.value)
-				R_DrawEntitiesShadowVolumes(mod_alias);
+		    if (sh_meshshadows.value)
+			StencilMeshVolumes();
 
-			if (sh_meshshadows.value)
-				StencilMeshVolumes();
-
-			//Reenable drawing
-			glCullFace(GL_FRONT);
- 			glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
-			glDepthFunc(GL_LEQUAL);
-			glStencilFunc(GL_EQUAL, 0, 0xffffffff);
+		    //Reenable drawing
+		    glCullFace(GL_FRONT);
+		    glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
+		    glDepthFunc(GL_LEQUAL);
+		    glStencilFunc(GL_EQUAL, 0, 0xffffffff);
 
 		}
 

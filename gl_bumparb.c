@@ -53,9 +53,6 @@ void FormatError () {
 PFNGLPNTRIANGLESIATIPROC qglPNTrianglesiATI;
 PFNGLPNTRIANGLESFATIPROC qglPNTrianglesfATI;
 
-PFNGLSTENCILOPSEPARATEATIPROC qglStencilOpSeparateATI;
-PFNGLSTENCILFUNCSEPARATEATIPROC qglStencilFuncSeparateATI;
-
 // ARB_vertex_program
 
 typedef void (APIENTRY * glVertexAttrib1sARBPROC) (GLuint index, GLshort x);
@@ -965,15 +962,10 @@ void ARB_CreateShaders()
 
     if ( strstr(gl_extensions, "GL_ATI_pn_triangles") )
     {
-	SAFE_GET_PROC( qglPNTrianglesiATI, PFNGLPNTRIANGLESIATIPROC, "glPNTrianglesiATI");
-	SAFE_GET_PROC( qglPNTrianglesfATI, PFNGLPNTRIANGLESFATIPROC, "glPNTrianglesfATI");
+        SAFE_GET_PROC( qglPNTrianglesiATI, PFNGLPNTRIANGLESIATIPROC, "glPNTrianglesiATI");
+        SAFE_GET_PROC( qglPNTrianglesfATI, PFNGLPNTRIANGLESFATIPROC, "glPNTrianglesfATI");
     }
 
-    if ( strstr(gl_extensions, "GL_ATI_separate_stencil") )
-    {
-	SAFE_GET_PROC( qglStencilOpSeparateATI, PFNGLSTENCILOPSEPARATEATIPROC, "glStencilOpSeparateATI");
-	SAFE_GET_PROC( qglStencilFuncSeparateATI, PFNGLSTENCILFUNCSEPARATEATIPROC, "glStencilFuncSeparateATI");
-    }
 #endif /* !__APPLE__ && !MACOSX */
 
     glEnable(GL_VERTEX_PROGRAM_ARB);

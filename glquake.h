@@ -485,6 +485,22 @@ extern int occlusion_cut_meshes;
 extern int occlusion_cut_entities;
 extern int occlusion_cut_lights;
 
+// EXT_stencil_two_side
+#define GL_INCR_WRAP_EXT                                        0x8507
+#define GL_DECR_WRAP_EXT                                        0x8508
+
+#ifndef GL_EXT_stencil_two_side
+#define GL_STENCIL_TEST_TWO_SIDE_EXT      0x8910
+#define GL_ACTIVE_STENCIL_FACE_EXT        0x8911
+#endif
+
+#ifndef GL_EXT_stencil_two_side
+#define GL_EXT_stencil_two_side 1
+typedef void (APIENTRY * PFNGLACTIVESTENCILFACEEXTPROC) (GLenum face);
+#endif
+extern PFNGLACTIVESTENCILFACEEXTPROC qglActiveStencilFaceEXT;
+
+// ATI_separate_stencil
 #define GL_STENCIL_BACK_FUNC_ATI                    0x8800
 #define GL_STENCIL_BACK_FAIL_ATI                    0x8801
 #define GL_STENCIL_BACK_PASS_DEPTH_FAIL_ATI         0x8802
@@ -1059,17 +1075,18 @@ extern PFNGLGETBUFFERPOINTERVARBPROC qglGetBufferPointervARB;
 
 extern qboolean gl_mtexable;
 extern qboolean gl_texturefilteranisotropic; // <AWE> true if anisotropic texture filtering available.
+extern int      gl_twosidedstencil;
 
 typedef enum
 {
-	GENERIC = 0,
-	GEFORCE,
-	GEFORCE3,
-	RADEON,
-	PARHELIA,
-	ARB,
-        NV3x,
-        GL2
+    GENERIC = 0,
+    GEFORCE,
+    GEFORCE3,
+    RADEON,
+    PARHELIA,
+    ARB,
+    NV3x,
+    GL2
 } qcardtype;
 extern qcardtype gl_cardtype;
 
