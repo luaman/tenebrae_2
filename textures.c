@@ -1270,49 +1270,27 @@ int GL_LoadTexture (char *identifier, int width, int height, byte *data, qboolea
 	return texture_extension_number-2;
 }
 */
+
 /*
 ================
-GL_CacheTexture
+GL_LoadTextureFromFile
 
-  Loads a texture
+	Load a cache texture from its file
 ================
 */
-gltexture_t *GL_CacheTexture (char *filename,  qboolean mipmap, int type)
+static void GL_LoadTextureFromFile(gltexture_t	*glt)
 {
 	int			i, width, height, gwidth, gheight, dwidth, dheight;
-	gltexture_t	*glt;
 
 	char *glossname;
 	char *detailname;
 	char *basename;
+	char *filename = glt->identifier;
 
-	// see if the texture is allready present
-	if (filename[0])
-	{
-		for (i=0, glt=gltextures ; i<numgltextures ; i++, glt++)
-		{
-			if (!strcmp (filename, glt->identifier) && (glt->mipmap == mipmap))
-			{
-				//found one, return it...
-				return &gltextures[i];
-			}
-		}
-	}
-
-	// load a new one
-	glt = &gltextures[numgltextures];
-	numgltextures++;
-	//Con_Printf("Load texture: %s %i %i\n",identifier,width,height);
-
-	strncpy (glt->identifier, filename, sizeof(glt->identifier));
-	glt->texnum = texture_extension_number;
-	texture_extension_number++;
-	glt->mipmap = mipmap;
-	glt->dynamic = NULL;
-
-	if (type == TEXTURE_CUBEMAP) {
+	Con_Printf("Loading texture %s\n", glt->identifier);
+	if (glt->loadtype == TEXTURE_CUBEMAP) {
 		GL_LoadCubemapTexture(glt);
-		return glt;
+		return;
 	}
 
 	if (!strcmp(filename,"$white")) {
@@ -1326,14 +1304,14 @@ gltexture_t *GL_CacheTexture (char *filename,  qboolean mipmap, int type)
 	} else if (!strcmp(COM_FileExtension(filename),"roq")) {
 		Con_Printf("Loading video texture from %s\n",filename);
 		Roq_SetupTexture(glt, filename) ;
-		return glt;
+		return;
 	} else {
 		int rez;
 		char b[MAX_QPATH*3+2], *pb, *b2;
 		qboolean hasgloss = false;
 		qboolean hasdetailbump = false;
 
-		if (type == TEXTURE_NORMAL) {
+		if (glt->loadtype == TEXTURE_NORMAL) {
 		
 			strcpy(b,filename);
 			pb = b;
@@ -1398,20 +1376,68 @@ gltexture_t *GL_CacheTexture (char *filename,  qboolean mipmap, int type)
 	GL_Bind(glt->texnum);
 	glt->width = width;
 	glt->height = height;
+	glt->gltype = GL_TEXTURE_2D;
 
-	if (type == TEXTURE_RGB) {
-		GL_Upload32 (&trans[0], width, height,  mipmap, true);
-		glt->type = GL_TEXTURE_2D;
-	} else if (type == TEXTURE_NORMAL) {
-		GL_UploadNormal(&trans[0], width, height,  mipmap);
-		glt->type = GL_TEXTURE_2D;
+	if (glt->loadtype == TEXTURE_RGB) {
+		GL_Upload32 (&trans[0], width, height,  glt->mipmap, true);	
+	} else if (glt->loadtype == TEXTURE_NORMAL) {
+		GL_UploadNormal(&trans[0], width, height,  glt->mipmap);
 	};
 
 	//texture_extension_number++;
 
+	return;
+}
+
+/*
+================
+GL_CacheTexture
+
+  Add a texture to the cache
+================
+*/
+gltexture_t *GL_CacheTexture (char *filename,  qboolean mipmap, int type)
+{
+	gltexture_t	*glt;
+	int i;
+
+	// see if the texture is allready present
+	if (filename[0])
+	{
+		for (i=0, glt=gltextures ; i<numgltextures ; i++, glt++)
+		{
+			if (!strcmp (filename, glt->identifier) && (glt->mipmap == mipmap))
+			{
+				//found one, return it...
+				return &gltextures[i];
+			}
+		}
+	}
+
+	// load a new one
+	glt = &gltextures[numgltextures];
+	numgltextures++;
+	//Con_Printf("Load texture: %s %i %i\n",identifier,width,height);
+
+	strncpy (glt->identifier, filename, sizeof(glt->identifier));
+	glt->texnum = texture_extension_number;
+	texture_extension_number++;
+	glt->mipmap = mipmap;
+	glt->dynamic = NULL;
+	glt->loadtype = type;
+
+	GL_LoadTextureFromFile(glt);
+
 	return glt;
 }
 
+/*
+================
+GL_ShutdownTextures
+
+	Free some memory allocated for textures
+================
+*/
 void GL_ShutdownTextures(void) {
 	int i;
 	gltexture_t *glt;
@@ -1425,6 +1451,27 @@ void GL_ShutdownTextures(void) {
 	}
 }
 
+void ReloadTextures_f(void) {
+	int i;
+	gltexture_t *glt;
+
+	Con_Printf("=================================\n");
+	//Free old memory
+	Con_Printf("GL_ShutdownTextures...\n");
+	Con_Printf("Reloading textures...\n");
+	scr_disabled_for_loading = true;
+	GL_ShutdownTextures();
+
+	//Reload
+	for (i=0, glt=gltextures ; i<numgltextures ; i++, glt++)
+	{
+		//found one, return it...
+		GL_LoadTextureFromFile(glt);
+	}
+	scr_disabled_for_loading = false;
+	Con_Printf("=================================\n");
+}
+
 void Print_Tex_Cache_f(void) {
 	int i;
 	gltexture_t *glt;
@@ -1433,7 +1480,7 @@ void Print_Tex_Cache_f(void) {
 	{
 		//found one, return it...
 		Con_Printf("%s: texnum(%i) type(%i) dynamic(%i) width(%i) heigt(%i)\n",
-			glt->identifier, glt->texnum, glt->type, (glt->dynamic == NULL ? 0 : 1), glt->width, glt->height);
+			glt->identifier, glt->texnum, glt->loadtype, (glt->dynamic == NULL ? 0 : 1), glt->width, glt->height);
 
 	}
 }
@@ -1499,7 +1546,7 @@ int GL_LoadCubemapTexture (gltexture_t *glt)
 		texturemode = GL_RGBA;
 	}
 
-	glt->type = GL_TEXTURE_CUBE_MAP_ARB;
+	glt->gltype = GL_TEXTURE_CUBE_MAP_ARB;
 
 	glEnable(GL_TEXTURE_CUBE_MAP_ARB);
 	glBindTexture(GL_TEXTURE_CUBE_MAP_ARB, glt->texnum);
@@ -1525,7 +1572,7 @@ int GL_LoadCubemapTexture (gltexture_t *glt)
 	glt->width = width;
 	glt->height = height;
 	glt->mipmap = false;
-	glt->type = GL_TEXTURE_CUBE_MAP_ARB;
+	glt->gltype = GL_TEXTURE_CUBE_MAP_ARB;
 
 	texture_extension_number++;
 
@@ -1592,7 +1639,7 @@ int GL_Load2DAttenTexture(void)
 			if (DistSq < radiussq) {
 				byte value;
 				float FallOff = (radiussq - DistSq) / radiussq;
-				FallOff *= FallOff;
+				//FallOff *= FallOff;
 				value = FallOff*255.0;
 				data[t * ATTEN_VOLUME_SIZE + s] = value;
 			} else {
@@ -1622,6 +1669,35 @@ int GL_Load2DAttenTexture(void)
 
 	return texture_extension_number-1;
 }
+
+int GL_LoadBlackTexture(void)
+{
+
+	char data[4];
+	int err;
+
+	data[0] = data[1] = data[2] = data[3] = 0;
+
+	GL_Bind(texture_extension_number);
+
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 1, 1, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
+
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE );
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE );
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);	
+
+	texture_extension_number++;
+
+	err  = glGetError();
+
+	if (err != GL_NO_ERROR) {
+		Con_Printf("%s",gluErrorString(err));
+	}
+
+	return texture_extension_number-1;
+}
+
 
 /*
 ===============

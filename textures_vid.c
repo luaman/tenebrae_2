@@ -25,6 +25,11 @@ to fit in the disc cache)
 #include "quakedef.h"
 #include "roq/roq.h"
 
+extern unsigned	trans[1024*1024]; //just a static scratch buffer (declared in textures.c)
+
+void Roq_UpdateTexture(gltexture_t *tex);
+void Roq_ConvertColors(roq_info *ri);
+
 /**
 * Console command that prints some information about a video
 */
@@ -54,6 +59,7 @@ void Roq_Info_f(void) {
 */
 void Roq_SetupTexture(gltexture_t *tex,char *filename) {
 	roq_info *ri;
+	int i;
 
 	if((ri = roq_open(filename)) == NULL) {
 		Con_Printf("Error loading video %s\n",filename);
@@ -63,6 +69,14 @@ void Roq_SetupTexture(gltexture_t *tex,char *filename) {
 	tex->dynamic = ri;
 	tex->width = ri->width;
 	tex->height = ri->height;
+
+	//Load one frame as start frame
+/*	roq_read_frame(ri);
+	Roq_ConvertColors(ri);
+	GL_Bind(tex->texnum);
+	glTexImage2D (GL_TEXTURE_2D, 0, GL_RGBA, ri->width, ri->height, 0, GL_RGBA, GL_UNSIGNED_BYTE, trans);
+	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);*/
 }
 
 /**
@@ -78,8 +92,6 @@ void Roq_FreeTexture(gltexture_t *tex) {
 	ri = tex->dynamic;
 	roq_close(ri);
 }
-
-extern unsigned	trans[1024*1024]; //just a static scratch buffer (declared in textures.c)
 
 /**
 * Converts the yuv to usable rgb data.
@@ -110,11 +122,11 @@ void Roq_ConvertColors(roq_info *ri) {
 			(*c++) = limit(r + y1);
 			(*c++) = limit(g + y1);
 			(*c++) = limit(b + y1);
-			c++; //alpha
+			(*c++) = 255; //alpha
 			(*c++) = limit(r + y2);
 			(*c++) = limit(g + y2);
 			(*c++) = limit(b + y2);
-			c++; //alpha
+			(*c++) = 255; //alpha
 		}
 		if(j & 0x01) { pb += ri->width/2; pc += ri->width/2; }
 	}
@@ -146,7 +158,7 @@ void Roq_UpdateTexture(gltexture_t *tex) {
 	} else if (ri->frame_num >= ri->num_frames) {
 		roq_reset_stream (ri);
 	//read frames untill we have catched up with the curent time
-	} else {
+	}  else {
 		while ((host_time - ri->lastframe_time) > (1.0/30.0)) {
 			ri->lastframe_time = host_time;
 			roq_read_frame(ri);
