@@ -969,7 +969,7 @@ void R_RenderBrushPoly (msurface_t *fa)
 		s = fa->shader->shader;
 		GL_SelectTexture(GL_TEXTURE0_ARB);
 		if (s->numcolorstages > 0)
-			GL_Bind(s->colorstages[0].texture[0]->texnum);
+			GL_BindAdvanced(s->colorstages[0].texture[0]);
 	}
 
 	if (fa->flags & SURF_DRAWTURB)
@@ -1499,7 +1499,7 @@ void DrawTextureChains (void)
 		}
 */
 		//if (!(s->flags & (SURF_DRAWSKY | SURF_DRAWTURB)))
-		if (!IsShaderBlended(sh->shader)) {
+		if (!IsShaderBlended(sh->shader) || gl_wireframe.value) {
 			R_DrawWorldAmbientChain(sh->texturechain);
 			sh->texturechain = NULL;
 		}
@@ -1514,7 +1514,7 @@ void DrawTextureChains (void)
 		if (!mesh)
 			continue;
 
-		if (!IsShaderBlended(mesh->shader->shader)) {
+		if (!IsShaderBlended(mesh->shader->shader) || gl_wireframe.value) {
 			while (mesh) {
 				R_DrawMeshAmbient(mesh);
 				mesh = mesh->next;
@@ -1529,6 +1529,7 @@ void DrawTextureChains (void)
 			cl.worldmodel->mapshaders[i].meshchain = NULL;
 			cl.worldmodel->mapshaders[i].texturechain = NULL;
 		}
+		GL_SelectTexture(GL_TEXTURE0_ARB);
 	}
 
 
