@@ -440,7 +440,7 @@ void CheckARBFragmentExtensions(void)
      glGetIntegerv(GL_MAX_ACTIVE_TEXTURES_ARB,&supportedTmu); 
 
      if (strstr(gl_extensions, "GL_EXT_texture3D")
-         && (supportedTmu >= 6)  && (!COM_CheckParm ("-forcegeneric"))
+         && (!COM_CheckParm ("-forcegeneric"))
          && (!COM_CheckParm ("-noarb"))
          && strstr(gl_extensions, "GL_ARB_fragment_program")
          && strstr(gl_extensions, "GL_ARB_vertex_program"))
@@ -456,6 +456,54 @@ void CheckARBFragmentExtensions(void)
      }
 }
 
+void CheckNV3xFragmentExtensions(void) 
+{
+     int supportedTmu;
+     glGetIntegerv(GL_MAX_ACTIVE_TEXTURES_ARB,&supportedTmu); 
+
+     if (strstr(gl_extensions, "GL_EXT_texture3D")
+         && (!COM_CheckParm ("-forcegeneric"))
+         && (!COM_CheckParm ("-nonv3x"))
+         && strstr(gl_extensions, "GL_NV_fragment_program")
+         && strstr(gl_extensions, "GL_NV_vertex_program2"))
+     {
+          gl_cardtype = NV3x;
+
+          //get TEX3d poiters                   wlgGetProcAddress
+          SAFE_GET_PROC (qglTexImage3DEXT,PFNGLTEXIMAGE3DEXT,"glTexImage3DEXT");
+
+          //get vertex_program pointers
+          SAFE_GET_PROC (qglAreProgramsResidentNV,PFNGLAREPROGRAMSRESIDENTNVPROC,"glAreProgramsResidentNV");
+          SAFE_GET_PROC (qglBindProgramNV,PFNGLBINDPROGRAMNVPROC,"glBindProgramNV");
+          SAFE_GET_PROC (qglDeleteProgramsNV,PFNGLDELETEPROGRAMSNVPROC,"glDeleteProgramsNV");
+          SAFE_GET_PROC (qglExecuteProgramNV,PFNGLEXECUTEPROGRAMNVPROC,"glExecuteProgramNV");
+          SAFE_GET_PROC (qglGenProgramsNV,PFNGLGENPROGRAMSNVPROC,"glGenProgramsNV");
+          SAFE_GET_PROC (qglGetProgramParameterdvNV,PFNGLGETPROGRAMPARAMETERDVNVPROC,"glGetProgramParameterdvNV");
+          SAFE_GET_PROC (qglGetProgramParameterfvNV,PFNGLGETPROGRAMPARAMETERFVNVPROC,"glGetProgramParameterfvNV");
+          SAFE_GET_PROC (qglGetProgramivNV,PFNGLGETPROGRAMIVNVPROC,"glGetProgramivNV");
+          SAFE_GET_PROC (qglGetProgramStringNV,PFNGLGETPROGRAMSTRINGNVPROC,"glGetProgramStringNV");
+          SAFE_GET_PROC (qglGetTrackMatrixivNV,PFNGLGETTRACKMATRIXIVNVPROC,"glGetTrackMatrixivNV");
+          SAFE_GET_PROC (qglGetVertexAttribdvNV,PFNGLGETVERTEXATTRIBDVNVPROC,"glGetVertexAttribdvNV");
+          SAFE_GET_PROC (qglGetVertexAttribfvNV,PFNGLGETVERTEXATTRIBFVNVPROC,"glGetVertexAttribfvNV");
+          SAFE_GET_PROC (qglGetVertexAttribivNV,PFNGLGETVERTEXATTRIBIVNVPROC,"glGetVertexAttribivNV");
+          SAFE_GET_PROC (qglGetVertexAttribPointervNV,PFNGLGETVERTEXATTRIBPOINTERVNVPROC,"glGetVertexAttribPointervNV");
+          SAFE_GET_PROC (qglGetVertexAttribPointervNV,PFNGLGETVERTEXATTRIBPOINTERVNVPROC,"glGetVertexAttribPointerNV");
+          SAFE_GET_PROC (qglIsProgramNV,PFNGLISPROGRAMNVPROC,"glIsProgramNV");
+          SAFE_GET_PROC (qglLoadProgramNV,PFNGLLOADPROGRAMNVPROC,"glLoadProgramNV");
+          SAFE_GET_PROC (qglProgramParameter4dNV,PFNGLPROGRAMPARAMETER4DNVPROC,"glProgramParameter4dNV");
+          SAFE_GET_PROC (qglProgramParameter4dvNV,PFNGLPROGRAMPARAMETER4DVNVPROC,"glProgramParameter4dvNV");
+          SAFE_GET_PROC (qglProgramParameter4fNV,PFNGLPROGRAMPARAMETER4FNVPROC,"glProgramParameter4fNV");
+          SAFE_GET_PROC (qglProgramParameter4fvNV,PFNGLPROGRAMPARAMETER4FVNVPROC,"glProgramParameter4fvNV");
+          SAFE_GET_PROC (qglProgramParameters4dvNV,PFNGLPROGRAMPARAMETERS4DVNVPROC,"glProgramParameters4dvNV");
+          SAFE_GET_PROC (qglProgramParameters4fvNV,PFNGLPROGRAMPARAMETERS4FVNVPROC,"glProgramParameters4fvNV");
+          SAFE_GET_PROC (qglRequestResidentProgramsNV,PFNGLREQUESTRESIDENTPROGRAMSNVPROC,"glRequestResidentProgramsNV");
+          SAFE_GET_PROC (qglTrackMatrixNV,PFNGLTRACKMATRIXNVPROC,"glTrackMatrixNV");
+
+          //default to trilinear filtering
+          gl_filter_min = GL_LINEAR_MIPMAP_LINEAR;
+          gl_filter_max = GL_LINEAR;
+     }
+}
 
 void CheckAnisotropicExtension(void)
 {
@@ -530,18 +578,24 @@ void GL_Init (void)
      Con_Printf ("Checking diffuse bumpmap extensions\n");
      CheckDiffuseBumpMappingExtensions ();
 
-     Con_Printf ("Checking ARB extensions\n");
-     CheckARBFragmentExtensions ();
+     Con_Printf ("Checking NV3x extensions\n");
+     CheckNV3xFragmentExtensions ();
 
-     if ( gl_cardtype != ARB )
+     if ( gl_cardtype != NV3x )
      {
-          Con_Printf ("Checking GeForce 1/2/4-MX\n");
+        Con_Printf ("Checking ARB extensions\n");
+        CheckARBFragmentExtensions ();
+     }
+
+     if ( gl_cardtype != ARB && gl_cardtype != NV3x )
+     {
+          Con_Printf ("Checking GeForce 1/2/4-MX extensions\n");
           CheckSpecularBumpMappingExtensions (); 
-          Con_Printf ("Checking GeForce 3/4\n");
+          Con_Printf ("Checking GeForce 3/4 extensions\n");
           CheckGeforce3Extensions ();
-          Con_Printf ("Checking Radeon 8500+\n");
+          Con_Printf ("Checking Radeon 8500+ extensions\n");
           CheckRadeonExtensions ();
-          Con_Printf ("Checking Parhelia\n");
+          Con_Printf ("Checking Parhelia extensions\n");
           CheckParheliaExtensions ();
      }
 
@@ -551,8 +605,8 @@ void GL_Init (void)
      CheckAnisotropicExtension ();
      Con_Printf ("Checking TC\n");
      CheckTextureCompressionExtension ();
-	 Con_Printf ("checking OT\n");
-	 CheckOcclusionTest();
+     Con_Printf ("checking OT\n");
+     CheckOcclusionTest();
 
      //if something goes wrong here throw an sys_error as we don't want to end up
      //having invalid function pointers called...
@@ -560,11 +614,13 @@ void GL_Init (void)
      {
      case GENERIC:
           Con_Printf ("Using generic path.\n");
-	  Sys_Error("No generic path yet\n");
+//	  Sys_Error("No generic path yet\n");
+          BUMP_InitGeneric();
           break;
      case GEFORCE:
           Con_Printf ("Using GeForce 1/2/4-MX path\n");
-	  Sys_Error("No geforce2 path yet\n");
+//	  Sys_Error("No geforce2 path yet\n");
+          BUMP_InitGeneric(); // has optimizations for GF cards (some day :)
           break;
      case GEFORCE3:
           Con_Printf ("Using GeForce 3/4 path\n");
@@ -582,6 +638,10 @@ void GL_Init (void)
           Con_Printf ("Using ARB_fragment_program path.\n");
           BUMP_InitARB();
           break;
+     case NV3x:
+          Con_Printf ("Using NV_fragment_program path.\n");
+          BUMP_InitNV3x();
+          break;
      }
             
      glGetIntegerv (GL_MAX_ACTIVE_TEXTURES_ARB,&supportedTmu); 
@@ -595,7 +655,7 @@ void GL_Init (void)
      glEnable (GL_TEXTURE_2D);
 
      glEnable (GL_ALPHA_TEST);
-     glAlphaFunc (GL_GREATER, 0.666);
+     glAlphaFunc (GL_GREATER, 0.666f);
 
      glPolygonMode (GL_FRONT_AND_BACK, GL_FILL);
      glShadeModel (GL_FLAT);

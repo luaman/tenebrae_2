@@ -26,7 +26,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #ifdef _WIN32
 #include <windows.h>
 #endif
-
 #if defined (__APPLE__) || defined (MACOSX)
 #include <OpenGL/gl.h>
 #include <OpenGL/glu.h>
@@ -45,8 +44,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
    func = (type) glXGetProcAddressARB (name)
 #else
 #define SAFE_GET_PROC( func, type, name)     \
-   func = (type) wglGetProcAddress( name);	\
-   if (!func) Sys_Error("Could not get addres for %s\n",name)
+   func = (type) wglGetProcAddress(name);   \
+   if (!func) Sys_Error("Could not get address for %s\n", name)
 #endif
 
 
@@ -462,6 +461,7 @@ extern PFNBLENDCOLORPROC qglBlendColor;
 
 
 // ARB_texture_compression defines
+#define GL_COMPRESSED_RGB_ARB                 0x84ED
 #define GL_COMPRESSED_RGBA_ARB                0x84EE
 
 //HP_occlusion_test defines
@@ -1042,7 +1042,8 @@ typedef enum
 	GEFORCE3,
 	RADEON,
 	PARHELIA,
-	ARB
+	ARB,
+        NV3x
 } qcardtype;
 extern qcardtype gl_cardtype;
 
