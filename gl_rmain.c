@@ -86,9 +86,6 @@ refdef_t	r_refdef;
 
 mleaf_t		*r_viewleaf, *r_oldviewleaf;
 
-int		d_lghtstylevalue[256];	// 8.8 fraction of base light value
-
-
 void R_MarkLeaves (void);
 void R_Clear (void);
 
@@ -143,7 +140,7 @@ cvar_t  gl_wireframe = {"gl_wireframe","0"};
 cvar_t  gl_caustics = {"gl_caustics","1"};
 cvar_t  gl_truform = {"gl_truform","0"};
 cvar_t  gl_truform_tesselation = {"gl_truform_tesselation","4"};
-cvar_t	gl_mesherror = {"gl_mesherror","3"};//PENTA: subdivision of meshes
+cvar_t	gl_mesherror = {"gl_mesherror","0.3"};
 
 cvar_t	fog_r = {"fog_r","0.2"};
 cvar_t	fog_g = {"fog_g","0.1"};
@@ -156,6 +153,8 @@ float fog_color[4];
 cvar_t	r_tangentscale = {"r_tangentscale","1"}; 
 cvar_t	sh_delux = {"sh_delux","1"};
 cvar_t	sh_rtlights = {"sh_rtlights","1"};
+cvar_t	gl_clipboth = {"gl_clipboth","0"}; //front and back clipping for vertex troughput benchmarking
+cvar_t	gl_displacement = {"gl_displacement","0"};
 
 mirrorplane_t mirrorplanes[NUM_MIRROR_PLANES];
 int mirror_contents;
@@ -320,13 +319,13 @@ void R_DrawSpriteModel (entity_t *e)
 	tex += 2;
 
 	Q_memset(&def,0,sizeof(vertexdef_t));
-	def.vertices = verts;
-	def.texcoords = texco;
-	def.tangents = NULL;
-	def.binormals = NULL;
-	def.normals = NULL;
-	def.lightmapcoords = NULL;
-	def.colors = NULL;
+	def.vertices = GL_WrapUserPointer(verts);
+	def.texcoords = GL_WrapUserPointer(texco);
+	def.tangents = DRVNULL;
+	def.binormals = DRVNULL;
+	def.normals = DRVNULL;
+	def.lightmapcoords = DRVNULL;
+	def.colors = DRVNULL;
 
 
 	if (frame->shader->flags & SURF_NODRAW) return;
@@ -780,11 +779,11 @@ R_SetupAliasFrame
 
 =================
 */
-
+/*
 void R_SetupAliasFrame (aliashdr_t *paliashdr, aliasframeinstant_t *instant)
 {
 	float*			texcoos;
-	int*			indecies;
+	int*			indecies;*/
 	/*
 	if ((frame >= paliashdr->numframes) || (frame < 0))
 	{
@@ -803,7 +802,7 @@ void R_SetupAliasFrame (aliashdr_t *paliashdr, aliasframeinstant_t *instant)
 		pose += (int)(cl.time / interval) % numposes;
 	}
 	*/
-
+/*
 	texcoos = (float *)((byte *)paliashdr + paliashdr->texcoords);
 	indecies = (int *)((byte *)paliashdr + paliashdr->indecies);
 	//GL_DrawAliasFrame (paliashdr, pose);
@@ -820,6 +819,7 @@ void R_SetupAliasFrame (aliashdr_t *paliashdr, aliasframeinstant_t *instant)
 	glDisableClientState(GL_NORMAL_ARRAY);
 	glDisableClientState(GL_TEXTURE_COORD_ARRAY);
 }
+*/
 
 /*
 	Draws the tangent space of the model
@@ -869,7 +869,7 @@ DC : draw one surface from a model
 =================
 */
 
-	
+	/*
 
 void R_DrawAliasSurface (aliashdr_t *paliashdr, float bright, aliasframeinstant_t *instant)
 {
@@ -889,7 +889,7 @@ void R_DrawAliasSurface (aliashdr_t *paliashdr, float bright, aliasframeinstant_
 	//XYZ
 	if (gl_wireframe.value) {
 		glDisable(GL_TEXTURE_2D);
-	}
+	}*/
 /*
 	if ( gl_truform.value )
 	{
@@ -900,7 +900,7 @@ void R_DrawAliasSurface (aliashdr_t *paliashdr, float bright, aliasframeinstant_
 	}
 
 */
-
+/*
 	glColor3f(bright, bright, bright);
 	//if (busy_caustics)
 	//	glColor3f(1,1,1);
@@ -935,7 +935,7 @@ void R_DrawAliasSurface (aliashdr_t *paliashdr, float bright, aliasframeinstant_
                 glFogfv(GL_FOG_COLOR, fog_color);
             }
 			*/
-        }
+  /*      }
 
 	if ((sh_showtangent.value) && (!busy_caustics)) {
 		glDisable(GL_TEXTURE_2D);
@@ -951,7 +951,7 @@ void R_DrawAliasSurface (aliashdr_t *paliashdr, float bright, aliasframeinstant_
 	    glDisable(GL_PN_TRIANGLES_ATI);
 	}
 }
-
+*/
  
  
 /*
@@ -2068,7 +2068,6 @@ void R_RenderScene (void)
 		//it fills the z buffer
 	R_SetupInstants();
 
-
 	//XYZ - moved upwards
 	if (gl_wireframe.value) {
 		float old = sh_lightmapbright.value;
@@ -2549,126 +2548,6 @@ void R_RenderMirrors()
 	}
 }
 
-void R_SetupMirrorShader(msurface_t *surf,mirrorplane_t *mir) {
-
-	if (mir_detail.value < 1) {
-		GL_Bind(newenvmap);
-	} else
-		GL_Bind(mir->texture_object);
-
-	if ((surf->flags & SURF_DRAWTURB) && !(surf->flags & SURF_GLASS)) {
-		//it is water
-		//glBlendFunc(GL_SRC_ALPHA,GL_ONE_MINUS_SRC_ALPHA);
-		glBlendFunc(GL_SRC_ALPHA,GL_ONE);
-		glEnable(GL_BLEND);
-		return;
-	} else {
-
-		if (surf->flags & SURF_DRAWTURB) {
-			glBlendFunc(GL_SRC_ALPHA,GL_ONE);
-			glEnable(GL_BLEND);
-			return;
-		}
-
-		//it is glass or a mirror
-		//GL_EnableMultiTexture();
-		glTexEnvf (GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_COMBINE_ARB);
-		glTexEnvf (GL_TEXTURE_ENV, GL_SOURCE0_RGB_ARB, GL_TEXTURE);
-		glTexEnvf (GL_TEXTURE_ENV, GL_COMBINE_RGB_ARB, GL_REPLACE);
-
-		GL_EnableMultitexture();
-//SHADERS		GL_Bind(surf->texinfo->texture->gl_texturenum);
-
-		//No colormaps: Color maps are bound on tmu 0 so disable it
-		//and let tu1 modulate itself with the light map brightness
-		glTexEnvf (GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_COMBINE_ARB);
-		glTexEnvf (GL_TEXTURE_ENV, GL_SOURCE0_RGB_ARB, GL_PREVIOUS_ARB);
-		glTexEnvf (GL_TEXTURE_ENV, GL_SOURCE1_RGB_ARB, GL_TEXTURE);
-		glTexEnvf (GL_TEXTURE_ENV, GL_SOURCE2_RGB_ARB, GL_TEXTURE);
-		glTexEnvf (GL_TEXTURE_ENV, GL_COMBINE_RGB_ARB, GL_INTERPOLATE_ARB);
-		glTexEnvf (GL_TEXTURE_ENV, GL_OPERAND2_RGB_ARB, GL_SRC_ALPHA);
-
-//SHADERS		GL_Bind(surf->texinfo->texture->gl_texturenum);
-	}
-}
-
-void R_DisableMirrorShader(msurface_t *surf,mirrorplane_t *mir) {
-
-
-	if ((surf->flags & SURF_DRAWTURB) && !(surf->flags & SURF_GLASS)) {
-		//it is water
-		glDisable(GL_BLEND);
-		return;
-	} else {
-
-		if (surf->flags & SURF_DRAWTURB) {
-			glDisable(GL_BLEND);
-			return;
-		}
-
-		glTexEnvf (GL_TEXTURE_ENV, GL_OPERAND2_RGB_ARB, GL_SRC_COLOR);
-		GL_DisableMultitexture();
-	}
-}
-
-void R_DrawMirrorSurfaces()
-{
-	int i;
-	msurface_t *s;
-
-	glBlendFunc(GL_SRC_ALPHA,GL_ONE);
-	for (i=0; i<NUM_MIRROR_PLANES; i++) {
-		if (mirrorplanes[i].chain) {
-
-			glMatrixMode(GL_TEXTURE);
-
-			glPushMatrix();
-			if (mir_detail.value > 0) {
-				glLoadIdentity();
-				glTranslatef(0.5, 0.5, 0);
-				glScalef(0.5, 0.5, 0);
-				glMultMatrixf (r_projection_matrix);
-				glMultMatrixf (r_world_matrix);
-			} else {
-				//glMultMatrixf (r_projection_matrix);
-				glTranslatef(r_refdef.vieworg[0]/1000,r_refdef.vieworg[1]/1000,r_refdef.vieworg[2]/1000);
-				glTexGeni(GL_S,GL_TEXTURE_GEN_MODE,GL_SPHERE_MAP);
-				glTexGeni(GL_T,GL_TEXTURE_GEN_MODE,GL_SPHERE_MAP);
-				glEnable(GL_TEXTURE_GEN_S);
-				glEnable(GL_TEXTURE_GEN_T);
-			}
-
-			R_SetupMirrorShader(mirrorplanes[i].chain,&mirrorplanes[i]);
-
-			s = mirrorplanes[i].chain;
-
-			glNormal3fv(mirrorplanes[i].plane.normal);
-			for ( ; s ; s=s->texturechain) {
-			if ((s->flags & SURF_GLASS) && (s->flags & SURF_DRAWTURB)) {
-					glColor4f(1,1,1,0.5);
-					EmitMirrorPolys (s);
-				} else if (s->flags & SURF_DRAWTURB) {
-					glColor4f(1,1,1,r_wateralpha.value);
-					EmitMirrorWaterPolys (s);
-				}  else {
-					glColor4f(1,1,1,1);
-					EmitMirrorPolys (s);
-				}
-			}
-
-			R_DisableMirrorShader(mirrorplanes[i].chain,&mirrorplanes[i]);
-
-			glPopMatrix();
-        		if (mir_detail.value == 0) {
-				glDisable(GL_TEXTURE_GEN_S);
-				glDisable(GL_TEXTURE_GEN_T);
-			}
-			glMatrixMode(GL_MODELVIEW);
-		}
-	}
-	glBlendFunc(GL_SRC_ALPHA,GL_ONE_MINUS_SRC_ALPHA);
-}
-
 /*
 =============
 R_Clear
@@ -2800,6 +2679,10 @@ void R_RenderView (void)
 			glEnable(GL_FOG);
 	}
 
+	if (gl_clipboth.value) {
+		glCullFace(GL_FRONT_AND_BACK);
+	}
+
 	if (mir_detail.value > 0) {
 		R_RenderMirrors();
 		//	glClear (GL_DEPTH_BUFFER_BIT);
@@ -2815,6 +2698,10 @@ void R_RenderView (void)
 
 	R_RenderScene ();
 	
+	if (gl_clipboth.value) {
+		glCullFace(GL_BACK);
+	}
+
 	DrawLightVolumeInfo();
 
 	//R_DrawViewModel ();
@@ -2825,7 +2712,7 @@ void R_RenderView (void)
 	draw to make sure particles are rendered over the surface of the water. - Eradicator*/
 
 //	R_DrawWaterSurfaces ();
-	R_DrawMirrorSurfaces ();
+//	R_DrawMirrorSurfaces ();
 
 //  More fog right here :)
 
