@@ -256,7 +256,7 @@ cshift_t	cshift_water = { {130,80,50}, 128 };
 cshift_t	cshift_slime = { {0,25,5}, 150 };
 cshift_t	cshift_lava = { {255,80,0}, 150 };
 
-cvar_t		v_gamma = {"gamma", "1", true};
+cvar_t		r_intensity = {"r_intensity", "1", true};
 
 byte		gammatable[256];	// palette is sent through this
 
@@ -296,11 +296,11 @@ qboolean V_CheckGamma (void)
 {
 	static float oldgammavalue;
 	
-	if (v_gamma.value == oldgammavalue)
+	if (r_intensity.value == oldgammavalue)
 		return false;
-	oldgammavalue = v_gamma.value;
+	oldgammavalue = r_intensity.value;
 	
-	BuildGammaTable (v_gamma.value);
+	BuildGammaTable (r_intensity.value);
 	vid.recalc_refdef = 1;				// force a surface cache flush
 	
 	return true;
@@ -1113,7 +1113,7 @@ void V_Init (void)
 	Cvar_RegisterVariable (&v_kickpitch);	
 	
 	BuildGammaTable (1.0);	// no gamma yet
-	Cvar_RegisterVariable (&v_gamma);
+	Cvar_RegisterVariable (&r_intensity);
 }
 
 
