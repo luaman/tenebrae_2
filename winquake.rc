@@ -61,7 +61,7 @@ IDI_ICON2               ICON    DISCARDABLE     "quake.ico"
 // Dialog
 //
 
-IDD_DIALOG1 DIALOG DISCARDABLE  0, 0, 92, 24
+IDD_DIALOG1 DIALOG DISCARDABLE  0, 0, 93, 21
 STYLE DS_MODALFRAME | DS_SETFOREGROUND | DS_3DLOOK | DS_CENTER | WS_POPUP
 FONT 16, "MS Sans Serif"
 BEGIN
@@ -72,7 +72,7 @@ IDD_PROGRESS DIALOGEX 0, 0, 333, 45
 STYLE DS_MODALFRAME | DS_SETFOREGROUND | DS_3DLOOK | DS_CENTER | WS_POPUP | 
     WS_VISIBLE
 EXSTYLE WS_EX_TOOLWINDOW | WS_EX_CLIENTEDGE
-FONT 8, "MS Sans Serif"
+FONT 8, "MS Sans Serif", 0, 0, 0x1
 BEGIN
     LTEXT           "Creating 15 bit inverse palette.  This is only done once, so just be patient for the next 30-60 seconds.",
                     IDC_STATIC,7,19,319,10
@@ -80,6 +80,22 @@ BEGIN
                     319,11
     LTEXT           "Starting Tenebrae...",IDC_STATIC,7,4,88,8
 END
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// DESIGNINFO
+//
+
+#ifdef APSTUDIO_INVOKED
+GUIDELINES DESIGNINFO DISCARDABLE 
+BEGIN
+    IDD_DIALOG1, DIALOG
+    BEGIN
+        RIGHTMARGIN, 92
+    END
+END
+#endif    // APSTUDIO_INVOKED
 
 
 /////////////////////////////////////////////////////////////////////////////
