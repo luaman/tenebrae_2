@@ -28,7 +28,7 @@ int noconinput = 0;
 
 
 #if defined (USERPREF_DIR)
-char *prefdir=  ".quake";
+char *prefdir=  ".tenebrae";
 #endif
 
 #if defined (BASEDIR)
@@ -76,12 +76,12 @@ void Sys_Quit (void)
 
 void Sys_Init(void)
 {
-#if id386
+#ifdef id386
 	Sys_SetFPCW();
 #endif
 }
 
-#if !id386
+#ifndef id386
 
 /*
 ================
