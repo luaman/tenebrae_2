@@ -1252,7 +1252,7 @@ void Mod_LoadPlanes (lump_t *l)
 RadiusFromBounds
 =================
 */
-float RadiusFromBounds (vec3_t mins, vec3_t maxs)
+float Mod_RadiusFromBounds (vec3_t mins, vec3_t maxs)
 {
 	int		i;
 	vec3_t	corner;
@@ -1687,7 +1687,7 @@ void Mod_LoadAliasModel (model_t *mod, void *buffer)
                 pheader->maxs[i] = mod->maxs[i];
                 
 	}
-	mod->radius = RadiusFromBounds (mod->mins, mod->maxs);
+	mod->radius = Mod_RadiusFromBounds (mod->mins, mod->maxs);
 
 	//
 	// build the draw lists

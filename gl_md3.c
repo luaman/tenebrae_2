@@ -693,7 +693,7 @@ void Mod_LoadMd3Model (model_t *mod, void *buffer)
 	} /* for numsurf */
 
 	//calculate radius
-	mod->radius = RadiusFromBounds (mod->mins, mod->maxs);
+	mod->radius = Mod_RadiusFromBounds (mod->mins, mod->maxs);
 
 
 /* monster or player models only ? */
@@ -1020,7 +1020,7 @@ void Mod_LoadTenebraeKeyframeModel (model_t *mod, void *buffer)
 	} /* for numsurf */
 
 	//calculate radius
-	mod->radius = RadiusFromBounds (mod->mins, mod->maxs);
+	mod->radius = Mod_RadiusFromBounds (mod->mins, mod->maxs);
 
 //
 // move the complete, relocatable alias model to the cache
