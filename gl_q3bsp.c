@@ -75,8 +75,6 @@ void ModQ3_LoadTextures (lump_t *l)
 /*
 =================
 ModQ3_LoadLighting
-
-No changes with quake1
 =================
 */
 void ModQ3_LoadLighting (lump_t *l)
@@ -103,8 +101,6 @@ void ModQ3_LoadLighting (lump_t *l)
 /*
 =================
 ModQ3_LoadVisibility
-
-No changes with quake1
 =================
 */
 void ModQ3_LoadVisibility (lump_t *l)
@@ -255,7 +251,7 @@ int numnaughty;
 int numnormal;
 int noneighbour;
 /**
-* Find a polygon who shares and edge with the given edge.
+* Find a polygon who shares an edge with the given edge.
 * Note: Q3 maps seem to share edges between 3 poly's sometimes, we use the same
 * solution as with meshes and let noone have the edge.
 */
@@ -421,6 +417,7 @@ ModQ3_LoadMeshVerts
 
 These are intexes for the surfaces, we don't actually load them since they are copied to
 the glpolygon_t structure when we load the faces...
+FIXME: endianness
 =================
 */
 void ModQ3_LoadMeshVerts (lump_t *l)
@@ -431,7 +428,7 @@ void ModQ3_LoadMeshVerts (lump_t *l)
 }
 
 int FindPlane(vec3_t normal, vec3_t vertex) {
-	int i;
+	int i, bits;
 	float dist = DotProduct(vertex,normal);
 
 	for (i=0; i<loadmodel->numplanes; i++) {
@@ -453,6 +450,15 @@ int FindPlane(vec3_t normal, vec3_t vertex) {
 	//Con_Printf("Plane added: %f %f %f %f\n",normal[0],normal[1],normal[2],dist);
 	VectorCopy(normal,loadmodel->planes[loadmodel->numplanes].normal);
 	loadmodel->planes[loadmodel->numplanes].dist = dist;
+	loadmodel->planes[loadmodel->numplanes].type = calcPlaneType(normal);
+	bits = 0;
+	for (i=0 ; i<3 ; i++)
+	{
+		if (normal[i] < 0)
+			bits |= 1<<i;
+	}
+	loadmodel->planes[loadmodel->numplanes].signbits = bits;
+
 	i = loadmodel->numplanes;
 	loadmodel->numplanes++;
 	return i;
@@ -681,11 +687,57 @@ void ModQ3_SetupFaces (void)
 	int surfnum;	
 	msurface_t 	*s;
 	glpoly_t	*poly;
-	FILE	*f;
 	char	cache[MAX_QPATH], fullpath[MAX_OSPATH];
 	int mod = loadmodel->numsurfaces / 10;
 	int progress = 0;
+	int fh;
+	qboolean recalculate = false;
 
+	//
+	//Try to load cached connectivity, if anything goes wrong recalculate
+	//
+	sprintf(cache,"%s/cache/%s.con", com_gamedir, loadname);
+	if (Sys_FileOpenRead (cache, &fh) >= 0) {
+		char magic[4];
+		int numSurf;
+		int numNeigh;
+
+		Sys_FileRead(fh, magic, 4);
+		if (strcmp(magic,"TCON"))  {
+			recalculate = true;
+			goto close;
+		}
+
+		Sys_FileRead(fh, &numSurf, sizeof(int));
+		if (numSurf != loadmodel->numsurfaces)  {
+			recalculate = true;
+			goto close;
+		}
+
+		//Write it out
+		for (surfnum=0; surfnum<loadmodel->numsurfaces; surfnum++)
+		{
+			s = &loadmodel->surfaces[surfnum];
+			poly = s->polys;
+
+			if (!poly) continue;
+			if(s->shader->shader->flags & SURF_NOSHADOW) continue;
+			Sys_FileRead(fh, &numNeigh, sizeof(int));
+			if (numNeigh != poly->numneighbours)  {
+				recalculate = true;
+				break;
+			}
+			Sys_FileRead(fh, poly->neighbours, poly->numneighbours*sizeof(mneighbour_t));
+		}
+	close:
+		Sys_FileClose(fh);
+	} else {
+		recalculate = true;
+	}
+
+	//
+	//Calculate tangent space and connectivity(if no cache was found)
+	//
 	if (mod < 1) mod = 1;
 	numnaughty = 0;
 	numnormal = 0;
@@ -710,11 +762,41 @@ void ModQ3_SetupFaces (void)
 		TangentForPoly(poly->indecies,&tempVertices[0],s->tangent,s->binormal);
 
 		if(s->shader->shader->flags & SURF_NOSHADOW) continue;
-		findNeighbours(poly);
+		if (recalculate)
+			findNeighbours(poly);
 	}
-	Con_Printf("  Checked %i edges\n",numnormal);
-	Con_Printf("  %i single edges\n",noneighbour);
-	Con_Printf("  Ignored %i manyfold edges\n",numnaughty);
+	if (recalculate) {
+		Con_Printf("  Checked %i edges\n",numnormal);
+		Con_Printf("  %i single edges\n",noneighbour);
+		Con_Printf("  Ignored %i manyfold edges\n",numnaughty);
+	} else {
+		Con_Printf("  Using cached connectivity\n");
+	}
+
+	//
+	//Save the connectivity if we just calculated it
+	//
+	if (recalculate) {
+		sprintf(cache,"%s/cache", com_gamedir);
+		Sys_mkdir (cache);
+		sprintf(cache,"%s/cache/%s.con", com_gamedir, loadname);
+		fh = Sys_FileOpenWrite(cache);	
+		Sys_FileWrite(fh, "TCON", 4);
+		Sys_FileWrite(fh, &loadmodel->numsurfaces, sizeof(int));
+		//Write it out
+		for (surfnum=0; surfnum<loadmodel->numsurfaces; surfnum++)
+		{
+			s = &loadmodel->surfaces[surfnum];
+			poly = s->polys;
+
+			if (!poly) continue;
+			if(s->shader->shader->flags & SURF_NOSHADOW) continue;
+			Sys_FileWrite(fh, &poly->numneighbours, sizeof(int));
+			Sys_FileWrite(fh, poly->neighbours, poly->numneighbours*sizeof(mneighbour_t));
+		}
+		Sys_FileClose(fh);
+	}
+
 /*
 	// look for a cached version of the neighbour pointers
 	sprintf(cache,"cache/%s.con",loadname);
