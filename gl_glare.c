@@ -223,7 +223,7 @@ void R_Glare ()
 //	GL_Bind(glare_object);
 //	glCopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 0, 0, 128, 128);
 
-	glClear (GL_DEPTH_BUFFER_BIT);
+	glClear (GL_DEPTH_BUFFER_BIT|GL_STENCIL_BUFFER_BIT);
 
 	r_refdef.vrect.x = ox;
 	r_refdef.vrect.y = oy;

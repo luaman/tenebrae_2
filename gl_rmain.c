@@ -2104,7 +2104,7 @@ void R_RenderScene (void)
 	//}
 
 	if (!sh_noscissor.value) {
-		glClear(GL_STENCIL_BUFFER_BIT);
+//		glClear(GL_STENCIL_BUFFER_BIT); // already cleared
 		R_ClearRectList();
 	}
 
@@ -2488,7 +2488,7 @@ void R_Mirror (mirrorplane_t *mir)
 
 	GL_Bind(mir->texture_object);
 	glCopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 0, 0, 256, 256);
-	glClear (GL_DEPTH_BUFFER_BIT);
+	glClear (GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
 
 	if (mir_detail.value < 2) {
@@ -2701,9 +2701,9 @@ void R_Clear (void)
 	
 	{
 		if (gl_clear.value || gl_wireframe.value)
-			glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+			glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 		else
-			glClear (GL_DEPTH_BUFFER_BIT);
+			glClear (GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 		gldepthmin = 0;
 		gldepthmax = 1;
 		glDepthFunc (GL_LEQUAL);
