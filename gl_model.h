@@ -43,6 +43,14 @@ m*_t structures are in-memory
 #define EF_FULLDYNAMIC			16
 
 
+//PENTA: moved here, we needed it
+typedef struct plane_s
+{
+	vec3_t	normal;
+	float	dist;
+} plane_t;
+
+
 /*
 ==============================================================================
 
@@ -102,6 +110,7 @@ typedef struct
 	int		width, height;
 	qboolean	mipmap;
 	int		type;
+	void	*dynamic; //if this is set we have a texture with changing pixels (currently only roq's)
 } gltexture_t;
 
 #define SHADER_MAX_NAME 128
@@ -272,6 +281,7 @@ typedef struct mesh_s
 	vec3_t *tangents;
 	vec3_t *binormals;
 	vec3_t *normals;
+	plane_t *triplanes; //per triangle plane eq's (for shadow volumes)
 	int	numvertices;
 
 	int *indecies;
@@ -285,6 +295,7 @@ typedef struct mesh_s
 	int	visframe;
 	int lightTimestamp;
 	mapshader_t	*shader;
+	int lightmapIndex;
 
 	struct mesh_s *next; //for the texture chains
 	struct mesh_s *shadowchain;
