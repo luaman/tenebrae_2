@@ -226,7 +226,7 @@ void DecalWalkBsp_R(decal_t *dec, mnode_t *node)
 	float		dist;
 	mleaf_t		*leaf;
 
-	if (node->contents < 0) {
+	if (node->contents & CONTENTS_LEAF) {
 
 		//we are in a leaf
 		leaf = (mleaf_t *)node;

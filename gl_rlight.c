@@ -99,7 +99,7 @@ int RecursiveLightPoint (mnode_t *node, vec3_t start, vec3_t end)
 	unsigned	scale;
 	int			maps;
 
-	if (node->contents < 0)
+	if (node->contents & CONTENTS_LEAF)
 		return -1;		// didn't hit anything
 	
 // calculate mid point

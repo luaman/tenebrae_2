@@ -162,6 +162,8 @@ cvar_t	fog_end = {"fog_end","700"};
 cvar_t	gl_fog = {"gl_fog","1"};
 cvar_t  fog_waterfog = {"fog_waterfog","1"}; 
 float fog_color[4];
+cvar_t	r_tangentscale = {"r_tangentscale","16"}; 
+
 
 mirrorplane_t mirrorplanes[NUM_MIRROR_PLANES];
 int mirror_contents;
@@ -222,9 +224,12 @@ int CL_PointContents (vec3_t p)
 {
 	int		cont;
 
-	cont = SV_HullPointContents (&cl.worldmodel->hulls[0], 0, p);
+	cont = CM_PointContents(p,0);
+	//cont = SV_HullPointContents (&cl.worldmodel->hulls[0], 0, p);
+	/*
 	if (cont <= CONTENTS_CURRENT_0 && cont >= CONTENTS_CURRENT_DOWN)
 		cont = CONTENTS_WATER;
+	*/
 	return cont;
 }
 
@@ -2774,7 +2779,7 @@ void R_RenderView (void)
 
 	viewcont = CL_PointContents(r_origin);
 	fog_color[3] = 1.0;
-	if ((viewcont == CONTENTS_WATER) && (fog_waterfog.value)){
+	if ((viewcont & CONTENTS_WATER) && (fog_waterfog.value)){
 		glFogi(GL_FOG_MODE, GL_LINEAR);
 		fog_color[0] = 64/255.0;
 		fog_color[1] = 48/255.0;
@@ -2785,7 +2790,7 @@ void R_RenderView (void)
 		glEnable(GL_FOG);
 		oldfogen = gl_fog.value;
 		gl_fog.value = 1.0;
-	} else 	if ((viewcont == CONTENTS_SLIME) && (fog_waterfog.value)){
+	} else 	if ((viewcont & CONTENTS_SLIME) && (fog_waterfog.value)){
 		glFogi(GL_FOG_MODE, GL_LINEAR);
 		fog_color[0] = 0.0;
 		fog_color[1] = 128/255.0;
@@ -2796,7 +2801,7 @@ void R_RenderView (void)
 		glEnable(GL_FOG);
 		oldfogen = gl_fog.value;
 		gl_fog.value = 1.0;
-	} else 	if ((viewcont == CONTENTS_LAVA) && (fog_waterfog.value)){
+	} else 	if ((viewcont & CONTENTS_LAVA) && (fog_waterfog.value)){
 		glFogi(GL_FOG_MODE, GL_LINEAR);
 		fog_color[0] = 255/255.0;
 		fog_color[1] = 64/255.0;
@@ -2846,7 +2851,7 @@ void R_RenderView (void)
 
 //  More fog right here :)
 
-	if ((viewcont == CONTENTS_WATER) && (fog_waterfog.value)){
+	if ((viewcont & CONTENTS_WATER) && (fog_waterfog.value)){
 		gl_fog.value = oldfogen;
 	}
 	glDisable(GL_FOG);

@@ -89,7 +89,7 @@ mleaf_t *Mod_PointInLeaf (vec3_t p, model_t *model)
 	node = model->nodes;
 	while (1)
 	{
-		if (node->contents < 0)
+		if (node->contents & CONTENTS_LEAF)
 			return (mleaf_t *)node;
 		plane = node->plane;
 		d = DotProduct (p,plane->normal) - plane->dist;
@@ -907,7 +907,7 @@ Mod_SetParent
 void Mod_SetParent (mnode_t *node, mnode_t *parent)
 {
 	node->parent = parent;
-	if (node->contents < 0)
+	if (node->contents & CONTENTS_LEAF)
 		return;
 	Mod_SetParent (node->children[0], node);
 	Mod_SetParent (node->children[1], node);
@@ -1006,7 +1006,7 @@ void Mod_LoadLeafs (lump_t *l)
 			out->ambient_sound_level[j] = in->ambient_level[j];
 
 		// gl underwater warp
-		if (out->contents == CONTENTS_WATER)
+		if (out->contents & CONTENTS_WATER)
 		{
 			qboolean iswater = true;
 
@@ -1136,7 +1136,7 @@ void Mod_MakeHull0 (void)
 		for (j=0 ; j<2 ; j++)
 		{
 			child = in->children[j];
-			if (child->contents < 0)
+			if (child->contents & CONTENTS_LEAF)
 				out->children[j] = child->contents;
 			else
 				out->children[j] = child - loadmodel->nodes;
