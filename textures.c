@@ -986,7 +986,7 @@ GL_Upload8
 ===============
 */
 	//XYZ
-static	unsigned	trans[1024*1024];		// FIXME, temporary
+unsigned	trans[1024*1024];		// FIXME, temporary
 static	unsigned char	glosspix[1024*1024];
 
 #define RED_MASK 0x00FF0000
@@ -1241,7 +1241,9 @@ gltexture_t *GL_CacheTexture (char *filename,  qboolean mipmap, int type)
 
 	strncpy (glt->identifier, filename, sizeof(glt->identifier));
 	glt->texnum = texture_extension_number;
+	texture_extension_number++;
 	glt->mipmap = mipmap;
+	glt->dynamic = NULL;
 
 	if (!strcmp(filename,"$white")) {
 		//a uniform white texture
@@ -1251,6 +1253,10 @@ gltexture_t *GL_CacheTexture (char *filename,  qboolean mipmap, int type)
 		//a flat normal map with no gloss
 		trans[0] = LittleLong ((0 << 24)|(127 << 16)|(255 << 8)|(127));
 		width = height = 1;
+	} else if (!strcmp(COM_FileExtension(filename),"roq")) {
+		Con_Printf("Loading video texture from %s\n",filename);
+		Roq_SetupTexture(glt, filename) ;
+		return glt;
 	} else {
 		int rez;
 		qboolean hasgloss = false;
@@ -1289,10 +1295,7 @@ gltexture_t *GL_CacheTexture (char *filename,  qboolean mipmap, int type)
 		}
 	}
 
-	GL_Bind(texture_extension_number );
-	texture_extension_number++;
-
-	//
+	GL_Bind(glt->texnum);
 	glt->width = width;
 	glt->height = height;
 
@@ -1309,6 +1312,18 @@ gltexture_t *GL_CacheTexture (char *filename,  qboolean mipmap, int type)
 	return glt;
 }
 
+void GL_ShutdownTextures(void) {
+	int i;
+	gltexture_t *glt;
+
+	for (i=0, glt=gltextures ; i<numgltextures ; i++, glt++)
+	{
+		//found one, return it...
+		if (gltextures[i].dynamic) {
+			Roq_FreeTexture(&gltextures[i]);
+		}
+	}
+}
 
 int GL_LoadLuma(char *identifier, qboolean mipmap)
 {

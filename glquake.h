@@ -345,6 +345,7 @@ extern  cvar_t	sh_lightmapbright; //PENTA:
 extern  cvar_t	sh_radiusscale;
 extern  cvar_t	sh_visiblevolumes;
 extern  cvar_t  sh_entityshadows;
+extern  cvar_t  sh_meshshadows;
 extern  cvar_t  sh_worldshadows;
 extern  cvar_t  sh_showlightnum;
 extern  cvar_t  sh_glows;
@@ -1460,3 +1461,7 @@ extern cvar_t willi_gray_colormaps;
 gltexture_t *GL_CacheTexture (char *filename,  qboolean mipmap, int type);
 shader_t *GL_ShaderForName(char *name);
 qboolean IsShaderBlended(shader_t *s);
+
+void Roq_Info_f(void);
+void Roq_SetupTexture(gltexture_t *tex,char *filename);
+void Roq_FreeTexture(gltexture_t *tex);
