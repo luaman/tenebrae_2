@@ -34,8 +34,8 @@ glx_tenebrae_AFLAGS = -x assembler-with-cpp
 sdl_tenebrae_AFLAGS = -x assembler-with-cpp
 
 # datadir is a variable defined by autoconf to @prefix@/share/ 
-glx_tenebrae_CFLAGS = @CFLAGS@ @X11_CFLAGS@  -D__glx__ -DGLQUAKE -DBASEDIR=@GAMEDIR@ -I$(MASTER_DIR) -I$(NVPARSE_DIR) 
-sdl_tenebrae_CFLAGS = @CFLAGS@ @SDL_CFLAGS@ -DSDL      -DGLQUAKE -DBASEDIR=@GAMEDIR@ -I$(MASTER_DIR) -I$(NVPARSE_DIR) 
+glx_tenebrae_CFLAGS = @CFLAGS@ @X11_CFLAGS@  -DUSE_ASM -D__glx__ -DGLQUAKE -DBASEDIR=@GAMEDIR@ -I$(MASTER_DIR) -I$(NVPARSE_DIR) 
+sdl_tenebrae_CFLAGS = @CFLAGS@ @SDL_CFLAGS@ -DUSE_ASM -DSDL      -DGLQUAKE -DBASEDIR=@GAMEDIR@ -I$(MASTER_DIR) -I$(NVPARSE_DIR) 
 
 
 libnvparse_a_SOURCES = 			\
@@ -287,6 +287,7 @@ GL_TENEBRAE_SRCS =			\
 	$(MASTER_DIR)/gl_brushinstant.c		\
 	$(MASTER_DIR)/gl_bumpdriver.c		\
 	$(MASTER_DIR)/gl_bumparb.c		\
+	$(MASTER_DIR)/gl_bumpgl2.c		\
 	$(MASTER_DIR)/gl_bumpgf.c		\
 	$(MASTER_DIR)/gl_bumpmap.c		\
 	$(MASTER_DIR)/gl_bumpparhelia.c		\

@@ -40,7 +40,7 @@ PNG_LIBS      = -lpng -lz
 #OPENAL_LIBS   = -lopenal 
 #OPENAL_CFLAGS = -DOPENAL -I/usr/local/include/AL
 
-BASE_CFLAGS   = -DBASEDIR="$(MASTER_DIR)" -DUSERPREF_DIR $(OPENGL_CFLAGS) $(OPENAL_CFLAGS) -I$(MOUNT_DIR) $(XML_CFLAGS) -Did386=1
+BASE_CFLAGS   = -DBASEDIR="$(MASTER_DIR)" -DUSERPREF_DIR $(OPENGL_CFLAGS) $(OPENAL_CFLAGS) -I$(MOUNT_DIR) $(XML_CFLAGS) -DUSE_ASM
 RELEASE_CFLAGS = $(BASE_CFLAGS) -march=i686 -O2 -ffast-math -funroll-loops \
 	-fomit-frame-pointer -fexpensive-optimizations 
 DEBUG_CFLAGS  = $(BASE_CFLAGS) -g 
@@ -94,6 +94,7 @@ GLQUAKE_OBJS= \
 	$(BUILDDIR)/glquake/gl_bumpdriver.o \
 	$(BUILDDIR)/glquake/gl_bumpgf.o \
 	$(BUILDDIR)/glquake/gl_bumparb.o \
+	$(BUILDDIR)/glquake/gl_bumpgl2.o \
 	$(BUILDDIR)/glquake/gl_bumpmap.o \
 	$(BUILDDIR)/glquake/gl_bumpparhelia.o \
 	$(BUILDDIR)/glquake/gl_bumpradeon.o \
@@ -228,6 +229,9 @@ $(BUILDDIR)/glquake/gl_bumpgf.o :      $(MOUNT_DIR)/gl_bumpgf.c
 	$(DO_GL_CC)
 
 $(BUILDDIR)/glquake/gl_bumparb.o :      $(MOUNT_DIR)/gl_bumparb.c
+	$(DO_GL_CC)
+
+$(BUILDDIR)/glquake/gl_bumpgl2.o :      $(MOUNT_DIR)/gl_bumpgl2.c
 	$(DO_GL_CC)
 
 $(BUILDDIR)/glquake/gl_bumpmap.o :      $(MOUNT_DIR)/gl_bumpmap.c
