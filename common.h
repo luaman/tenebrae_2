@@ -156,7 +156,7 @@ void COM_StripExtension (char *in, char *out);
 void COM_FileBase (const char *in, char *out);
 void COM_DefaultExtension (char *path, char *extension);
 void COM_FindAllExt (char *filedir, char *fileext, void (*callback)(const char *));
-
+char *COM_FileExtension (char *in);
 
 char	*va(char *format, ...);
 // does a varargs printf into a temp buffer
