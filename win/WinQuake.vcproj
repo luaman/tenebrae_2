@@ -38,7 +38,7 @@
 			<Tool
 				Name="VCLinkerTool"
 				AdditionalOptions="/MACHINE:I386"
-				AdditionalDependencies="comctl32.lib ..\dxsdk\sdk\lib\dxguid.lib winmm.lib wsock32.lib opengl32.lib glu32.lib odbc32.lib odbccp32.lib libpng.lib zlib.lib ..\nvparse\nvparse\debug\nvparse.lib"
+				AdditionalDependencies="comctl32.lib ..\dxsdk\sdk\lib\dxguid.lib winmm.lib wsock32.lib opengl32.lib glu32.lib odbc32.lib odbccp32.lib libpng.lib zlib.lib ..\nvparse\nvparse\debug\nvparse.lib libxml2.lib"
 				OutputFile=".\debug_gl\glquake.exe"
 				LinkIncremental="2"
 				SuppressStartupBanner="TRUE"
@@ -220,6 +220,9 @@
 				RelativePath="..\gl_bumpmap.c">
 			</File>
 			<File
+				RelativePath="..\gl_bumpnv3x.c">
+			</File>
+			<File
 				RelativePath="..\gl_bumpparhelia.c">
 			</File>
 			<File
@@ -340,9 +343,6 @@ del $(OUTDIR)\$(InputName).spp
 				RelativePath="..\mathlib.c">
 			</File>
 			<File
-				RelativePath="..\menu.c">
-			</File>
-			<File
 				RelativePath="..\net_dgrm.c">
 			</File>
 			<File
@@ -377,9 +377,6 @@ del $(OUTDIR)\$(InputName).spp
 			</File>
 			<File
 				RelativePath="..\roq\roq_read.c">
-			</File>
-			<File
-				RelativePath="..\sbar.c">
 			</File>
 			<File
 				RelativePath="..\shaders.c">
@@ -502,6 +499,9 @@ del $(OUTDIR)\$(InputName).spp
 				RelativePath="..\world.c">
 			</File>
 			<File
+				RelativePath="..\xmlmenu.c">
+			</File>
+			<File
 				RelativePath="..\zone.c">
 			</File>
 		</Filter>
@@ -540,9 +540,6 @@ del $(OUTDIR)\$(InputName).spp
 			</File>
 			<File
 				RelativePath="..\cvar.h">
-			</File>
-			<File
-				RelativePath="..\dosisms.h">
 			</File>
 			<File
 				RelativePath="..\draw.h">
