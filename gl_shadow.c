@@ -154,7 +154,13 @@ void R_ShadowFromDlight(dlight_t *light) {
 	l->rspeed = 0;
 	l->cubescale = 1;
 	l->castShadow = true;
-	l->shader = GL_ShaderForName("textures/lights/default");
+
+	if (l->owner->model && (l->owner->model->type == mod_sprite)) {
+		msprite_t *psprite = l->owner->model->cache.data;
+		l->shader = psprite->frames[0].shader;
+	} else {
+		l->shader = GL_ShaderForName("textures/lights/default");
+	}
 
 	//Some people will be instulted by the mere existence of this flag.
 	if (light->pflags & PFLAG_NOSHADOW) {
@@ -190,26 +196,6 @@ void R_MarkDlights (void)
 		if (l->die < cl.time || !l->radius)
 			continue;
 		R_ShadowFromDlight(l);
-	}
-}
-
-#define NUM_CUBEMAPS 64
-int cubemap_tex_obj [NUM_CUBEMAPS];
-
-/*
-=============
-R_CubeMapLookup
-=============
-*/
-int R_CubeMapLookup(int i) {
-
-	if (i > NUM_CUBEMAPS) {
-		return 0;
-	} else {
-		if (!cubemap_tex_obj[i]) {
-			cubemap_tex_obj[i] = GL_LoadCubeMap(i);
-		}
-		return cubemap_tex_obj[i];
 	}
 }
 
@@ -254,11 +240,7 @@ void R_ShadowFromEntity(entity_t *ent) {
 		l->baseColor[2] = 1;
 	}
 
-	if (ent->skinnum >= 16) {
-		l->filtercube = R_CubeMapLookup(ent->skinnum);
-	} else {
-		l->filtercube = 0;
-	}
+	l->filtercube = 0;
 
 	//We use some different angle convention
 	l->angles[1] = ent->angles[0];
@@ -1862,11 +1844,13 @@ void DrawVolumeFromCmds(int *volumeCmds, lightcmd_t *lightCmds, float *volumeVer
 
 ***************************************************************/
 
+#define MAXMESHVERTS MAXALIASVERTS*4
+#define MAXMESHTRIS MAXALIASTRIS*2*4
 
 int		extrudeTimeStamp = 0;
-vec3_t	extrudedVerts[MAXALIASVERTS];	//PENTA: Temp buffer for extruded vertices
-int		extrudedTimestamp[MAXALIASVERTS];	//PENTA: Temp buffer for extruded vertices
-qboolean	triangleVis[MAXALIASTRIS*2];	//PENTA: Temp buffer for light facingness of triangles
+vec3_t	extrudedVerts[MAXMESHVERTS];	//PENTA: Temp buffer for extruded vertices
+int		extrudedTimestamp[MAXMESHVERTS];	//PENTA: Temp buffer for extruded vertices
+qboolean	triangleVis[MAXMESHTRIS];	//PENTA: Temp buffer for light facingness of triangles
 
 void SetupMeshToLightVisibility(shadowlight_t *light, mesh_t *mesh) {
 
@@ -1874,8 +1858,15 @@ void SetupMeshToLightVisibility(shadowlight_t *light, mesh_t *mesh) {
 	int i, j;
 	vec3_t v2, *v1;	
 	
-	if (mesh->numtriangles > MAXALIASTRIS*2) return;
-	if (mesh->numvertices > MAXALIASVERTS) return;
+	if (mesh->numtriangles > MAXMESHTRIS) {
+		Con_Printf("Mesh model has %i tris (max %i), no shadows will be cast", mesh->numtriangles, MAXMESHTRIS);
+		return;
+	}
+
+	if (mesh->numvertices > MAXMESHVERTS) {
+		Con_Printf("Mesh model has %i verts (max %i), no shadows will be cast", mesh->numvertices, MAXMESHVERTS);
+		return;
+	}
 
 	extrudeTimeStamp++;
 	//calculate visibility
@@ -1922,8 +1913,8 @@ void DrawMeshVolume(mesh_t *mesh) {
 
 	int i, j;
 
-	if (mesh->numtriangles > MAXALIASTRIS*2) return;
-	if (mesh->numvertices > MAXALIASVERTS) return;
+	if (mesh->numtriangles > MAXMESHTRIS) return;
+	if (mesh->numvertices > MAXMESHVERTS) return;
 
 
 	for (i=0; i<mesh->numtriangles; i++) {
