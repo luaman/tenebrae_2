@@ -37,6 +37,7 @@ If a light has a cubemap filter it requires 3 passes
 //<AWE> "diffuse_program_object" has to be defined static. Otherwise nameclash with "gl_bumpradeon.c".
 static GLuint diffuse_program_object;
 static GLuint specularalias_program_object; //He he nice name to type a lot
+static GLuint deluxCombiner;
 
 /*
 Pixel shader for diffuse bump mapping does diffuse bumpmapping with norm cube, self shadowing & dist attent in
@@ -77,6 +78,7 @@ void GL_EnableDiffuseShaderGF3(const transform_t *tr, vec3_t lightOrig) {
 		glTranslatef(-lightOrig[0], -lightOrig[1], -lightOrig[2]);
 	}
 
+	glDisable(GL_PER_STAGE_CONSTANTS_NV);
 	GL_SelectTexture(GL_TEXTURE0_ARB);
 
 	//combiner0 RGB: calculate 
@@ -212,6 +214,7 @@ void GL_EnableSpecularShaderGF3(const transform_t *tr, vec3_t lightOrig, qboolea
 
 	}
 
+	glDisable(GL_PER_STAGE_CONSTANTS_NV);
 	GL_SelectTexture(GL_TEXTURE0_ARB);
 
 	qglCombinerParameteriNV(GL_NUM_GENERAL_COMBINERS_NV, 4);
@@ -566,12 +569,13 @@ void GF3_drawTriangleListBase (vertexdef_t *verts, int *indecies, int numIndecie
 		glDisable(GL_CULL_FACE);
 		//Con_Printf("Cullstuff %s\n",shader->name);
 	}
-
+	
 	for (i=0; i<shader->numstages; i++) {
 		GF3_SetupSimpleStage(&shader->stages[i]);
 		glDrawElements(GL_TRIANGLES,numIndecies,GL_UNSIGNED_INT,indecies);
 		glPopMatrix();
 	}
+	
 	glMatrixMode(GL_MODELVIEW);
 
 	if (verts->colors && (shader->flags & SURF_PPLIGHT)) {
@@ -649,9 +653,42 @@ void GF3_sendSurfacesBase(msurface_t **surfs, int numSurfaces, qboolean bindLigh
 	}
 }
 
+void GF3_sendSurfacesDeLux(msurface_t **surfs, int numSurfaces, qboolean bindLightmap) {
+	int i;
+	glpoly_t *p;
+	msurface_t *surf;
+	float packed_normal [3];
+	static float trans[3] = {0.5, 0.5, 0.5};
+
+	for (i=0; i<numSurfaces; i++) {
+		surf = surfs[i];
+		if (surf->visframe != r_framecount)
+			continue;
+		p = surf->polys;
+
+		if (bindLightmap) {
+			if (surf->lightmaptexturenum < 0)
+				continue;
+			GL_Bind(lightmap_textures+surf->lightmaptexturenum+1);
+		}
+
+		VectorScale(surf->plane->normal,0.5,packed_normal);
+		VectorAdd(packed_normal, trans, packed_normal);
+		glColor3fv(&packed_normal[0]);
+
+		qglMultiTexCoord3fvARB(GL_TEXTURE0_ARB, &surf->tangent[0]);
+		qglMultiTexCoord3fvARB(GL_TEXTURE1_ARB, &surf->binormal[0]);
+
+		glDrawElements(GL_TRIANGLES, p->numindecies, GL_UNSIGNED_INT, &p->indecies[0]);
+	}
+}
+
+extern qboolean mtexenabled;
+
 void GF3_drawSurfaceListBase (vertexdef_t *verts, msurface_t **surfs, int numSurfaces, shader_t *shader) {
 	
 	int i;
+	qboolean usedelux;
 
 	glVertexPointer(3, GL_FLOAT, verts->vertexstride, verts->vertices);
 	glEnableClientState(GL_VERTEX_ARRAY);
@@ -667,6 +704,11 @@ void GF3_drawSurfaceListBase (vertexdef_t *verts, msurface_t **surfs, int numSur
 		//Con_Printf("Cullstuff %s\n",shader->name);
 	}
 
+	if (mtexenabled) {
+		Con_Printf("mtex enabled");
+	}
+	GL_SelectTexture(GL_TEXTURE0_ARB);
+
 	for (i=0; i<shader->numstages; i++) {
 		GF3_SetupSimpleStage(&shader->stages[i]);
 		GF3_sendSurfacesBase(surfs, numSurfaces, false);
@@ -674,31 +716,162 @@ void GF3_drawSurfaceListBase (vertexdef_t *verts, msurface_t **surfs, int numSur
 	}
 
 	if (verts->lightmapcoords && (shader->flags & SURF_PPLIGHT)) {
+
 		qglClientActiveTextureARB(GL_TEXTURE1_ARB);
 		glTexCoordPointer(2, GL_FLOAT, verts->lightmapstride, verts->lightmapcoords);
 		glEnableClientState(GL_TEXTURE_COORD_ARRAY);
 
+		//Delux lightmapping
+		usedelux = (sh_delux.value != 0);
+		if (shader->numcolorstages) {
+			if (shader->colorstages[0].alphatresh > 0)
+				usedelux = false;
+		}
+
+		if (usedelux) {
+
+			glDisableClientState(GL_TEXTURE_COORD_ARRAY);
+
+			qglClientActiveTextureARB(GL_TEXTURE0_ARB);
+			glDisableClientState(GL_TEXTURE_COORD_ARRAY);
+
+			qglClientActiveTextureARB(GL_TEXTURE2_ARB);
+			glTexCoordPointer(2, GL_FLOAT, verts->lightmapstride, verts->lightmapcoords);
+			glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+
+			qglClientActiveTextureARB(GL_TEXTURE3_ARB);
+			glTexCoordPointer(2, GL_FLOAT, verts->texcoordstride, verts->texcoords);
+			glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+
+			GL_SelectTexture(GL_TEXTURE0_ARB);
+			glDisable(GL_TEXTURE_2D);
+			glEnable(GL_TEXTURE_CUBE_MAP_ARB);
+			glBindTexture(GL_TEXTURE_CUBE_MAP_ARB,normcube_texture_object);
+
+
+			GL_SelectTexture(GL_TEXTURE1_ARB);
+			glDisable(GL_TEXTURE_2D);
+			glEnable(GL_TEXTURE_CUBE_MAP_ARB);
+			glBindTexture(GL_TEXTURE_CUBE_MAP_ARB,normcube_texture_object);
+
+
+			GL_SelectTexture(GL_TEXTURE2_ARB);
+			glEnable(GL_TEXTURE_2D);
+
+			GL_SelectTexture(GL_TEXTURE3_ARB);
+			glEnable(GL_TEXTURE_2D);
+			if (shader->numbumpstages) {
+				if (shader->bumpstages[0].numtextures)
+					GL_Bind(shader->bumpstages[0].texture[0]->texnum);
+			}
+
+			glCallList(deluxCombiner);
+			glEnable(GL_REGISTER_COMBINERS_NV);
+
+			glDisable(GL_BLEND);
+			//glBlendFunc(GL_ONE, GL_ONE);
+
+			glColorMask(false, false, false, true);
+			//glClear(GL_COLOR_BUFFER_BIT);
+
+			GL_SelectTexture(GL_TEXTURE2_ARB);
+			GF3_sendSurfacesDeLux(surfs, numSurfaces, true);
+			
+			glDisable(GL_REGISTER_COMBINERS_NV);
+
+			GL_SelectTexture(GL_TEXTURE3_ARB);
+			glDisable(GL_TEXTURE_2D);
+
+			GL_SelectTexture(GL_TEXTURE2_ARB);
+			glDisable(GL_TEXTURE_2D);
+
+			GL_SelectTexture(GL_TEXTURE1_ARB);
+			glDisable(GL_TEXTURE_CUBE_MAP_ARB);
+
+			GL_SelectTexture(GL_TEXTURE0_ARB);
+			glDisable(GL_TEXTURE_CUBE_MAP_ARB);
+
+			/*
+			glEnable(GL_BLEND);
+			glBlendFunc(GL_ONE, GL_ONE);
+			glColor4f(0.5, 0.5, 0.5, 0.5);
+			glMatrixMode(GL_MODELVIEW);
+			glPushMatrix();
+			glLoadIdentity ();
+			glRotatef (-90,  1, 0, 0);	    // put Z going up
+			glRotatef (90,  0, 0, 1);	    // put Z going up
+			glMatrixMode(GL_PROJECTION);
+			glPushMatrix();
+			glLoadIdentity ();
+
+
+			glDepthMask(GL_FALSE);
+			glBegin (GL_QUADS);
+			glVertex3f (0.1, 1, 1);
+			glVertex3f (0.1, -1, 1);
+			glVertex3f (0.1, -1, -1);
+			glVertex3f (0.1, 1, -1);
+			glEnd ();
+			glDepthMask(GL_TRUE);
+
+			glPopMatrix();
+			glMatrixMode(GL_MODELVIEW);
+			glPopMatrix();
+			*/
+
+			glColorMask(true, true, true, true);
+			glEnable(GL_TEXTURE_2D);
+
+
+			glDisableClientState(GL_TEXTURE_COORD_ARRAY);
+
+			qglClientActiveTextureARB(GL_TEXTURE2_ARB);
+			glDisableClientState(GL_TEXTURE_COORD_ARRAY);
+
+			qglClientActiveTextureARB(GL_TEXTURE1_ARB);
+			glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+
+			qglClientActiveTextureARB(GL_TEXTURE0_ARB);
+			glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+
+			qglClientActiveTextureARB(GL_TEXTURE1_ARB);
+
+		}
+		
 		if (shader->numstages && shader->numcolorstages)
 			if (shader->colorstages[0].src_blend >= 0) {
 				glEnable(GL_BLEND);
-				glBlendFunc(shader->colorstages[0].src_blend, shader->colorstages[0].dst_blend);
+				if (usedelux)
+						glBlendFunc (GL_DST_ALPHA, shader->colorstages[0].dst_blend);
+				else
+					glBlendFunc(shader->colorstages[0].src_blend, shader->colorstages[0].dst_blend);
 			} else {
 				glEnable(GL_BLEND);
-				glBlendFunc(GL_ONE, GL_ONE);
+				if (usedelux)
+					glBlendFunc (GL_DST_ALPHA, GL_ONE);
+				else
+					glBlendFunc(GL_ONE, GL_ONE);
 			}
-		else 
-			glDisable(GL_BLEND);
+		else {
+			if (sh_delux.value) {
+				glBlendFunc (GL_DST_ALPHA, GL_ZERO);//this pass masks black everything ("clear")and
+													//add the lightmaps * dest_alpha
+				glEnable(GL_BLEND);
+			} else
+				glDisable(GL_BLEND);
+		}
 
 		if (shader->numcolorstages) {
-			if (shader->colorstages[0].numtextures)
+			if (shader->colorstages[0].numtextures) {
 				GL_Bind(shader->colorstages[0].texture[0]->texnum);
+			}
 
 			if (shader->colorstages[0].alphatresh > 0) {
 				glEnable(GL_ALPHA_TEST);
 				glAlphaFunc(GL_GEQUAL, shader->colorstages[0].alphatresh);
 			}	
 		}
-
+	
 		glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
 		GL_EnableMultitexture();
 		glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
@@ -1599,6 +1772,38 @@ void GF3_freeDriver(void) {
 	//nothing here...
 }
 
+int NV_LoadCombiner(char *filename)  {
+
+	char * const * errors;
+	char*	string;
+	int		result;
+
+	if ( gl_cardtype != GEFORCE3 ) return -1;
+
+	//setup register combiner
+	result = glGenLists(1);
+	glNewList(result,GL_COMPILE);
+	string = COM_LoadTempFile(filename);
+	if (!string) {
+		//this is serious we need a state to render stuff
+		Sys_Error("Combiner state: %s not found\n",filename);
+	}
+	nvparse(string,2,0,GL_TEXTURE_2D);
+	glEndList();
+
+	//Get nvparse errors
+	errors = nvparse_get_errors();
+	if (*errors)
+		for (errors; *errors; errors++)
+		{
+			const char *errstr = *errors;
+			Sys_Error("Nvparse Error:%s\n", errstr);
+		}
+	else
+		Con_Printf("Combiner state: %s succesfully loaded\n",filename);
+
+	return result;
+}
 
 void BUMP_InitGeforce3(void) {
 
@@ -1638,6 +1843,8 @@ void BUMP_InitGeforce3(void) {
 
 	//store 0.5 0.5 0.5 0.5 in register 8
 	qglProgramParameter4fNV( GL_VERTEX_PROGRAM_NV, 20, 0.5, 0.5, 0.5, 0.5);
+
+	deluxCombiner = NV_LoadCombiner("hardware/delux.regcomb");
 
 	//bind the correct stuff to the bump mapping driver
 	gl_bumpdriver.drawSurfaceListBase = GF3_drawSurfaceListBase;
