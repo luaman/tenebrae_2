@@ -79,9 +79,9 @@ GLfloat		gl_textureanisotropylevel = 2.0f;
 //cvar_t	gl_anisotropic = { "gl_anisotropic", "0", 1 }; 
 
 qboolean	gl_occlusiontest = false;
-occlusion_cut_meshes;
-occlusion_cut_entities;
-occlusion_cut_lights;
+int occlusion_cut_meshes;
+int occlusion_cut_entities;
+int occlusion_cut_lights;
 
 /*-----------------------------------------------------------------------*/
 
