@@ -481,7 +481,7 @@ void R_DrawDecals (void)
 	float			blend, blend1;
 	
 	glFogfv(GL_FOG_COLOR, color_black);
-	glEnable (GL_BLEND);
+	if (!gl_wireframe.value) glEnable (GL_BLEND);
 	glEnable(GL_ALPHA_TEST);
 	glAlphaFunc(GL_GREATER,0.000);
 	glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
@@ -530,11 +530,15 @@ void R_DrawDecals (void)
 			p->color[i] = p->startcolor[i] * blend + p->endcolor[i] * blend1;
 		}
 
-		if ((p->die - cl.time) < 0.5) {
-			float scale = 2*(p->die - cl.time);
-			glColor4f((p->color[0]*scale), (p->color[1]*scale), (p->color[2]*scale), scale);
+		if (!gl_wireframe.value) {
+			if ((p->die - cl.time) < 0.5) {
+				float scale = 2*(p->die - cl.time);
+				glColor4f((p->color[0]*scale), (p->color[1]*scale), (p->color[2]*scale), scale);
+			} else {
+				glColor3fv(&p->color[0]);
+			}
 		} else {
-			glColor3fv(&p->color[0]);
+			glColor3ub(0,0,0);
 		}
 
 
