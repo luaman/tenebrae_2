@@ -406,73 +406,73 @@ void CheckGL2FragmentExtensions(void)
 void CheckAnisotropicExtension(void)
 {
     if (strstr(gl_extensions, "GL_EXT_texture_filter_anisotropic") &&
-	( COM_CheckParm ("-anisotropic") || COM_CheckParm ("-anisotropy")) )
+        ( COM_CheckParm ("-anisotropic") || COM_CheckParm ("-anisotropy")) )
     {
-	GLfloat maxanisotropy;
+        GLfloat maxanisotropy;
 
-if ( COM_CheckParm ("-anisotropy"))
-               gl_textureanisotropylevel = Q_atoi(com_argv[COM_CheckParm("-anisotropy")+1]);
+        if ( COM_CheckParm ("-anisotropy"))
+            gl_textureanisotropylevel = Q_atoi(com_argv[COM_CheckParm("-anisotropy")+1]);
         
-          glGetFloatv(GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT, &maxanisotropy);
-          if ( gl_textureanisotropylevel >  maxanisotropy )
-               gl_textureanisotropylevel = maxanisotropy;
+        glGetFloatv(GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT, &maxanisotropy);
+        if ( gl_textureanisotropylevel >  maxanisotropy )
+            gl_textureanisotropylevel = maxanisotropy;
 
-          if ( gl_textureanisotropylevel < 1.0f )
-               gl_textureanisotropylevel = 1.0f;
+        if ( gl_textureanisotropylevel < 1.0f )
+            gl_textureanisotropylevel = 1.0f;
 
-          Con_Printf("Anisotropic texture filter level %.0f\n", 
-                     gl_textureanisotropylevel);
-          gl_texturefilteranisotropic = true;
-     }
+        Con_Printf("Anisotropic texture filter level %.0f\n",
+                   gl_textureanisotropylevel);
+        gl_texturefilteranisotropic = true;
+    }
 }
 
 void CheckTextureCompressionExtension(void)
 {
-     if (strstr(gl_extensions, "GL_ARB_texture_compression") )
-     {
-          Con_Printf("Texture compression available\n");
-          gl_texcomp = true;
-     }
+    if (strstr(gl_extensions, "GL_ARB_texture_compression") )
+    {
+        Con_Printf("Texture compression available\n");
+        gl_texcomp = true;
+    }
 }
 
 void CheckOcclusionTest(void)
 {
-     if (strstr(gl_extensions, "GL_HP_occlusion_test") )
-     {
-          Con_Printf("Occlusion test available\n");
-          gl_occlusiontest = true;
-     }
+    if (strstr(gl_extensions, "GL_HP_occlusion_test") )
+    {
+        Con_Printf("Occlusion test available\n");
+        gl_occlusiontest = true;
+    }
 }
 
 void CheckMirrorOnce(void)
 {
-	if (COM_CheckParm ("-nomirroronce")) return;
+    if (COM_CheckParm ("-nomirroronce")) return;
 
-	if (strstr(gl_extensions, "GL_ATI_texture_mirror_once") )
-	{
-		Con_Printf("Mirror once available\n");
-		gl_mirroronce = true;
-	}
+    if (strstr(gl_extensions, "GL_ATI_texture_mirror_once") )
+    {
+        Con_Printf("Mirror once available\n");
+        gl_mirroronce = true;
+    }
 }
 
 void CheckTwoSidedStencil(void)
 {
-	if (COM_CheckParm ("-notwosidedstencil"))
-		return;
+    if (COM_CheckParm ("-notwosidedstencil"))
+        return;
 
-	if (strstr(gl_extensions, "GL_EXT_stencil_two_side"))
-	{
+    if (strstr(gl_extensions, "GL_EXT_stencil_two_side"))
+    {
         SAFE_GET_PROC( qglActiveStencilFaceEXT, PFNGLACTIVESTENCILFACEEXTPROC, "glActiveStencilFaceEXT");
-		gl_twosidedstencil = 1;
-		Con_Printf("Using EXT_stencil_two_side\n");
-	}
-	else if (strstr(gl_extensions, "GL_ATI_separate_stencil"))
-	{
-		SAFE_GET_PROC( qglStencilOpSeparateATI, PFNGLSTENCILOPSEPARATEATIPROC, "glStencilOpSeparateATI");
-		SAFE_GET_PROC( qglStencilFuncSeparateATI, PFNGLSTENCILFUNCSEPARATEATIPROC, "glStencilFuncSeparateATI");
-		gl_twosidedstencil = 2;
-		Con_Printf("Using ATI_separate_stencil\n");
-	}
+        gl_twosidedstencil = 1;
+        Con_Printf("Using EXT_stencil_two_side\n");
+    }
+    else if (strstr(gl_extensions, "GL_ATI_separate_stencil"))
+    {
+        SAFE_GET_PROC( qglStencilOpSeparateATI, PFNGLSTENCILOPSEPARATEATIPROC, "glStencilOpSeparateATI");
+        SAFE_GET_PROC( qglStencilFuncSeparateATI, PFNGLSTENCILFUNCSEPARATEATIPROC, "glStencilFuncSeparateATI");
+        gl_twosidedstencil = 2;
+        Con_Printf("Using ATI_separate_stencil\n");
+    }
 }
 
 static int supportedTmu;
@@ -540,8 +540,8 @@ void GL_Init (void)
     CheckOcclusionTest();
     Con_Printf ("Checking MO\n");
     CheckMirrorOnce();
-	Con_Printf ("Checking two-sided stencil\n");
-	CheckTwoSidedStencil();
+    Con_Printf ("Checking two-sided stencil\n");
+    CheckTwoSidedStencil();
 
     //if something goes wrong here throw an sys_error as we don't want to end up
     //having invalid function pointers called...
