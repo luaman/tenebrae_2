@@ -64,14 +64,6 @@ void STAT_drawTriangleListBump (const vertexdef_t *verts, int *indecies, int num
 	bumpTriangles += (numIndecies/3);
 }
 
-void *STAT_getDriverMem (size_t size, drivermem_t hint) {
-	return original.getDriverMem(size, hint);
-}
-
-void STAT_freeAllDriverMem (void) {
-	original.freeAllDriverMem();
-}
-
 void STAT_freeDriver (void) {
 	original.freeDriver();
 }
@@ -87,8 +79,6 @@ void BUMP_StartStat(void) {
 	gl_bumpdriver.drawSurfaceListBump = STAT_drawSurfaceListBump;
 	gl_bumpdriver.drawTriangleListBase = STAT_drawTriangleListBase;
 	gl_bumpdriver.drawTriangleListBump = STAT_drawTriangleListBump;
-	gl_bumpdriver.getDriverMem = STAT_getDriverMem;
-	gl_bumpdriver.freeAllDriverMem = STAT_freeAllDriverMem;
 	gl_bumpdriver.freeDriver = STAT_freeDriver;
 }
 
