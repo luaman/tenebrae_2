@@ -119,7 +119,7 @@
 				Name="VCLinkerTool"
 				AdditionalOptions="/MACHINE:I386"
 				AdditionalDependencies="comctl32.lib ..\dxsdk\sdk\lib\dxguid.lib winmm.lib wsock32.lib opengl32.lib glu32.lib odbc32.lib odbccp32.lib libpng.lib zlib.lib ..\nvparse\nvparse.lib libxml2.lib"
-				OutputFile="C:\Games\tenebrae\tenebrae2.exe"
+				OutputFile="$(OutDir)\tenebrae2.exe"
 				LinkIncremental="1"
 				SuppressStartupBanner="TRUE"
 				AdditionalLibraryDirectories="..\extlibs-w32"
@@ -134,7 +134,9 @@
 				TargetEnvironment="1"
 				TypeLibraryName=".\release_gl/WinQuake.tlb"/>
 			<Tool
-				Name="VCPostBuildEventTool"/>
+				Name="VCPostBuildEventTool"
+				Description="Copying exe"
+				CommandLine="copy $(OutDir)\$(TargetName) $(TENEBRAE2_DIR)"/>
 			<Tool
 				Name="VCPreBuildEventTool"/>
 			<Tool
@@ -214,26 +216,93 @@
 			</File>
 			<File
 				RelativePath="..\gl_bumpgeneric.c">
+				<FileConfiguration
+					Name="GL Debug|Win32"
+					ExcludedFromBuild="TRUE">
+					<Tool
+						Name="VCCLCompilerTool"/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="GL Release|Win32"
+					ExcludedFromBuild="TRUE">
+					<Tool
+						Name="VCCLCompilerTool"/>
+				</FileConfiguration>
 			</File>
 			<File
 				RelativePath="..\gl_bumpgf.c">
+				<FileConfiguration
+					Name="GL Debug|Win32"
+					ExcludedFromBuild="TRUE">
+					<Tool
+						Name="VCCLCompilerTool"/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="GL Release|Win32"
+					ExcludedFromBuild="TRUE">
+					<Tool
+						Name="VCCLCompilerTool"/>
+				</FileConfiguration>
 			</File>
 			<File
 				RelativePath="..\gl_bumpgl2.c">
+				<FileConfiguration
+					Name="GL Debug|Win32"
+					ExcludedFromBuild="TRUE">
+					<Tool
+						Name="VCCLCompilerTool"/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="GL Release|Win32"
+					ExcludedFromBuild="TRUE">
+					<Tool
+						Name="VCCLCompilerTool"/>
+				</FileConfiguration>
 			</File>
 			<File
 				RelativePath="..\gl_bumpmap.c">
 			</File>
 			<File
 				RelativePath="..\gl_bumpnv3x.c">
+				<FileConfiguration
+					Name="GL Debug|Win32"
+					ExcludedFromBuild="TRUE">
+					<Tool
+						Name="VCCLCompilerTool"/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="GL Release|Win32"
+					ExcludedFromBuild="TRUE">
+					<Tool
+						Name="VCCLCompilerTool"/>
+				</FileConfiguration>
 			</File>
 			<File
 				RelativePath="..\gl_bumpparhelia.c">
+				<FileConfiguration
+					Name="GL Debug|Win32"
+					ExcludedFromBuild="TRUE">
+					<Tool
+						Name="VCCLCompilerTool"/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="GL Release|Win32"
+					ExcludedFromBuild="TRUE">
+					<Tool
+						Name="VCCLCompilerTool"/>
+				</FileConfiguration>
 			</File>
 			<File
 				RelativePath="..\gl_bumpradeon.c">
 				<FileConfiguration
-					Name="GL Release|Win32">
+					Name="GL Debug|Win32"
+					ExcludedFromBuild="TRUE">
+					<Tool
+						Name="VCCLCompilerTool"/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="GL Release|Win32"
+					ExcludedFromBuild="TRUE">
 					<Tool
 						Name="VCCLCompilerTool"
 						BrowseInformation="1"/>
@@ -253,6 +322,9 @@
 			</File>
 			<File
 				RelativePath="..\gl_draw.c">
+			</File>
+			<File
+				RelativePath="..\gl_drivermem.c">
 			</File>
 			<File
 				RelativePath="..\gl_glare.c">
@@ -298,6 +370,9 @@
 			</File>
 			<File
 				RelativePath="..\gl_test.c">
+			</File>
+			<File
+				RelativePath="..\gl_vertexcache.c">
 			</File>
 			<File
 				RelativePath="..\gl_vidnt.c">
@@ -526,6 +601,9 @@ del $(OUTDIR)\$(InputName).spp
 				RelativePath="..\bspfile.h">
 			</File>
 			<File
+				RelativePath="..\bumpdriver.h">
+			</File>
+			<File
 				RelativePath="..\cdaudio.h">
 			</File>
 			<File
@@ -551,6 +629,9 @@ del $(OUTDIR)\$(InputName).spp
 			</File>
 			<File
 				RelativePath="..\draw.h">
+			</File>
+			<File
+				RelativePath="..\gl_drivermem.h">
 			</File>
 			<File
 				RelativePath="..\gl_model.h">
