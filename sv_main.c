@@ -765,22 +765,7 @@ void SV_WriteClientdataToMessage (edict_t *ent, sizebuf_t *msg)
 	MSG_WriteByte (msg, ent->v.ammo_nails);
 	MSG_WriteByte (msg, ent->v.ammo_rockets);
 	MSG_WriteByte (msg, ent->v.ammo_cells);
-
-	if (standard_quake)
-	{
-		MSG_WriteByte (msg, ent->v.weapon);
-	}
-	else
-	{
-		for(i=0;i<32;i++)
-		{
-			if ( ((int)ent->v.weapon) & (1<<i) )
-			{
-				MSG_WriteByte (msg, i);
-				break;
-			}
-		}
-	}
+	MSG_WriteByte (msg, ent->v.weapon);
 }
 
 /*
