@@ -1355,75 +1355,87 @@ Draw the overriden sprites that are lit by a cube map
 */
 void R_DrawLightSprites (void)
 {
-	int		i;
-	vec3_t	dist;
-	float	colorscale;
-	transform_t trans;
+    int		i;
+    vec3_t	dist;
+    float	colorscale;
+    transform_t trans;
 
-	if (!cg_showentities.value)
-		return;
+    if (!cg_showentities.value)
+        return;
 
-	//return;
+    if ( cl_numlightvisedicts == 0 )
+        return;
 
-	glEnable(GL_BLEND);
-	glBlendFunc(GL_ONE,GL_ONE);
-	glDepthMask(0);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_ONE,GL_ONE);
+    glDepthMask(0);
 
 
-	glMatrixMode(GL_TEXTURE);
-	glPushMatrix();
-	/*
-	glLoadIdentity();
-    
-	glRotatef (currentshadowlight->rspeed*cl.time,1,0,0);
+    if ( currentshadowlight->filtercube )
+    {
+        glMatrixMode(GL_TEXTURE);
+        glPushMatrix();
+        VectorCopy(currententity->origin,trans.origin);
+        VectorCopy(currententity->angles,trans.angles);
+        trans.scale[0] = trans.scale[1] = trans.scale[2] = 1.0f;
+        GL_SetupCubeMapMatrix(&trans);
 
-	glScalef(1/currentshadowlight->cubescale, 1/currentshadowlight->cubescale, 1/currentshadowlight->cubescale);
-	glRotatef (-currentshadowlight->angles[2]-90,  1, 0, 0);
-    glRotatef (-currentshadowlight->angles[0],  0, 1, 0);
-    glRotatef (-currentshadowlight->angles[1],  0, 0, 1);
-	
-	glTranslatef(-currentshadowlight->origin[0],
-				 -currentshadowlight->origin[1],
-				 -currentshadowlight->origin[2]);
-	*/
-	VectorCopy(currententity->origin,trans.origin);
-	VectorCopy(currententity->angles,trans.angles);
-	trans.scale[0] = trans.scale[1] = trans.scale[2] = 1.0f;
-	GL_SetupCubeMapMatrix(&trans);
+        GL_EnableColorShader (false);
+    }
+    else
+    {
+        GL_SelectTexture(GL_TEXTURE0_ARB);
+        glEnable(GL_TEXTURE_2D);
+        glTexEnvf (GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_COMBINE_ARB);
+        glTexEnvf (GL_TEXTURE_ENV, GL_SOURCE0_RGB_ARB, GL_PREVIOUS_ARB);
+        glTexEnvf (GL_TEXTURE_ENV, GL_SOURCE1_RGB_ARB, GL_TEXTURE);
+        glTexEnvf (GL_TEXTURE_ENV, GL_COMBINE_RGB_ARB, GL_MODULATE);
+    }
 
-	GL_EnableColorShader (false);
-	for (i=0 ; i<cl_numlightvisedicts ; i++)
-	{
-		currententity = cl_lightvisedicts[i];
+    for ( i = 0; i < cl_numlightvisedicts; i++)
+    {
+        currententity = cl_lightvisedicts[i];
 
-		if (currententity->model->type == mod_sprite) {
-			if (((msprite_t *)currententity->model->cache.data)->type >= SPR_VP_PARALLEL_UPRIGHT_OVER) {
+        if (currententity->model->type == mod_sprite)
+        {
+            if ( ((msprite_t *)currententity->model->cache.data)->type
+                >= SPR_VP_PARALLEL_UPRIGHT_OVER )
+            {
 
-				if (currententity->light_lev) {
-					continue;
-				}
-				//We do attent instead of opengl since gl doesn't seem to do
-				//what we want, it never really gets to zero.
-				VectorSubtract (currententity->origin,currentshadowlight->origin,dist);
-				colorscale = 1 - (Length(dist) / currentshadowlight->radius);
+                if (currententity->light_lev)
+                    continue;
 
-				//if it's to dark we save time by not drawing it
-				if (colorscale < 0.1) continue;
+                //We do attent instead of opengl since gl doesn't seem to do
+                //what we want, it never really gets to zero.
+                VectorSubtract(currententity->origin, currentshadowlight->origin,
+                               dist);
+                colorscale = 1 - (Length(dist) / currentshadowlight->radius);
 
-				glColor3f(currentshadowlight->color[0]*colorscale,
-					      currentshadowlight->color[1]*colorscale,
-						  currentshadowlight->color[2]*colorscale);
+                //if it's to dark we save time by not drawing it
+                if (colorscale < 0.1)
+                    continue;
 
-				R_DrawSpriteModelWV(currententity);
-			}
-		}
-	}
+                glColor3f(currentshadowlight->color[0]*colorscale,
+                          currentshadowlight->color[1]*colorscale,
+                          currentshadowlight->color[2]*colorscale);
 
-	glDisable(GL_BLEND);
-	GL_DisableColorShader (false);
+                if ( currentshadowlight->filtercube )
+                    R_DrawSpriteModelWV(currententity);
+                else
+                    R_DrawSpriteModel(currententity);
+            }
+        }
+    }
 
-	glPopMatrix();
-	glMatrixMode(GL_MODELVIEW);
+    glDisable(GL_BLEND);
+
+    if ( currentshadowlight->filtercube )
+    {
+        GL_DisableColorShader (false);
+
+        glPopMatrix();
+        glMatrixMode(GL_MODELVIEW);
+    }
 }
 
 /*
