@@ -560,7 +560,7 @@ void GL_Init (void)
      Con_Printf ("%i texture units\n",supportedTmu);
         
      //PENTA: enable mlook by default, people kept mailing me about how to do mlook
-     Cbuf_AddText ("+mlook");
+     Cbuf_AddText ("+mlook\n");
 
      glClearColor (0.5,0.5,0.5,0.5);
      glCullFace (GL_FRONT);

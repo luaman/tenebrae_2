@@ -880,7 +880,6 @@ void Host_Init (quakeparms_t *parms)
 	W_LoadWadFile ("gfx.wad");
 	Key_Init ();
 	Con_Init ();	
-	M_Init ();	
 	PR_Init ();
 	Mod_Init ();
 	NET_Init ();
@@ -905,6 +904,8 @@ void Host_Init (quakeparms_t *parms)
 		IN_Init ();
 #endif
 		VID_Init (host_basepal);
+
+		M_Init ();
 
 		Draw_Init ();
 		SCR_Init ();

@@ -704,6 +704,50 @@ void Draw_TransPic (int x, int y, qpic_t *pic)
 
 
 /*
+==============
+Draw_PicFilled
+==============
+*/
+void Draw_PicFilled (int x, int y, int xs, int ys, qpic_t *pic)
+{
+        glpic_t                 *gl;
+                                                                                
+        if (scrap_dirty)
+                Scrap_Upload ();
+        gl = (glpic_t *)pic->data;
+        glColor4f (1,1,1,1);
+        GL_Bind (gl->texnum);
+        glBegin (GL_QUADS);
+        glTexCoord2f (gl->sl, gl->tl);
+        glVertex2f (x, y);
+        glTexCoord2f (gl->sh, gl->tl);
+        glVertex2f (xs, y);
+        glTexCoord2f (gl->sh, gl->th);
+        glVertex2f (xs, ys);
+        glTexCoord2f (gl->sl, gl->th);
+        glVertex2f (x, ys);
+        glEnd ();
+}
+                                                                                
+/*
+===================
+Draw_TransPicFilled
+===================
+*/
+void Draw_TransPicFilled (int x, int y, int xs, int ys, qpic_t *pic)
+{
+        if (x < 0 || (unsigned)(xs) > vid.width || y < 0 ||
+                 (unsigned)(ys) > vid.height)
+        {
+                Sys_Error ("Draw_TransPic: bad coordinates (%d ,%d )\n", x, y);
+        }
+                                                                                
+        Draw_PicFilled (x, y, xs, ys, pic);
+}
+                                                                                
+
+
+/*
 =============
 Draw_TransPicTranslate
 

@@ -28,6 +28,9 @@ CC            = /usr/bin/gcc
 
 X11_LIBS      = -L/usr/X11R6/lib -lpthread -lX11 -lXext -lXxf86dga -lXxf86vm
 
+XML_CFLAGS    = -I/usr/include/libxml2
+XML_LIBS      = -lxml2
+
 # to enable OpenGL code in source 
 OPENGL_CFLAGS = -D__glx__ -DGLQUAKE
 OPENGL_LIBS   = -lGL -lGLU
@@ -37,11 +40,11 @@ PNG_LIBS      = -lpng -lz
 #OPENAL_LIBS   = -lopenal 
 #OPENAL_CFLAGS = -DOPENAL -I/usr/local/include/AL
 
-BASE_CFLAGS   = -DBASEDIR="$(MASTER_DIR)" -DUSERPREF_DIR $(OPENGL_CFLAGS) $(OPENAL_CFLAGS) -I$(MOUNT_DIR)
+BASE_CFLAGS   = -DBASEDIR="$(MASTER_DIR)" -DUSERPREF_DIR $(OPENGL_CFLAGS) $(OPENAL_CFLAGS) -I$(MOUNT_DIR) $(XML_CFLAGS)
 RELEASE_CFLAGS = $(BASE_CFLAGS) -mpentiumpro -O6 -ffast-math -funroll-loops \
-	-fomit-frame-pointer -fexpensive-optimizations
+	-fomit-frame-pointer -fexpensive-optimizations 
 DEBUG_CFLAGS  = $(BASE_CFLAGS) -g 
-LDFLAGS       = -lm -ldl $(X11_LIBS) $(OPENGL_LIBS) $(PNG_LIBS) $(OPENAL_LIBS) 
+LDFLAGS       = -lm -ldl $(X11_LIBS) $(OPENGL_LIBS) $(PNG_LIBS) $(OPENAL_LIBS) $(XML_LIBS)
 
 DO_GL_CC      = $(CC) $(CFLAGS) -o $@ -c $<
 DO_GL_AS      = $(CC) $(CFLAGS) -DELF -x assembler-with-cpp -o $@ -c $<
@@ -95,12 +98,14 @@ GLQUAKE_OBJS= \
 	$(BUILDDIR)/glquake/gl_bumpparhelia.o \
 	$(BUILDDIR)/glquake/gl_bumpradeon.o \
 	$(BUILDDIR)/glquake/gl_common.o \
+	$(BUILDDIR)/glquake/gl_curves.o \
 	$(BUILDDIR)/glquake/gl_draw.o \
 	$(BUILDDIR)/glquake/gl_decals.o \
 	$(BUILDDIR)/glquake/gl_glare.o \
 	$(BUILDDIR)/glquake/gl_md3.o \
 	$(BUILDDIR)/glquake/gl_mesh.o \
 	$(BUILDDIR)/glquake/gl_model.o \
+	$(BUILDDIR)/glquake/gl_q3bsp.o \
 	$(BUILDDIR)/glquake/gl_refrag.o \
 	$(BUILDDIR)/glquake/gl_rlight.o \
 	$(BUILDDIR)/glquake/gl_rmain.o \
@@ -132,6 +137,7 @@ GLQUAKE_OBJS= \
 	$(BUILDDIR)/glquake/sv_main.o \
 	$(BUILDDIR)/glquake/sv_phys.o \
 	$(BUILDDIR)/glquake/sv_move.o \
+	$(BUILDDIR)/glquake/sv_q3support.o \
 	$(BUILDDIR)/glquake/sv_user.o \
 	$(BUILDDIR)/glquake/zone.o	\
 	$(BUILDDIR)/glquake/view.o	\
@@ -145,7 +151,6 @@ GLQUAKE_OBJS= \
 	$(BUILDDIR)/glquake/snd_linux.o \
 	$(BUILDDIR)/glquake/gl_vidlinuxglx.o \
 	$(BUILDDIR)/glquake/math.o \
-	$(BUILDDIR)/glquake/worlda.o \
 	$(BUILDDIR)/glquake/snd_mixa.o \
 	$(BUILDDIR)/glquake/sys_dosa.o \
 	\
@@ -178,6 +183,9 @@ $(BUILDDIR)/glquake/cmd.o :          $(MOUNT_DIR)/cmd.c
 	$(DO_GL_CC)
 
 $(BUILDDIR)/glquake/common.o :       $(MOUNT_DIR)/common.c
+	$(DO_GL_CC)
+
+$(BUILDDIR)/glquake/conproc.o :      $(MOUNT_DIR)/conproc.c
 	$(DO_GL_CC)
 
 $(BUILDDIR)/glquake/console.o :      $(MOUNT_DIR)/console.c
@@ -219,6 +227,9 @@ $(BUILDDIR)/glquake/gl_bumpradeon.o :      $(MOUNT_DIR)/gl_bumpradeon.c
 $(BUILDDIR)/glquake/gl_common.o :      $(MOUNT_DIR)/gl_common.c
 	$(DO_GL_CC)
 
+$(BUILDDIR)/glquake/gl_curves.o :      $(MOUNT_DIR)/gl_curves.c
+	$(DO_GL_CC)
+
 $(BUILDDIR)/glquake/gl_decals.o :      $(MOUNT_DIR)/gl_decals.c
 	$(DO_GL_CC)
 
@@ -232,6 +243,9 @@ $(BUILDDIR)/glquake/gl_md3.o :      $(MOUNT_DIR)/gl_md3.c
 	$(DO_GL_CC)
 
 $(BUILDDIR)/glquake/gl_model.o :     $(MOUNT_DIR)/gl_model.c
+	$(DO_GL_CC)
+
+$(BUILDDIR)/glquake/gl_q3bsp.o :    $(MOUNT_DIR)/gl_q3bsp.c
 	$(DO_GL_CC)
 
 $(BUILDDIR)/glquake/gl_refrag.o :    $(MOUNT_DIR)/gl_refrag.c
@@ -325,6 +339,9 @@ $(BUILDDIR)/glquake/sv_phys.o :      $(MOUNT_DIR)/sv_phys.c
 	$(DO_GL_CC)
 
 $(BUILDDIR)/glquake/sv_move.o :      $(MOUNT_DIR)/sv_move.c
+	$(DO_GL_CC)
+
+$(BUILDDIR)/glquake/sv_q3support.o :      $(MOUNT_DIR)/sv_q3support.c
 	$(DO_GL_CC)
 
 $(BUILDDIR)/glquake/sv_user.o :      $(MOUNT_DIR)/sv_user.c
