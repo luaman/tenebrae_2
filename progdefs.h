@@ -143,6 +143,8 @@ typedef struct
 	float	pflags;
 	float	light_lev;
 	float	style;
+	float	areanum;
+	float	areanum2;
 } entvars_t;
 
-#define PROGHEADER_CRC 32401
+#define PROGHEADER_CRC 21246

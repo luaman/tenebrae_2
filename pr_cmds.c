@@ -1865,6 +1865,15 @@ void PF_Fixme (void)
 	PR_RunError ("unimplemented bulitin");
 }
 
+void PF_SetAreaPortalState(void)
+{
+	int area1 = G_FLOAT(OFS_PARM0);
+	int area2 = G_FLOAT(OFS_PARM1);
+	int open = G_FLOAT(OFS_PARM2);
+	CM_SetAreaPortalState(area1,area2,open);
+
+}
+
 
 
 builtin_t pr_builtin[] =
@@ -1965,7 +1974,8 @@ PF_precache_model,
 PF_precache_sound,		// precache_sound2 is different only for qcc
 PF_precache_file,
 
-PF_setspawnparms
+PF_setspawnparms,
+PF_SetAreaPortalState,
 };
 
 builtin_t *pr_builtins = pr_builtin;
