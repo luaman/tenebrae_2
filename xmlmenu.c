@@ -153,15 +153,12 @@ typedef struct xmlradiogroupdata_s
 
 typedef struct xmlmenudata_s
 {
+	int       dummy;
 } xmlmenudata_t;
 
 /*
     xml window data
  */
-
-typedef struct xmlwindowdata_s 
-{
-} xmlwindowdata_t;
 
 typedef struct qwindow_s {
 	char       file[MAX_OSPATH];
