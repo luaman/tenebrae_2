@@ -41,7 +41,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
    func = (type) SDL_GL_GetProcAddress (name)
 #elif defined (__glx__)
 #define SAFE_GET_PROC( func, type, name)     \
-   func = (type) glXGetProcAddressARB (name)
+   func = (type)(unsigned long)glXGetProcAddressARB (name)
 #else
 #define SAFE_GET_PROC( func, type, name)     \
    func = (type) wglGetProcAddress(name);   \
