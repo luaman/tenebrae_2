@@ -27,7 +27,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 ==================
 R_InitTextures
 ==================
-*/
+*//*
 void	R_InitTextures (void)
 {
 	int		x,y, m;
@@ -55,7 +55,7 @@ void	R_InitTextures (void)
 			}
 	}	
 }
-
+*/
 byte	dottexture[8][8] =
 {
 	{0,1,1,0,0,0,0,0},
@@ -464,20 +464,16 @@ void R_NewMap (void)
 	R_CopyVerticesToHunk();
 
 	// identify sky texture
-	skytexturenum = -1;
+	skyshadernum = -1;
 	mirrortexturenum = -1;
-	for (i=0 ; i<cl.worldmodel->numtextures ; i++)
+	for (i=0 ; i<cl.worldmodel->nummapshaders ; i++)
 	{
-		if (!cl.worldmodel->textures[i])
-			continue;
-		if (!Q_strncmp(cl.worldmodel->textures[i]->name,"sky",3) )
-			skytexturenum = i;
-		if (!Q_strncmp(cl.worldmodel->textures[i]->name,"window02_1",10) )
-			mirrortexturenum = i;
- 		cl.worldmodel->textures[i]->texturechain = NULL;
+		if (!Q_strncmp(cl.worldmodel->mapshaders[i].shader->name,"sky",3) )
+			skyshadernum = i;
+ 		cl.worldmodel->mapshaders[i].texturechain = NULL;
 	}
 
-	if (skytexturenum < 0) {
+	if (skyshadernum < 0) {
 		//Con_Printf("No sky texture found");
 	}
 
@@ -496,7 +492,6 @@ void R_NewMap (void)
 	R_ClearInstantCaches();
 	R_ClearBrushInstantCaches();
 	R_NewMirrorChains();
-	curvechain = NULL;
 	causticschain = NULL;
 }
 
