@@ -1556,9 +1556,6 @@ void	VID_Init (unsigned char *palette)
 
 	vid_realmode = vid_modenum;
 
-	// Check for 3DFX Extensions and initialize them.
-	VID_Init8bitPalette();
-
 	vid_menudrawfn = VID_MenuDraw;
 	vid_menukeyfn = VID_MenuKey;
 
