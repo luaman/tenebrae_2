@@ -181,5 +181,3 @@ void COM_LoadCacheFile (const char *path, struct cache_user_s *cu);
 int COM_FindFile (const char *filename, int *handle, FILE **file);	// <AWE> added prototype.
 
 extern	struct cvar_s	registered;
-
-extern qboolean		standard_quake, rogue, hipnotic;
