@@ -481,8 +481,9 @@ char *normalStage(char *data, shader_t *shader, char *name) {
 
 	stage = &shader->bumpstages[shader->numbumpstages];
 	shader->numbumpstages++;
+	clearStage(stage);
 
-	if (strcmp(name,"add")) {
+	if (!strcmp(name,"add")) {
 		char buff[MAX_QPATH];
 		GET_SAFE_TOKEN;
 		strncpy(buff,com_token,MAX_QPATH);
@@ -492,7 +493,6 @@ char *normalStage(char *data, shader_t *shader, char *name) {
 		strncpy(stage->filename,name,MAX_QPATH);
 	}
 
-	clearStage(stage);
 	stage->type = STAGE_BUMP;
 	shader->flags = shader->flags | SURF_BUMP;
 
@@ -594,7 +594,7 @@ char *ParseShader (char *data, shader_t *shader)
 			data = ParseStage(data, shader);
 		} else if (!strcmp(command,"normalmap")) {
 			GET_SAFE_TOKEN;
-			data = normalStage(data, shader,com_token);
+			data = normalStage(data, shader, com_token);
 		} else if (!strcmp(command,"diffusemap")) {
 			GET_SAFE_TOKEN;
 			diffuseStage(shader,com_token);
