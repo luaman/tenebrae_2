@@ -122,6 +122,7 @@ cvar_t	sh_lightmapbright = {"sh_lightmapbright","0.5"};//PENTA: brightness of li
 cvar_t	sh_radiusscale = {"sh_radiusscale","0.5"};//PENTA: brightness of lightmaps
 cvar_t	sh_visiblevolumes = {"sh_visiblevolumes","0"};//PENTA: draw shadow volumes on/off
 cvar_t  sh_entityshadows = {"sh_entityshadows","1"};//PENTA: entities cast shadows on/off
+cvar_t  sh_meshshadows = {"sh_meshshadows","1"};//PENTA: entities cast shadows on/off
 cvar_t  sh_worldshadows = {"sh_worldshadows","1"};//PENTA: brushes cast shadows on/off
 cvar_t  sh_showlightnum = {"sh_showlightnum","0"};//PENTA: draw numer of lights used this frame
 cvar_t  sh_glows = {"sh_glows","1"};//PENTA: draw glows around some light sources
@@ -437,11 +438,11 @@ void GL_DrawPentaAliasFrame (aliashdr_t *paliashdr, int posenum) {
 
 extern	vec3_t			lightspot;
 
-
+/*
 int		extrudeTimeStamp;
 vec3_t	extrudedVerts[MAXALIASVERTS];	//PENTA: Temp buffer for extruded vertices
 int		extrudedTimestamp[MAXALIASVERTS];	//PENTA: Temp buffer for extruded vertices
-qboolean	triangleVis[MAXALIASTRIS];	//PENTA: Temp buffer for light facingness of triangles
+qboolean	triangleVis[MAXALIASTRIS*4];	//PENTA: Temp buffer for light facingness of triangles
 
 void R_CalcAliasFrameShadowVolume (aliashdr_t *paliashdr,int posenum) {
 
@@ -483,10 +484,10 @@ void R_CalcAliasFrameShadowVolume (aliashdr_t *paliashdr,int posenum) {
 
 				v1 = &extrudedVerts[index];
 
-				/*
-				for (k=0; k<3; k++)
-					v2[k] = (verts[index].v[k] * paliashdr->scale[k]) + paliashdr->scale_origin[k];
-				*/
+				
+				//for (k=0; k<3; k++)
+				//	v2[k] = (verts[index].v[k] * paliashdr->scale[k]) + paliashdr->scale_origin[k];
+				
 				VectorCopy(verts[index].v,v2);
 
 				VectorSubtract (v2, currentshadowlight->origin, (*v1));
@@ -505,7 +506,7 @@ void R_CalcAliasFrameShadowVolume (aliashdr_t *paliashdr,int posenum) {
 		}
 	}
 }
-
+*/
 void R_DrawAliasFrameShadowVolume2 (aliashdr_t *paliashdr,aliasframeinstant_t *instant) {
 
 	mtriangle_t	*tris, *triangle;
@@ -678,6 +679,10 @@ R_DrawAliasShadowVolume
 
 void R_DrawAliasSurfaceShadowVolume (aliashdr_t	*paliashdr, aliasframeinstant_t *aliasframeinstant)
 {
+
+	if (paliashdr->shader->flags & SURF_NOSHADOW)
+		return;
+
 #if 1
 	//
 	//Pass 1 increase
@@ -908,7 +913,7 @@ void R_DrawAliasSurface (aliashdr_t *paliashdr, float bright, aliasframeinstant_
 	if (!busy_caustics) {
 		anim = (int)(cl.time*10) & 3;
 		if (paliashdr->shader->numcolorstages > 0)
-			GL_Bind(paliashdr->shader->colorstages[0].texture[0]->texnum);
+			GL_BindAdvanced(paliashdr->shader->colorstages[0].texture[0]);
 
 		// we can't dynamically colormap textures, so they are cached
 		// seperately for the players.  Heads are just uncolored.
@@ -2092,10 +2097,19 @@ void R_RenderScene (void)
 		glPolygonMode(GL_FRONT_AND_BACK,GL_LINE);
 
 		R_DrawAmbientEntities();
-		//glDisable(GL_TEXTURE_2D);
+		glDisable(GL_TEXTURE_2D);
 		R_WorldMultiplyTextures();
-		glEnable(GL_TEXTURE_2D);
+
 		sh_lightmapbright.value = old;
+
+		R_DrawFullbrightSprites();
+		DrawBlendedTextureChains();
+		R_DrawDecals();
+		R_DrawParticles();
+
+		glColor3f(1.0, 1.0, 1.0);
+		GL_SelectTexture(GL_TEXTURE0_ARB);
+		glEnable(GL_TEXTURE_2D);
 		glPolygonMode(GL_FRONT_AND_BACK,GL_FILL);
 		return;
 	}
@@ -2249,7 +2263,10 @@ void R_RenderScene (void)
                         glEnable(GL_CULL_FACE);
 #endif
 			if (sh_entityshadows.value)
-			    R_DrawEntitiesShadowVolumes(mod_alias);
+				R_DrawEntitiesShadowVolumes(mod_alias);
+
+			if (sh_meshshadows.value)
+				StencilMeshVolumes();
 
 			//Reenable drawing
 			glCullFace(GL_FRONT);
