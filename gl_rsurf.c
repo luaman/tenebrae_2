@@ -51,6 +51,7 @@ mmvertex_t *globalVertexTable = NULL;
 mmvertex_t *tempVertices = NULL;
 int	tempVerticesSize = 0;
 int	numTempVertices = 0;
+int	numVertices = 0;
 
 int R_GetNextVertexIndex(void) {
 	return numTempVertices;
@@ -103,6 +104,7 @@ void R_CopyVerticesToHunk(void)
 	free(tempVertices);
 	Con_Printf("Copied %i vertices to hunk\n",numTempVertices);
 
+	numVertices = numTempVertices;
 	tempVertices = NULL;
 	tempVerticesSize = 0;
 	numTempVertices = 0;
@@ -1233,6 +1235,28 @@ void GL_BuildLightmaps (void)
 
 	gl_lightmap_format = GL_RGB;
 	lightmap_bytes = 4;
+
+
+	if (!cl.worldmodel->numlightmaps) {
+		int black = 0;
+		GL_Bind(lightmap_textures);
+		glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+		glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		glTexImage2D (GL_TEXTURE_2D, 0, 3, 1, 1, 0, gl_lightmap_format, GL_UNSIGNED_BYTE, &black);
+
+		for (i=0; i<cl.worldmodel->numsurfaces; i++) {
+			cl.worldmodel->surfaces[i].lightmaptexturenum = 0;
+		}
+
+		for (i=0; i<numVertices; i++) {
+			globalVertexTable[i].color[0] = 0;
+			globalVertexTable[i].color[1] = 0;
+			globalVertexTable[i].color[2] = 0;
+			globalVertexTable[i].color[3] = 0;
+		}
+
+		return;
+	}
 
 	for (i=0 ; i<cl.worldmodel->numlightmaps ; i++)
 	{
