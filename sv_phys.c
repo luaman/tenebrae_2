@@ -328,7 +328,10 @@ int SV_FlyMove (edict_t *ent, float time, trace_t *steptrace)
 //
 		for (i=0 ; i<numplanes ; i++)
 		{
-			ClipVelocity (original_velocity, planes[i], new_velocity, 1);
+			/*Changing the last parameter from 1.0 to 1.01 seems to solve most of the collision
+			problems.  I don't really know why it works but I got the idea from quake2 where it was
+			also changed to 1.01*/
+			ClipVelocity (original_velocity, planes[i], new_velocity, 1.01);
 			for (j=0 ; j<numplanes ; j++)
 				if (j != i)
 				{
