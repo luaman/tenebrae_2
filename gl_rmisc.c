@@ -190,6 +190,8 @@ void R_Init (void)
 	Cvar_RegisterVariable (&cg_showviewmodel);
 //	Cvar_RegisterVariable (&r_mirroralpha);
 	Cvar_RegisterVariable (&r_wateralpha);
+	Cvar_RegisterVariable (&r_novis);
+	Cvar_RegisterVariable (&r_noareaportal);
 
 	Cvar_RegisterVariable (&gl_finish);
 	Cvar_RegisterVariable (&gl_clear);
@@ -249,8 +251,6 @@ void R_Init (void)
 	Cvar_RegisterVariable (&sh_rtlights);
 
 	R_InitParticleEffects();
-	R_InitShaders();
-
 	R_InitParticles ();
 	R_InitDecals ();
 	R_InitParticleTexture ();

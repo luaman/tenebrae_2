@@ -1183,7 +1183,7 @@ void R_MarkLeaves (void)
 		if (vis[leaf->cluster>>3] & (1<<(leaf->cluster&7))) // staat leaf i's vis bit op true ?
 		{
 			// check area portals
-			if (! (r_refdef.areabits[leaf->area>>3] & (1<<(leaf->area&7)) ) ) {
+			if (! (r_refdef.areabits[leaf->area>>3] & (1<<(leaf->area&7)) ) && !r_noareaportal.value ) {
 				continue;		// not visible
 			}
 
