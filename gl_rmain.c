@@ -333,8 +333,6 @@ void R_DrawSpriteModel (entity_t *e) //Oriented Sprite Fix - Eradicator
 		right = vright;
 	}
 
-	//glColor3f (1,1,1);
-
 	GL_DisableMultitexture();
 
     GL_Bind(frame->gl_texturenum);
@@ -1194,6 +1192,7 @@ void R_DrawEntitiesOnList (void)
 
 	glBlendFunc(GL_ZERO,GL_SRC_COLOR);
 	glEnable(GL_BLEND);
+        glColor3f(1.0f, 1.0f, 1.0f);
 
 	//Con_Printf("cl_numvisedicts %d\n",cl_numvisedicts);
 	// draw sprites seperately, because of alpha blending
@@ -1452,7 +1451,8 @@ void R_DrawFullbrightSprites (void)
 	if (!cg_showentities.value)
 		return;
 
-	//return;
+	if ( cl_numvisedicts == 0 )
+            return;
 
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA,GL_ONE);
@@ -1471,6 +1471,7 @@ void R_DrawFullbrightSprites (void)
 					R_DrawSpriteModel(currententity);
 				}
 			} else {
+                                        glColor3f(1.0f, 1.0f, 1.0f);
 					R_DrawSpriteModel(currententity);
 			}
 		}
