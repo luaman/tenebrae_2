@@ -1523,6 +1523,15 @@ void DrawTextureChains (void)
 		}
 	}
 
+	if (gl_wireframe.value) {
+		for (i=0 ; i<cl.worldmodel->nummapshaders ; i++)
+		{
+			cl.worldmodel->mapshaders[i].meshchain = NULL;
+			cl.worldmodel->mapshaders[i].texturechain = NULL;
+		}
+	}
+
+
 	//R_DisableVertexTable(VERTEX_TEXTURE | VERTEX_LIGHTMAP);
 	GL_SelectTexture(GL_TEXTURE1_ARB);
 	GL_DisableMultitexture();
@@ -2707,7 +2716,8 @@ void GL_BuildLightmaps (void)
 
 	for (i=0 ; i<cl.worldmodel->numlightmaps ; i++)
 	{
-		Con_Printf("Lightmap %i\n",i);
+
+		//Con_Printf("Lightmap %i\n",i);
 		GL_Bind(lightmap_textures + i);
 		glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 		glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
