@@ -42,7 +42,7 @@ typedef struct
 } moveclip_t;
 
 
-int SV_HullPointContents (hull_t *hull, int num, vec3_t p);
+//int SV_HullPointContents (hull_t *hull, int num, vec3_t p);
 
 /*
 ===============================================================================
@@ -178,6 +178,8 @@ void SV_HullForEntity (edict_t *ent, int *firstbrush, int *numbrushes)
 ===============================================================================
 
 ENTITY AREA CHECKING
+
+PENTA: Note these are not to be confused with area portals!!
 
 ===============================================================================
 */
@@ -336,13 +338,14 @@ void SV_FindTouchedLeafs (edict_t *ent, mnode_t *node)
 	mleaf_t		*leaf;
 	int			sides;
 	int			leafnum;
+	int			area;
 
 	if (node->contents == CONTENTS_SOLID)
 		return;
 	
 // add an efrag if the node is a leaf
 
-	if ( node->contents < 0)
+	if (node->contents & CONTENTS_LEAF)
 	{
 		if (ent->num_leafs == MAX_ENT_LEAFS) {
 //			Con_Printf("Max ent leafs reached\n");
@@ -350,10 +353,27 @@ void SV_FindTouchedLeafs (edict_t *ent, mnode_t *node)
 		}
 
 		leaf = (mleaf_t *)node;
-		leafnum = leaf - sv.worldmodel->leafs - 1;
+		leafnum = leaf - sv.worldmodel->leafs;
 
 		ent->leafnums[ent->num_leafs] = leafnum;
-		ent->num_leafs++;			
+		ent->num_leafs++;
+		
+		//PENTA: Setup the area (of the area portals) the entity is in.
+		area = leaf->area;
+		if (area)
+		{	// doors may legally straggle two areas,
+			// but nothing should ever need more than that
+			if (ent->v.areanum && ent->v.areanum != area)
+			{
+				if (ent->v.areanum2 && ent->v.areanum2 != area && sv.state == ss_loading)
+					Con_Printf ("Object touching 3 areas at %f %f %f\n",
+					ent->v.absmin[0], ent->v.absmin[1], ent->v.absmin[2]);
+				ent->v.areanum2 = area;
+			}
+			else {
+				ent->v.areanum = area;
+			}
+		}
 		return;
 	}
 	
@@ -452,6 +472,8 @@ void SV_LinkEdict (edict_t *ent, qboolean touch_triggers)
 	
 // link to PVS leafs
 	ent->num_leafs = 0;
+	ent->v.areanum = 0;
+	ent->v.areanum2 = 0;
 	if (ent->v.modelindex)
 		SV_FindTouchedLeafs (ent, sv.worldmodel->nodes);
 
@@ -500,6 +522,7 @@ SV_HullPointContents
 
 ==================
 */
+/*
 int SV_HullPointContents (hull_t *hull, int num, vec3_t p)
 {
 	float		d;
@@ -525,8 +548,9 @@ int SV_HullPointContents (hull_t *hull, int num, vec3_t p)
 	}
 	
 	return num;
-}
 
+}
+*/
 /*
 ==================
 SV_PointContents
@@ -537,15 +561,37 @@ int SV_PointContents (vec3_t p)
 {
 	int		cont;
 
-	cont = SV_HullPointContents (&sv.worldmodel->hulls[0], 0, p);
+	//cont = SV_HullPointContents (&sv.worldmodel->hulls[0], 0, p);
+	cont = CM_PointContents(p,0);
 	if (cont <= CONTENTS_CURRENT_0 && cont >= CONTENTS_CURRENT_DOWN)
 		cont = CONTENTS_WATER;
 	return cont;
 }
 
+/**
+* PENTA: Translates the contents structure to a simple one for the progs
+* Basically we get rid of most of the flags like areportal contents and such...
+* Use for ent.watertype for example
+*/
+int SV_SimplePointContents (int c)
+{
+	if (c & CONTENTS_SOLID) 
+		return CONTENTS_SOLID;
+	if (c & CONTENTS_LAVA) 
+		return CONTENTS_LAVA;
+	if (c & CONTENTS_WATER) 
+		return CONTENTS_WATER;
+	if (c & CONTENTS_SLIME) 
+		return CONTENTS_SLIME;
+
+	return CONTENTS_EMPTY;	
+}
+
+
 int SV_TruePointContents (vec3_t p)
 {
-	return SV_HullPointContents (&sv.worldmodel->hulls[0], 0, p);
+//	return SV_HullPointContents (&sv.worldmodel->hulls[0], 0, p);
+	return CM_PointContents(p,0);
 }
 
 //===========================================================================
@@ -581,6 +627,13 @@ LINE TESTING IN HULLS
 // 1/32 epsilon to keep floating point happy
 #define	DIST_EPSILON	(0.03125)
 
+extern trace_t trace_trace;
+extern vec3_t	trace_start, trace_end;
+extern vec3_t	trace_mins, trace_maxs;
+extern vec3_t	trace_extents;
+extern int		trace_contents;
+extern qboolean	trace_ispoint;		// optimized case
+void CM_RecursiveHullCheck (int num, float p1f, float p2f, vec3_t p1, vec3_t p2);
 /*
 ==================
 SV_RecursiveHullCheck
@@ -589,6 +642,18 @@ SV_RecursiveHullCheck
 */
 qboolean SV_RecursiveHullCheck (hull_t *hull, int num, float p1f, float p2f, vec3_t p1, vec3_t p2, trace_t *trace)
 {
+	VectorCopy (p1, trace_start);
+	VectorCopy (p2, trace_end);
+	VectorCopy (vec3_origin, trace_mins);
+	VectorCopy (vec3_origin, trace_maxs);
+	trace_ispoint = true;
+	trace_contents = CONTENTS_SOLID | CONTENTS_PLAYERCLIP | CONTENTS_MONSTERCLIP;
+
+	trace_trace = *trace;
+	CM_RecursiveHullCheck (0, p1f, p2f, p1, p2);
+	*trace = trace_trace;
+	return false;
+/*
 	dclipnode_t	*node;
 	mplane_t	*plane;
 	float		t1, t2;
@@ -717,6 +782,7 @@ qboolean SV_RecursiveHullCheck (hull_t *hull, int num, float p1f, float p2f, vec
 	VectorCopy (mid, trace->endpos);
 
 	return false;
+*/
 }
 
 
@@ -779,7 +845,7 @@ trace_t SV_ClipMoveToEntity (edict_t *ent, vec3_t start, vec3_t mins, vec3_t max
 
 // trace a line through the apropriate brushes
 	//SV_RecursiveHullCheck (hull, hull->firstclipnode, 0, 1, start_l, end_l, &trace);
-		CM_TraceToBrushModel (firstbrush, numbrushes, mins, maxs, start_l, end_l, &trace, CONTENTS_EMPTY);
+		CM_TraceToBrushModel (firstbrush, numbrushes, mins, maxs, start_l, end_l, &trace, CONTENTS_SOLID);
 
 // rotate endpos back to world frame of reference
 	if (rotated && trace.fraction != 1.0)
@@ -947,7 +1013,7 @@ trace_t SV_Move (vec3_t start, vec3_t mins, vec3_t maxs, vec3_t end, int type, e
 
 // clip to world
 	//clip.trace = SV_ClipMoveToEntity ( sv.edicts, start, mins, maxs, end );
-	clip.trace = CM_BoxTrace (start, end, mins, maxs, 0, CONTENTS_EMPTY);
+	clip.trace = CM_BoxTrace (start, end, mins, maxs, 0, CONTENTS_SOLID | CONTENTS_PLAYERCLIP | CONTENTS_MONSTERCLIP);
 	clip.trace.ent = &sv.edicts[0]; //world 
 
 	if (clip.trace.fraction == 0)
