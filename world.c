@@ -633,14 +633,14 @@ extern vec3_t	trace_mins, trace_maxs;
 extern vec3_t	trace_extents;
 extern int		trace_contents;
 extern qboolean	trace_ispoint;		// optimized case
-void CM_RecursiveHullCheck (int num, float p1f, float p2f, vec3_t p1, vec3_t p2);
+void CM_RecursiveHullCheck (model_t *m, int num, float p1f, float p2f, vec3_t p1, vec3_t p2);
 /*
 ==================
 SV_RecursiveHullCheck
 
 ==================
 */
-qboolean SV_RecursiveHullCheck (hull_t *hull, int num, float p1f, float p2f, vec3_t p1, vec3_t p2, trace_t *trace)
+qboolean SV_RecursiveHullCheck (model_t *m, int num, float p1f, float p2f, vec3_t p1, vec3_t p2, trace_t *trace)
 {
 	VectorCopy (p1, trace_start);
 	VectorCopy (p2, trace_end);
@@ -650,8 +650,14 @@ qboolean SV_RecursiveHullCheck (hull_t *hull, int num, float p1f, float p2f, vec
 	trace_contents = CONTENTS_SOLID | CONTENTS_PLAYERCLIP | CONTENTS_MONSTERCLIP;
 
 	trace_trace = *trace;
-	CM_RecursiveHullCheck (0, p1f, p2f, p1, p2);
+
+	CM_RecursiveHullCheck (m, 0, p1f, p2f, p1, p2);
 	*trace = trace_trace;
+
+	trace->endpos[0] = p1[0] + trace->fraction * (p2[0] - p1[0]);
+	trace->endpos[1] = p1[1] + trace->fraction * (p2[1] - p1[1]);
+	trace->endpos[2] = p1[2] + trace->fraction * (p2[2] - p1[2]);
+
 	return false;
 /*
 	dclipnode_t	*node;
