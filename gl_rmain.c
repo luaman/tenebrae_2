@@ -86,9 +86,7 @@ refdef_t	r_refdef;
 
 mleaf_t		*r_viewleaf, *r_oldviewleaf;
 
-texture_t	*r_notexture_mip;
-
-int		d_lightstylevalue[256];	// 8.8 fraction of base light value
+int		d_lghtstylevalue[256];	// 8.8 fraction of base light value
 
 
 void R_MarkLeaves (void);
@@ -162,7 +160,7 @@ cvar_t	fog_end = {"fog_end","700"};
 cvar_t	gl_fog = {"gl_fog","1"};
 cvar_t  fog_waterfog = {"fog_waterfog","1"}; 
 float fog_color[4];
-cvar_t	r_tangentscale = {"r_tangentscale","16"}; 
+cvar_t	r_tangentscale = {"r_tangentscale","1"}; 
 
 
 mirrorplane_t mirrorplanes[NUM_MIRROR_PLANES];
@@ -224,7 +222,7 @@ int CL_PointContents (vec3_t p)
 {
 	int		cont;
 
-	cont = CM_PointContents(p,0);
+	cont = CM_PointContents(cl.worldmodel,p,0);
 	//cont = SV_HullPointContents (&cl.worldmodel->hulls[0], 0, p);
 	/*
 	if (cont <= CONTENTS_CURRENT_0 && cont >= CONTENTS_CURRENT_DOWN)
@@ -909,7 +907,8 @@ void R_DrawAliasSurface (aliashdr_t *paliashdr, float bright, aliasframeinstant_
 
 	if (!busy_caustics) {
 		anim = (int)(cl.time*10) & 3;
-		GL_Bind(paliashdr->gl_texturenum[currententity->skinnum][anim]);
+		if (paliashdr->shader->numcolorstages > 0)
+			GL_Bind(paliashdr->shader->colorstages[0].texture[0]->texnum);
 
 		// we can't dynamically colormap textures, so they are cached
 		// seperately for the players.  Heads are just uncolored.
@@ -925,7 +924,7 @@ void R_DrawAliasSurface (aliashdr_t *paliashdr, float bright, aliasframeinstant_
 	if (gl_wireframe.value) {
 		glDisable(GL_TEXTURE_2D);
 	}
-
+/*
 	if ( gl_truform.value )
 	{
 	    glEnable(GL_PN_TRIANGLES_ATI);
@@ -934,7 +933,7 @@ void R_DrawAliasSurface (aliashdr_t *paliashdr, float bright, aliasframeinstant_
 	    qglPNTrianglesiATI(GL_PN_TRIANGLES_TESSELATION_LEVEL_ATI, gl_truform_tesselation.value);
 	}
 
-
+*/
 
 	glColor3f(bright, bright, bright);
 	//if (busy_caustics)
@@ -945,6 +944,7 @@ void R_DrawAliasSurface (aliashdr_t *paliashdr, float bright, aliasframeinstant_
         if ( !busy_caustics )
         {
             anim = (int)(cl.time*10) & 3;
+			/*
             if ( paliashdr->gl_lumatex[currententity->skinnum][anim] != 0)
             {
                 glFogfv(GL_FOG_COLOR, color_black);
@@ -968,6 +968,7 @@ void R_DrawAliasSurface (aliashdr_t *paliashdr, float bright, aliasframeinstant_
                 glDisable(GL_BLEND);
                 glFogfv(GL_FOG_COLOR, fog_color);
             }
+			*/
         }
 
 	if ((sh_showtangent.value) && (!busy_caustics)) {
@@ -1064,7 +1065,9 @@ void R_DrawAliasModel (float bright)
              VectorAdd (currententity->origin,paliashdr->maxs, maxs);
 
              if (!R_CullBox (mins, maxs))                  */
-                  R_DrawAliasSurface (paliashdr, bright, aliasframeinstant);                          
+			 //  R_DrawAliasSurface (paliashdr, bright, aliasframeinstant); 
+			R_DrawAliasAmbient(paliashdr, aliasframeinstant);  
+
              aliasframeinstant = aliasframeinstant->_next; 
         }
 
@@ -1143,11 +1146,12 @@ void R_DrawAmbientEntities ()
 		switch (currententity->model->type)
 		{
 		case mod_alias:
-                     R_DrawAmbientAlias (R_DrawAliasModel);
+			R_DrawAmbientAlias (R_DrawAliasModel);
 			break;
+
 		case mod_brush:
 			glColor3f(sh_lightmapbright.value,sh_lightmapbright.value,sh_lightmapbright.value);
-			R_DrawBrushModel(currententity);
+			R_DrawBrushModelAmbient(currententity);
 			break;
 
 		default:
@@ -1171,7 +1175,7 @@ R_DrawEntitiesOnList
 
 Post multiply the textures with the frame buff.
 =============
-*/
+*//*
 void R_DrawEntitiesOnList (void)
 {
 	int		i;
@@ -1196,7 +1200,7 @@ void R_DrawEntitiesOnList (void)
 
 		case mod_brush:
 			//glColor3f(1.0,1.0,1.0);
-			//R_DrawBrushModel (currententity);
+			///_DrawBrushModel (currententity);
 			break;
 
 		default:
@@ -1225,7 +1229,7 @@ void R_DrawEntitiesOnList (void)
 
 }
 
-
+*/
 /*
 =============
 R_MarkEntitiesOnList
@@ -1347,6 +1351,7 @@ void R_DrawLightSprites (void)
 	int		i;
 	vec3_t	dist;
 	float	colorscale;
+	transform_t trans;
 
 	if (!cg_showentities.value)
 		return;
@@ -1374,7 +1379,10 @@ void R_DrawLightSprites (void)
 				 -currentshadowlight->origin[1],
 				 -currentshadowlight->origin[2]);
 	*/
-	GL_SetupCubeMapMatrix(true);
+	VectorCopy(currententity->origin,trans.origin);
+	VectorCopy(currententity->angles,trans.angles);
+	trans.scale[0] = trans.scale[1] = trans.scale[2] = 1.0f;
+	GL_SetupCubeMapMatrix(&trans);
 
 	GL_EnableColorShader (false);
 	for (i=0 ; i<cl_numlightvisedicts ; i++)
@@ -2285,15 +2293,17 @@ void R_RenderScene (void)
 	glFogfv(GL_FOG_COLOR, color_black);
 
 	R_DrawFullbrightSprites();
-	
-	if (skytexturenum >= 0) {
-		glColor3f(1,1,1);
-		R_DrawSkyChain (cl.worldmodel->textures[skytexturenum]->texturechain);
-		cl.worldmodel->textures[skytexturenum]->texturechain = NULL;
+
+
+	if (skyshadernum >= 0) {
+		//glColor3f(1,1,1);
+		//R_DrawSkyChain (cl.worldmodel->mapshaders[skyshadernum]);
+		cl.worldmodel->mapshaders[skyshadernum].texturechain = NULL;
 	}
 
 
-	R_DrawCaustics();
+//	R_DrawCaustics();
+	DrawBlendedTextureChains();
 
 	//Removed to fix particle & water bug (see R_RenderView) - Eradicator
 	//R_DrawParticles (); //to fix the particles triangles showing up after water
@@ -2337,11 +2347,9 @@ void R_ClearMirrorChains()
 		mirrorplanes[i].chain = NULL;
 	}
 
-	for (i=0 ; i<cl.worldmodel->numtextures ; i++)
+	for (i=0 ; i<cl.worldmodel->nummapshaders ; i++)
 	{
-		if (!cl.worldmodel->textures[i])
-			continue;	
-		cl.worldmodel->textures[i]->texturechain = NULL;
+		cl.worldmodel->mapshaders[i].texturechain = NULL;
 	}
 }
 
@@ -2604,7 +2612,7 @@ void R_SetupMirrorShader(msurface_t *surf,mirrorplane_t *mir) {
 		glTexEnvf (GL_TEXTURE_ENV, GL_COMBINE_RGB_ARB, GL_REPLACE);
 
 		GL_EnableMultitexture();
-		GL_Bind(surf->texinfo->texture->gl_texturenum);
+//SHADERS		GL_Bind(surf->texinfo->texture->gl_texturenum);
 
 		//No colormaps: Color maps are bound on tmu 0 so disable it
 		//and let tu1 modulate itself with the light map brightness
@@ -2615,7 +2623,7 @@ void R_SetupMirrorShader(msurface_t *surf,mirrorplane_t *mir) {
 		glTexEnvf (GL_TEXTURE_ENV, GL_COMBINE_RGB_ARB, GL_INTERPOLATE_ARB);
 		glTexEnvf (GL_TEXTURE_ENV, GL_OPERAND2_RGB_ARB, GL_SRC_ALPHA);
 
-		GL_Bind(surf->texinfo->texture->gl_texturenum);
+//SHADERS		GL_Bind(surf->texinfo->texture->gl_texturenum);
 	}
 }
 
@@ -2846,7 +2854,7 @@ void R_RenderView (void)
 	to avoid effection fog on the water. A particle draw is done after the water 
 	draw to make sure particles are rendered over the surface of the water. - Eradicator*/
 
-	R_DrawWaterSurfaces ();
+//	R_DrawWaterSurfaces ();
 	R_DrawMirrorSurfaces ();
 
 //  More fog right here :)
