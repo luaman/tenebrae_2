@@ -301,54 +301,6 @@ void Sys_Strtime(char *buf)
   
 }
 
-// directory entry list internal data
-// POSIX stuff...
-// FIX-ME : is there a more portable way to do that ?
-#include <glob.h>
-
-typedef struct {
-  glob_t globbuf;
-  size_t count;
-} uxdirdata_t;
-
-static uxdirdata_t uxdata;
-
-
-dirdata_t *Sys_Findfirst (char *dir, char *filter, dirdata_t *dirdata)
-{
-  char dirfilter[MAX_OSPATH];
-  if (!filter || !dirdata)
-    return NULL;
-  sprintf(dirfilter,"%s/%s", dir, filter);
-  glob(dirfilter,0,NULL,&uxdata.globbuf);
-  if (uxdata.globbuf.gl_pathc){
-    dirdata->internal=&uxdata;
-    strncpy(dirdata->entry,uxdata.globbuf.gl_pathv[0],sizeof(dirdata->entry));
-    uxdata.count=0;
-    return dirdata;
-  }
-  return NULL;
-}
-
-dirdata_t *Sys_Findnext (dirdata_t *dirdata)
-{
-  uxdirdata_t *uxdata;
-  if (dirdata){
-    uxdata=dirdata->internal;
-    uxdata->count++;
-    // next entry ?
-    if (uxdata->count<uxdata->globbuf.gl_pathc){
-      strncpy(dirdata->entry,uxdata->globbuf.gl_pathv[uxdata->count],sizeof(dirdata->entry));
-      return dirdata;
-    }
-    // no -> close
-    globfree(&uxdata->globbuf);
-    dirdata->internal=NULL;
-  }
-  return NULL;
-}
-
-
 void Sys_DebugLog(char *file, char *fmt, ...)
 {
     va_list argptr; 
