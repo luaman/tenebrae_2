@@ -26,7 +26,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #define GL_COLOR_INDEX8_EXT     0x80E5
 
-extern unsigned char d_15to8table[65536];
 cvar_t          cg_conclock = {"cg_conclock", "1", true};
 
 shader_t	*draw_disc = NULL;		//Hard disc activity shader
@@ -62,85 +61,6 @@ void GL_BindAdvanced(gltexture_t *tex) {
 	GL_Bind(tex->texnum);
 }
 
-/*
-=============================================================================
-
-  scrap allocation
-
-  Allocate all the little status bar obejcts into a single texture
-  to crutch up stupid hardware / drivers
-
-=============================================================================
-*/
-
-/*
-#define	MAX_SCRAPS		2
-#define	BLOCK_WIDTH		256
-#define	BLOCK_HEIGHT	256
-
-int			scrap_allocated[MAX_SCRAPS][BLOCK_WIDTH];
-byte		scrap_texels[MAX_SCRAPS][BLOCK_WIDTH*BLOCK_HEIGHT*4];
-qboolean	scrap_dirty;
-int			scrap_texnum;
-
-// returns a texture number and the position inside it
-int Scrap_AllocBlock (int w, int h, int *x, int *y)
-{
-	int		i, j;
-	int		best, best2;
-	int		texnum;
-
-	for (texnum=0 ; texnum<MAX_SCRAPS ; texnum++)
-	{
-		best = BLOCK_HEIGHT;
-
-		for (i=0 ; i<BLOCK_WIDTH-w ; i++)
-		{
-			best2 = 0;
-
-			for (j=0 ; j<w ; j++)
-			{
-				if (scrap_allocated[texnum][i+j] >= best)
-					break;
-				if (scrap_allocated[texnum][i+j] > best2)
-					best2 = scrap_allocated[texnum][i+j];
-			}
-			if (j == w)
-			{	// this is a valid spot
-				*x = i;
-				*y = best = best2;
-			}
-		}
-
-		if (best + h > BLOCK_HEIGHT)
-			continue;
-
-		for (i=0 ; i<w ; i++)
-			scrap_allocated[texnum][*x + i] = best + h;
-
-		return texnum;
-	}
-
-	Sys_Error ("Scrap_AllocBlock: full");
-	return 0;
-}
-
-int	scrap_uploads;
-
-void Scrap_Upload (void)
-{
-	int		texnum;
-
-	scrap_uploads++;
-
-	for (texnum=0 ; texnum<MAX_SCRAPS ; texnum++) {
-		GL_Bind(scrap_texnum + texnum);
-		GL_Upload8 (scrap_texels[texnum], "scrap", BLOCK_WIDTH, BLOCK_HEIGHT, false, true, false);
-	}
-	scrap_dirty = false;
-}
-*/
-
 void Print_Tex_Cache_f(void);
 void R_ReloadShaders_f(void);
 void ReloadTextures_f(void);
@@ -153,14 +73,8 @@ Draw_Init
 void Draw_Init (void)
 {
 	int		i;
-	shader_t *cb;
-	byte	*dest /*, *src*/;	// <AWE> unused because of "#if 0".
-	int		x, y;
-	char	ver[40];
-	int		start;
-	byte	*ncdata;
-//	int		fstep;		// <AWE> unused because of "#if 0".
-
+	int		maxsize;
+	char	buf[64];
 
 	Cvar_RegisterVariable (&gl_max_size);
 	Cvar_RegisterVariable (&gl_picmip);
@@ -169,10 +83,11 @@ void Draw_Init (void)
 	Cvar_RegisterVariable (&willi_gray_colormaps);
 	Cvar_RegisterVariable (&cg_conclock);
 
-	// 3dfx can only handle 256 wide textures
-	if (!Q_strncasecmp ((char *)gl_renderer, "3dfx",4) ||
-		strstr((char *)gl_renderer, "Glide"))
-		Cvar_Set ("gl_max_size", "256");
+	//Check maximum texture size
+	glGetIntegerv(GL_MAX_TEXTURE_SIZE, &maxsize);
+	sprintf(buf,"%i",maxsize);
+	Cvar_Set ("gl_max_size", buf);
+	Con_Printf("GL_MAX_TEXTURE_SIZE %i\n", maxsize);
 
 	Cmd_AddCommand ("gl_texturemode", &Draw_TextureMode_f);
 	Cmd_AddCommand ("roq_info", &Roq_Info_f);
@@ -312,7 +227,6 @@ void Draw_Character (int x, int y, int num)
 	if (num > 127) glColor3ub(255,255,255);
 }
 
-
 /*
 ================
 Draw_String
@@ -326,6 +240,298 @@ void Draw_String (int x, int y, char *str)
 		str++;
 		x += 8;
 	}
+}
+
+typedef struct {
+	int ofsx;	//x offset into the texture
+	int ofsy;	//y offset into the texture
+	int A;		//Width of whitespace to the left of the char
+	int B;		//Width of the char's pixels
+	int C;		//Width of the whiretspace to the right of the char
+} drawchar_t;
+
+typedef struct drawfont_s {
+	char name[64];
+	drawchar_t metrics[256];
+	shader_t *shader;
+	int			width;	//width of the font texture
+	int			height; //height of the font texture
+	int			charHeight; //height of a single character
+} drawfont_t;
+
+#define MAX_FONT_CACHE 128
+static drawfont_t fontCache[MAX_FONT_CACHE];
+static int numFonts = 0;
+
+static void Draw_FillDefaultFont(drawfont_t *defaultFont) {
+	int i;
+	strcpy(defaultFont->name,"DEFAULT");
+	defaultFont->width = 128;
+	defaultFont->height = 256;
+	defaultFont->charHeight = 16;
+	defaultFont->shader = GL_ShaderForName("screen/font");
+	for (i=0; i<256; i++) {
+		defaultFont->metrics[i].ofsx = (i&15)*8;
+		defaultFont->metrics[i].ofsy = (i>>4)*defaultFont->charHeight;
+		defaultFont->metrics[i].A = 0;
+		defaultFont->metrics[i].B = 8;
+		defaultFont->metrics[i].C = 0;
+	}
+}
+
+/**
+	Load a shader and the font metrics to go along with that shader.
+*/
+static void Draw_LoadFont(const char *name, drawfont_t *font) {
+	char filename[128];
+	short *data;
+	int i;
+
+	sprintf(filename,"%s.dat",name);
+	data = (short *)COM_LoadTempFile(filename);
+
+	//if the data was not found make it the default font
+	if (!data) {
+		Con_Printf("Error: Font file %s not found\n", filename);
+		Draw_FillDefaultFont(font);
+		strcpy(font->name,name);
+		return;
+	}
+
+	strcpy(font->name,name);
+	font->width = 256;
+	font->height = 256;
+	font->charHeight = 16;
+	font->shader = GL_ShaderForName(name);
+	for (i=0; i<256; i++) {
+		font->metrics[i].ofsx = data[0];
+		font->metrics[i].ofsy = (i>>4)*font->charHeight;
+		font->metrics[i].A = data[1];
+		font->metrics[i].B = data[2];
+		font->metrics[i].C = data[3];
+		data += 4;
+	}
+}
+
+void Draw_InitFonts() {
+	numFonts = 0;
+	Draw_FillDefaultFont(&fontCache[0]);
+	numFonts++;
+}
+
+drawfont_t *Draw_FontForName(const char *name) {
+	int i;
+
+	//see if it exists
+	for (i=0; i<numFonts; i++) {
+		if (!strcmp(name, fontCache[i].name)) {
+			return &fontCache[i]; 
+		}
+	}
+
+	//load a new font
+	if (numFonts < MAX_FONT_CACHE) {
+		Draw_LoadFont(name, &fontCache[numFonts]);
+		numFonts++;
+		return &fontCache[numFonts-1];
+	}
+	Sys_Error("To many fonts loaded\n");
+	return NULL;
+}
+
+drawfont_t *Draw_DefaultFont(void) {
+	return &fontCache[0];
+}
+
+#define CHAR_BATCH 64
+#define MAX_CHARV CHAR_BATCH*4
+#define MAX_CHARI CHAR_BATCH*6
+static float vertBuff[MAX_CHARV*3];
+static float texBuff[MAX_CHARV*2];
+static int indexBuff[MAX_CHARI];
+static int	numIndices;
+static int	numVerts;
+static float *verts;
+static float *texcoords;
+static int *indices;
+
+static void Draw_EmitFontChar(drawfont_t *f, char ch, int y, int *linepos) {
+	float uofs, vofs, usize, vsize;
+	drawchar_t *c = &f->metrics[ch];
+
+	//Advance cursor position
+	(*linepos) += c->A;
+
+	//Don't draw spaces
+	if (ch == ' ') {
+		(*linepos) += c->B;
+		(*linepos) += c->C;
+		return;
+	}
+
+	//Calculate texture coords
+	uofs = c->ofsx / (float)f->width;
+	vofs = c->ofsy / (float)f->height;
+
+	usize = c->B / (float)f->width;
+	vsize = f->charHeight / (float)f->height;
+
+	//Add vertices to the buffer
+	verts[0] = (*linepos);
+	verts[1] = y;
+	verts[2] = 0;
+	verts += 3;
+	texcoords[0] = uofs;
+	texcoords[1] = vofs;
+	texcoords += 2;
+
+	verts[0] = (*linepos)+c->B;
+	verts[1] = y;
+	verts[2] = 0;
+	verts += 3;
+	texcoords[0] = uofs+usize;
+	texcoords[1] = vofs;
+	texcoords += 2;
+
+	verts[0] = (*linepos)+c->B;
+	verts[1] = y+f->charHeight;
+	verts[2] = 0;
+	verts += 3;
+	texcoords[0] = uofs+usize;
+	texcoords[1] = vofs+vsize;
+	texcoords += 2;
+
+	verts[0] = (*linepos);
+	verts[1] = y+f->charHeight;
+	verts[2] = 0;
+	verts += 3;
+	texcoords[0] = uofs;
+	texcoords[1] = vofs+vsize;
+	texcoords += 2;
+
+	//Add to the index buffer
+	indices[0] = numVerts+0; 
+	indices[1] = numVerts+1;  
+	indices[2] = numVerts+2;  
+	indices[3] = numVerts+2;  
+	indices[4] = numVerts+3;  
+	indices[5] = numVerts+0;  
+	indices += 6;
+
+	numIndices += 6;
+	numVerts +=4;
+
+	//Advance cursor position
+	(*linepos) += c->B;
+	(*linepos) += c->C;
+}
+
+/**
+	Draw a string with the given font
+*/
+void Draw_StringFont(int x, int y, char *str, drawfont_t *font) {
+	
+	float *lighmapscoords = NULL; 
+	float *tangents = NULL; 
+	float *binormals = NULL; 
+	float *normals = NULL; 
+	unsigned char *colors = NULL; 
+	int xofs;
+
+	vertexdef_t vertDef[]={ 
+		&vertBuff[0],0,           // vertices 
+		&texBuff[0],0,             // texcoords 
+		lighmapscoords,0,        // lightmapcoords 
+		tangents,0,              // tangents 
+		binormals,0,             // binormals 
+		normals,0,               // normals 
+		colors,0                 // colors 
+	}; 
+    
+	numIndices = 0;
+	numVerts = 0;
+	verts = &vertBuff[0];
+	texcoords = &texBuff[0];
+	indices = &indexBuff[0];
+
+	xofs = x;
+	while (*str) {
+		//Newlines
+		if ((*str) == '\n') {
+			y+=font->charHeight;
+			xofs = x;
+			str++;
+			continue;
+		}
+
+		//Add it to the vertex buffer
+		Draw_EmitFontChar(font, (*str), y, &xofs);
+
+		//Draw in 64 char batches
+		if (numIndices >= MAX_CHARI) {
+			gl_bumpdriver.drawTriangleListBase ( vertDef, indexBuff, numIndices, font->shader, -1);
+			numIndices = 0;
+			numVerts = 0;
+			verts = &vertBuff[0];
+			texcoords = &texBuff[0];
+			indices = &indexBuff[0];
+		}
+		str++;
+	}
+
+	if (numIndices) {
+		gl_bumpdriver.drawTriangleListBase ( vertDef, indexBuff, numIndices, font->shader, -1);
+		numIndices = 0;
+	}
+}
+
+/**
+	Calculate the width of a given string in pixels based on the font metrics.
+*/
+int Draw_StringWidth(char *str, drawfont_t *font) {
+	int width = 0;
+	int maxwidth = 0;
+	while (*str) {
+		//Newlines
+		if ((*str) == '\n') {
+			if (width > maxwidth)
+				maxwidth = width;
+			width = 0;
+		} else {
+			width += font->metrics[(*str)].A;
+			width += font->metrics[(*str)].B;
+			width += font->metrics[(*str)].C;
+		}
+		str++;
+	}
+	if (width > maxwidth)
+		maxwidth = width;
+	return maxwidth;
+}
+
+/**
+	Calculate the height of a given string in pixels based on the font metrics.
+*/
+int Draw_StringHeight(char *str, drawfont_t *font) {
+	int height = font->charHeight;
+	qboolean newline = false;
+	while (*str) {
+		//increase height if there are characters after the newline.
+		if (newline) {
+			height+=font->charHeight;
+			newline = false;
+		}
+		//Newlines
+		if ((*str) == '\n') {
+			newline = true;
+		}
+		str++;
+	}
+	return height;
+}
+
+void Draw_StringDefault(int x, int y, char *str) {
+	Draw_StringFont(x, y, str, &fontCache[0]);
 }
 
 /*
@@ -503,36 +709,9 @@ void Draw_TileClear (int x, int y, int w, int h)
 	glEnd ();
 }
 
-
 /*
 =============
-Draw_Fill
-
-Fills a box of pixels with a single color
-=============
-*/
-void Draw_Fill (int x, int y, int w, int h, int c)
-{
-	glDisable (GL_TEXTURE_2D);
-	glColor3f (host_basepal[c*3]/255.0,
-		host_basepal[c*3+1]/255.0,
-		host_basepal[c*3+2]/255.0);
-
-	glBegin (GL_QUADS);
-
-	glVertex2f (x,y);
-	glVertex2f (x+w, y);
-	glVertex2f (x+w, y+h);
-	glVertex2f (x, y+h);
-
-	glEnd ();
-	glColor3f (1,1,1);
-	glEnable (GL_TEXTURE_2D);
-}
-
-/*
-=============
-Draw_Fill
+Draw_FillRGB
 
 Fills a box of pixels with a single color
 =============
