@@ -19,12 +19,18 @@
  * source in your projects documentation:
  *       Tim Ferguson: http://www.csse.monash.edu.au/~timf/
  * ------------------------------------------------------------------------ */
-/*
+
+#ifndef WIN32
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-*/
+#endif
+
+#ifdef WIN32
 #include "..\quakedef.h"
+#else
+#include "quakedef.h"
+#endif
 #include "roq.h"
 
 #define DBUG	0

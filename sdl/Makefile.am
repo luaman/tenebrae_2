@@ -150,9 +150,11 @@ COMMON_SRCS =				\
 	$(MASTER_DIR)/zone.c			\
 	$(MASTER_DIR)/zone.h			\
 	$(MASTER_DIR)/textures.c		\
+	$(MASTER_DIR)/textures_vid.c		\
 	$(GL_SRCS)				\
 	$(GL_TENEBRAE_SRCS)			\
-	$(LEX_TENEBRAE_SRCS)			
+	$(LEX_TENEBRAE_SRCS)			\
+	$(ROQ_SRCS)
 
 
 QUAKE_SRCS =				\
@@ -311,8 +313,12 @@ GL_TENEBRAE_SRCS =			\
 	$(MASTER_DIR)/gl_shadow.c		\
 	$(MASTER_DIR)/gl_svbsp.c		
 
-LEX_TENEBRAE_SRCS =				\
+LEX_TENEBRAE_SRCS =			\
 	$(MASTER_DIR)/lex_part.l		
+
+ROQ_SRCS =				\
+	$(MASTER_DIR)/roq/roq_read.c		\
+	$(MASTER_DIR)/roq/roq.h
 
 NVPARSE_SRCS =				\
 	$(NVPARSE_DIR)/nvparse.cpp		\
