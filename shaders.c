@@ -280,8 +280,8 @@ char *ParceTcMod(char *data, stage_t *stage) {
 */
 char *ParseStage (char *data, shader_t *shader)
 {
-	char		command[256];
-	char		texture[256];
+	char		command[MAX_QPATH];
+	char		texture[MAX_QPATH*3+2], detail[MAX_QPATH];
 	stage_t		stage;
 	qboolean	isgraygloss;
 	//Con_Printf("Parsing shader stage...\n");
@@ -296,7 +296,7 @@ char *ParseStage (char *data, shader_t *shader)
 		//end of stage
 		if (com_token[0] == '}') {
 			//end of stage is parsed now set everything up correctly
-			strncpy(stage.filename,texture,MAX_QPATH);
+			strncpy(stage.filename,texture,MAX_QPATH*3+2);
 			stage.numtextures = 1;
 
 			if (stage.type == STAGE_GLOSS) {
@@ -315,7 +315,7 @@ char *ParseStage (char *data, shader_t *shader)
 						return NULL;
 					}
 					bumpstage = &shader->bumpstages[shader->numbumpstages-1];
-					sprintf(stage.filename,"%s|%s",texture,bumpstage->filename);
+					sprintf(stage.filename,"%s|%s",bumpstage->filename,texture);
 					strcpy(bumpstage->filename, stage.filename);
 				}
 				shader->flags = shader->flags | SURF_GLOSS;
@@ -369,11 +369,17 @@ char *ParseStage (char *data, shader_t *shader)
 
 			GET_SAFE_TOKEN;
 
-			//If it has a gray modifier it means the glossmap has to be stored in the bumpmap alpha
 			if (!strcmp(com_token, "gray")) {
+				//If it has a gray modifier it means the glossmap has to be stored in the bumpmap alpha
 				GET_SAFE_TOKEN;
-				strncpy(texture,com_token,MAX_QPATH);
+				strncpy(texture,com_token, MAX_QPATH);
 				isgraygloss = true;
+			} else if (!strcmp(com_token, "add")) {
+				//It has an add modifier, add a bumpmap and a normalmap together
+				GET_SAFE_TOKEN;
+				strncpy(detail, com_token, MAX_QPATH);
+				GET_SAFE_TOKEN;
+				sprintf(texture, "%s+%s", detail, com_token);
 			} else
 				strncpy(texture,com_token,MAX_QPATH);
 
@@ -431,17 +437,29 @@ char *ParseStage (char *data, shader_t *shader)
 /**
 * Automatically generate a bump stage with the bumpmap keyword
 */
-void normalStage(shader_t *shader, char *name) {
+char *normalStage(char *data, shader_t *shader, char *name) {
 	stage_t *stage;
 	if (shader->numbumpstages >= SHADER_MAX_BUMP_STAGES)
-			return;
+			return data;
+
 	stage = &shader->bumpstages[shader->numbumpstages];
 	shader->numbumpstages++;
 
+	if (strcmp(name,"add")) {
+		char buff[MAX_QPATH];
+		GET_SAFE_TOKEN;
+		strncpy(buff,com_token,MAX_QPATH);
+		GET_SAFE_TOKEN;
+		sprintf(stage->filename, "%s+%s", buff, com_token);
+	} else {
+		strncpy(stage->filename,name,MAX_QPATH);
+	}
+
 	clearStage(stage);
 	stage->type = STAGE_BUMP;
-	strncpy(stage->filename,name,MAX_QPATH);
 	shader->flags = shader->flags | SURF_BUMP;
+
+	return data;
 }
 
 /**
@@ -536,7 +554,7 @@ char *ParseShader (char *data, shader_t *shader)
 			data = ParseStage(data, shader);
 		} else if (!strcmp(command,"normalmap")) {
 			GET_SAFE_TOKEN;
-			normalStage(shader,com_token);
+			data = normalStage(data, shader,com_token);
 		} else if (!strcmp(command,"diffusemap")) {
 			GET_SAFE_TOKEN;
 			diffuseStage(shader,com_token);
