@@ -2038,6 +2038,7 @@ void R_SetupGL (void)
 	glGetIntegerv (GL_VIEWPORT, (GLint *) r_Iviewport);	// <AWE> added cast.
 	ExtractFrustum();
 
+	glEnable(GL_CULL_FACE);
 	glDisable(GL_BLEND);
 	glDisable(GL_ALPHA_TEST);
 	glEnable(GL_DEPTH_TEST);
