@@ -30,11 +30,6 @@ int		lightmap_bytes;		// 1, 2, or 4
 
 int		lightmap_textures = 0;
 
-
-#define	MAX_LIGHTMAPS	256
-
-glpoly_t	*lightmap_polys[MAX_LIGHTMAPS];
-
 /*
 ====================================================
 Global vertex table stuff:
@@ -46,7 +41,6 @@ The global vertex table contains world+brush model+static models+curve vertices.
 	buffer (on the Hunk)
 ====================================================
 */
-mmvertex_t *globalVertexTable = NULL;
 
 mmvertex_t *tempVertices = NULL;
 int	tempVerticesSize = 0;
@@ -57,7 +51,7 @@ int R_GetNextVertexIndex(void) {
 	return numTempVertices;
 }
 /*
-Returns the index of the vertex the date was copied to...
+Returns the index of the vertex the data was copied to...
 */
 int R_AllocateVertexInTemp(vec3_t pos, float texture [2], float lightmap[2], byte color[4]) {
 
@@ -91,17 +85,66 @@ int R_AllocateVertexInTemp(vec3_t pos, float texture [2], float lightmap[2], byt
 		tempVertices[numTempVertices].color[i] = color[i];
 	}
 
-	globalVertexTable = tempVertices;
-
 	numTempVertices++;
 	return numTempVertices-1;
 }
 
+vertexdef_t worldVertexDef;
+
 void R_CopyVerticesToHunk(void)
 {
-	globalVertexTable = Hunk_Alloc(numTempVertices*sizeof(mmvertex_t));
-	Q_memcpy(globalVertexTable,tempVertices,numTempVertices*sizeof(mmvertex_t));
+	vec3_t *vecs;
+	int i,j;
+	//Position, texture coords and color
+	//Setup the vertexdef for the world
+	Q_memset(&worldVertexDef, 0, sizeof(vertexdef_t));
+	worldVertexDef.vertices = GL_StaticAlloc(numTempVertices*sizeof(mmvertex_t), tempVertices);
+	worldVertexDef.vertexstride = sizeof(mmvertex_t);
+	worldVertexDef.texcoords = GL_OffsetDriverPtr(worldVertexDef.vertices, 12);
+	worldVertexDef.texcoordstride = sizeof(mmvertex_t);
+	worldVertexDef.lightmapcoords = GL_OffsetDriverPtr(worldVertexDef.vertices, 20);
+	worldVertexDef.lightmapstride = sizeof(mmvertex_t);
+	worldVertexDef.colors = GL_OffsetDriverPtr(worldVertexDef.vertices, 28);
+	worldVertexDef.colorstride = sizeof(mmvertex_t);
+
 	free(tempVertices);
+
+	//Tangent space basis
+	vecs = malloc(numTempVertices*sizeof(vec3_t));
+
+	//tangents
+	for (i=0; i<cl.worldmodel->numsurfaces; i++) {
+		msurface_t *s = &cl.worldmodel->surfaces[i];
+		glpoly_t *p = s->polys;
+		if (!p) continue;
+		for (j=0; j<p->numverts; j++) {
+			VectorCopy(s->tangent,vecs[p->firstvertex+j]);
+		}
+	}
+	worldVertexDef.tangents = GL_StaticAlloc(numTempVertices*sizeof(vec3_t), vecs);
+
+	//binormals
+	for (i=0; i<cl.worldmodel->numsurfaces; i++) {
+		msurface_t *s = &cl.worldmodel->surfaces[i];
+		glpoly_t *p = s->polys;
+		if (!p) continue;
+		for (j=0; j<p->numverts; j++) {
+			VectorCopy(s->binormal,vecs[p->firstvertex+j]);
+		}
+	}
+	worldVertexDef.binormals = GL_StaticAlloc(numTempVertices*sizeof(vec3_t), vecs);
+
+	//normals
+	for (i=0; i<cl.worldmodel->numsurfaces; i++) {
+		msurface_t *s = &cl.worldmodel->surfaces[i];
+		glpoly_t *p = s->polys;
+		if (!p) continue;
+		for (j=0; j<p->numverts; j++) {
+			VectorCopy(s->plane->normal,vecs[p->firstvertex+j]);
+		}
+	}
+	worldVertexDef.normals = GL_StaticAlloc(numTempVertices*sizeof(vec3_t), vecs);
+
 	Con_Printf("Copied %i vertices to hunk\n",numTempVertices);
 
 	numVertices = numTempVertices;
@@ -110,6 +153,7 @@ void R_CopyVerticesToHunk(void)
 	numTempVertices = 0;
 }
 
+/*
 void R_EnableVertexTable(int fields) {
 
 	glVertexPointer(3, GL_FLOAT, VERTEXSIZE*sizeof(float), globalVertexTable);
@@ -145,7 +189,7 @@ void R_DisableVertexTable(int fields) {
 	}
 	qglClientActiveTextureARB(GL_TEXTURE0_ARB);
 }
-
+*/
 void R_RenderDynamicLightmaps (msurface_t *fa);
 
 /*
@@ -163,9 +207,6 @@ extern	float	speedscale;		// for top sky and bottom sky
 
 void DrawGLWaterPoly (glpoly_t *p);
 void DrawGLWaterPolyLightmap (glpoly_t *p);
-
-//lpMTexFUNC qgl MTexCoord2fSGIS = NULL;
-//lpSelTexFUNC qgl SelectTextureSGIS = NULL;
 
 /* NV_register_combiners command function pointers
 PENTA: I put them here because mtex functions are above it, and I hadent't any ispiration for some other place.
@@ -301,20 +342,17 @@ PFNGLVERTEXATTRIBS4FVNVPROC qglVertexAttribs4fvNV = NULL;
 PFNGLVERTEXATTRIBS4SVNVPROC qglVertexAttribs4svNV = NULL;
 PFNGLVERTEXATTRIBS4UBVNVPROC qglVertexAttribs4ubvNV = NULL; 
 
-// <AWE> There are some diffs with the function parameters. wgl stuff not present with MacOS X. -DC- and SDL
-#if defined (__APPLE__) || defined (MACOSX) || defined (SDL) || defined (__glx__)
-
-PFNGLFLUSHVERTEXARRAYRANGEAPPLEPROC qglFlushVertexArrayRangeAPPLE  = NULL;
-PFNGLVERTEXARRAYRANGEAPPLEPROC qglVertexArrayRangeAPPLE  = NULL;
-
-#else
-
-PFNGLFLUSHVERTEXARRAYRANGENVPROC qglFlushVertexArrayRangeNV  = NULL;
-PFNGLVERTEXARRAYRANGENVPROC glVertexArrayRangeNV  = NULL;
-PFNWGLALLOCATEMEMORYNVPROC wglAllocateMemoryNV  = NULL;
-PFNWGLFREEMEMORYNVPROC wglFreeMemoryNV  = NULL;
-
-#endif /* __APPLE__ || MACOSX */
+PFNGLBINDBUFFERARBPROC qglBindBufferARB = NULL; 
+PFNGLDELETEBUFFERSARBPROC qglDeleteBuffersARB = NULL; 
+PFNGLGENBUFFERSARBPROC qglGenBuffersARB = NULL; 
+PFNGLISBUFFERARBPROC qglIsBufferARB = NULL; 
+PFNGLBUFFERDATAARBPROC qglBufferDataARB = NULL; 
+PFNGLBUFFERSUBDATAARBPROC qglBufferSubDataARB = NULL; 
+PFNGLGETBUFFERSUBDATAARBPROC qglGetBufferSubDataARB = NULL; 
+PFNGLMAPBUFFERARBPROC qglMapBufferARB = NULL; 
+PFNGLUNMAPBUFFERARBPROC qglUnmapBufferARB = NULL; 
+PFNGLGETBUFFERPARAMETERIVARBPROC qglGetBufferParameterivARB = NULL; 
+PFNGLGETBUFFERPOINTERVARBPROC qglGetBufferPointervARB = NULL; 
 
 qboolean mtexenabled = false;
 
@@ -338,7 +376,7 @@ void GL_EnableMultitexture(void)
 	}
 }
 
-
+/*
 void R_RenderBrushPolyCaustics (msurface_t *fa)
 {	int		i;
 	float	*v;
@@ -356,7 +394,7 @@ void R_RenderBrushPolyCaustics (msurface_t *fa)
 
 	glEnd ();
 }
-
+*/
 /*
 ================
 DrawTextureChains
@@ -528,7 +566,7 @@ void DrawBlendedTextureChains (void)
 	glDepthMask (1);
 }
 
-void R_DrawBrushModelCaustics (entity_t *e);
+//void R_DrawBrushModelCaustics (entity_t *e);
 
 /*
 =============
@@ -538,6 +576,7 @@ Tenebrae does "real cauistics", projected textures on all things including ents
 (Other mods seem to just add an extra, not properly projected layer to the polygons in the world.)
 =============
 */
+/*
 void R_DrawCaustics(void) {
 
 	msurface_t *s;
@@ -627,12 +666,12 @@ void R_DrawCaustics(void) {
 	glDisable(GL_TEXTURE_GEN_S);
 	glDisable(GL_TEXTURE_GEN_T);	
 }
-
+*/
 /*
 =================
 R_DrawBrushModel
 =================
-*/
+*//*
 void R_DrawBrushModelCaustics (entity_t *e)
 {
 	vec3_t		mins, maxs;
@@ -714,7 +753,7 @@ e->angles[0] = -e->angles[0];	// stupid quake bug
 	glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
 	glPopMatrix ();
 }
-
+*/
 /*
 =================
 R_DrawBrushModel
@@ -922,13 +961,6 @@ void R_RecursiveWorldNode (mnode_t *node)
 */
 				(*mark)->texturechain = (*mark)->shader->texturechain;
 				(*mark)->shader->texturechain = (*mark);
-				
-					if (!((*mark)->flags & (SURF_DRAWSKY | SURF_DRAWTURB))) {
-						(*mark)->polys->chain = lightmap_polys[(*mark)->lightmaptexturenum];
-						lightmap_polys[(*mark)->lightmaptexturenum] = (*mark)->polys;
-					}
-
-
 				(*mark)->visframe = r_framecount;
 				mark++;
 			} while (--c);
@@ -1105,21 +1137,11 @@ void R_InitDrawWorld (void)
 	currenttexture = -1;
 
 	glColor3f (1,1,1);
-	memset (lightmap_polys, 0, sizeof(lightmap_polys));
-//#ifdef QUAKE2
-
-	R_ClearSkyBox ();
-//#endif
-	//if (mirror) Con_Printf("RWorldn\n");
-	//mark visible polygons/ents
 	worldbox = emptyBox();
 	R_RecursiveWorldNode (cl.worldmodel->nodes);
-//#ifdef QUAKE2
 
 	if (gl_wireframe.value) return;
 	R_DrawSkyBox ();
-	//if (gl_fog.value) glEnable(GL_FOG);
-//#endif
 }
 
 /*
@@ -1209,7 +1231,22 @@ void R_MarkLeaves (void)
 =============================================================================
 */
 
-#define LIGHTMAP_WIDTH 128
+void SaveTGA (const char *filename, unsigned char *pixels, int width, int height) {
+	TargaHeader		targa_header;
+	FILE			*fout;
+	int i;
+
+	fout = fopen(filename, "wb");
+	//fwrite(pixels, 1, width*height*4, fout);
+	for (i=0; i<width*height; i++) {
+		int ind = i*3;
+		fputc(pixels[ind+0],fout);
+		fputc(pixels[ind+1],fout);
+		fputc(pixels[ind+2],fout);
+	}
+	fclose(fout);
+}
+
 
 /*
 ==================
@@ -1237,10 +1274,12 @@ void GL_BuildLightmaps (void)
 	lightmap_bytes = 4;
 
 	if (!COM_CheckParm("-externallight")) {
+		byte *packed, *deluxPack;
+		int lmIndex;
+		char name[512];
 	//no lightmaps in bsp make everything black...
 		if (!cl.worldmodel->numlightmaps) {
 			int black = 0;
-
 			Con_Printf("No lightmaps in map, defaulting to black.\n");
 
 			GL_Bind(lightmap_textures);
@@ -1251,28 +1290,100 @@ void GL_BuildLightmaps (void)
 			for (i=0; i<cl.worldmodel->numsurfaces; i++) {
 				cl.worldmodel->surfaces[i].lightmaptexturenum = 0;
 			}
+			cl.worldmodel->numlightmaps = 1;
 
-			for (i=0; i<numVertices; i++) {
-				globalVertexTable[i].color[0] = 0;
-				globalVertexTable[i].color[1] = 0;
-				globalVertexTable[i].color[2] = 0;
-				globalVertexTable[i].color[3] = 0;
-			}
+			Cvar_Set("sh_delux","0");
 			return;
 		}
 	//Load lightmaps stored in the bsp lump
-		for (i=0 ; i<cl.worldmodel->numlightmaps ; i++)
+		packed = malloc(PACKED_LIGHTMAP_WIDTH*PACKED_LIGHTMAP_WIDTH*3);
+		deluxPack = malloc(PACKED_LIGHTMAP_WIDTH*PACKED_LIGHTMAP_WIDTH*3);
+		for (i=0 ; i<cl.worldmodel->numlightmaps ; i+=2)
 		{
+			int lmIndex = i/2; //Delux not counted
+			int ofsX = LIGHTMAP_COLUMN(lmIndex)*FILE_LIGHTMAP_WIDTH;
+			int ofsY = LIGHTMAP_ROW(lmIndex)*FILE_LIGHTMAP_WIDTH;
+			int x,y,z;
 
-			//Con_Printf("Lightmap %i (texnum: %i)\n",i,lightmap_textures + i);
-			GL_Bind(lightmap_textures + i);
+			//Copy light color
+			byte *lmap = cl.worldmodel->lightdata+(lmIndex*2*FILE_LIGHTMAP_WIDTH*FILE_LIGHTMAP_WIDTH*3);
+			for (x=0; x<FILE_LIGHTMAP_WIDTH; x++) {
+				for (y=0; y<FILE_LIGHTMAP_WIDTH; y++) {
+					int pInd = ((ofsY+y)*PACKED_LIGHTMAP_WIDTH+ofsX+x)*3;
+					int fInd = (y*FILE_LIGHTMAP_WIDTH+x)*3;
+					packed[pInd+0] = lmap[fInd+0];
+					packed[pInd+1] = lmap[fInd+1];
+					packed[pInd+2] = lmap[fInd+2];
+				}
+			}
+
+			//Delux
+			lmap = cl.worldmodel->lightdata+((lmIndex*2+1)*FILE_LIGHTMAP_WIDTH*FILE_LIGHTMAP_WIDTH*3);
+			for (x=0; x<FILE_LIGHTMAP_WIDTH; x++) {
+				for (y=0; y<FILE_LIGHTMAP_WIDTH; y++) {
+					int pInd = ((ofsY+y)*PACKED_LIGHTMAP_WIDTH+ofsX+x)*3;
+					int fInd = (y*FILE_LIGHTMAP_WIDTH+x)*3;
+					deluxPack[pInd+0] = lmap[fInd+0];
+					deluxPack[pInd+1] = lmap[fInd+1];
+					deluxPack[pInd+2] = lmap[fInd+2];
+				}
+			}
+
+			if ((lmIndex%PACKED_LIGHTMAP_COUNT) == PACKED_LIGHTMAP_COUNT-1) {
+				
+				sprintf(name,"PackLight%i.raw",(lmIndex/PACKED_LIGHTMAP_COUNT)/2);
+				SaveTGA(name, packed, PACKED_LIGHTMAP_WIDTH, PACKED_LIGHTMAP_WIDTH);
+
+				sprintf(name,"PackDelux%i.raw",(lmIndex/PACKED_LIGHTMAP_COUNT)/2+1);
+				SaveTGA(name, deluxPack, PACKED_LIGHTMAP_WIDTH, PACKED_LIGHTMAP_WIDTH);
+
+				//Color
+				GL_Bind(lightmap_textures + ((lmIndex/PACKED_LIGHTMAP_COUNT)*2));
+				glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+				glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+				glTexImage2D (GL_TEXTURE_2D, 0, 3
+				, PACKED_LIGHTMAP_WIDTH, PACKED_LIGHTMAP_WIDTH, 0, 
+				gl_lightmap_format, GL_UNSIGNED_BYTE,packed);
+				//Delux
+				GL_Bind(lightmap_textures + ((lmIndex/PACKED_LIGHTMAP_COUNT)*2+1));
+				glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+				glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+				glTexImage2D (GL_TEXTURE_2D, 0, 3
+					, PACKED_LIGHTMAP_WIDTH, PACKED_LIGHTMAP_WIDTH, 0, 
+					gl_lightmap_format, GL_UNSIGNED_BYTE,deluxPack);
+			}
+		}
+
+		//Upload an eventual incomplete last one
+		lmIndex = cl.worldmodel->numlightmaps/2;
+		if (((lmIndex)%PACKED_LIGHTMAP_COUNT) != PACKED_LIGHTMAP_COUNT-1) {
+
+			sprintf(name,"PackLight%i.raw",(lmIndex/PACKED_LIGHTMAP_COUNT)*2);
+			SaveTGA(name, packed, 512, 512);
+
+			sprintf(name,"PackDelux%i.raw",(lmIndex/PACKED_LIGHTMAP_COUNT)*2+1);
+			SaveTGA(name, deluxPack, 512, 512);
+
+			//Color
+			GL_Bind(lightmap_textures + ((lmIndex*2)/PACKED_LIGHTMAP_COUNT));
 			glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 			glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 			glTexImage2D (GL_TEXTURE_2D, 0, 3
-			, LIGHTMAP_WIDTH, LIGHTMAP_WIDTH, 0, 
-			gl_lightmap_format, GL_UNSIGNED_BYTE,
-			cl.worldmodel->lightdata+(i*LIGHTMAP_WIDTH*LIGHTMAP_WIDTH*3));
+				, PACKED_LIGHTMAP_WIDTH, PACKED_LIGHTMAP_WIDTH, 0, 
+				gl_lightmap_format, GL_UNSIGNED_BYTE,packed);
+			//Delux
+			GL_Bind(lightmap_textures + ((lmIndex*2+1)/PACKED_LIGHTMAP_COUNT));
+			glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+			glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+			glTexImage2D (GL_TEXTURE_2D, 0, 3
+				, PACKED_LIGHTMAP_WIDTH, PACKED_LIGHTMAP_WIDTH, 0, 
+				gl_lightmap_format, GL_UNSIGNED_BYTE,deluxPack);
 		}
+
+		cl.worldmodel->numlightmaps = (cl.worldmodel->numlightmaps/PACKED_LIGHTMAP_COUNT)+1;
+		Con_Printf("GL_BuildLightmaps: %i unused lightmap slots\n", cl.worldmodel->numlightmaps%PACKED_LIGHTMAP_COUNT);
+		free(packed);
+		free(deluxPack);
 	} else {
 	//Load externally stored lightmaps
 		int old_tex_ext;
