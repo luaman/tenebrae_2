@@ -317,7 +317,7 @@ void R_SplitEntityOnNodePenta (entity_t *ent, mnode_t *node)
 		}
 
 		leaf = (mleaf_t *)node;
-		leafnum = leaf - cl.worldmodel->leafs - 1;
+		leafnum = leaf - cl.worldmodel->leafs;
 
 		ent->leafnums[ent->numleafs] = leafnum;
 		ent->numleafs++;			
