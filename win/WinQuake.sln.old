@@ -1,0 +1,48 @@
+Microsoft Visual Studio Solution File, Format Version 7.00
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "gas2masm", "..\gas2masm\gas2masm.vcproj", "{C4EDA6E1-DD93-40EA-8FBE-38556FF61188}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "nvparse", "..\nvparse\nvparse\nvparse.vcproj", "{B1D03692-BA1C-40D9-9875-CA8D4F4F016A}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "winquake", "WinQuake.vcproj", "{E82168D1-767D-4D79-BBD4-580AA485449E}"
+EndProject
+Global
+	GlobalSection(SolutionConfiguration) = preSolution
+		ConfigName.0 = Debug
+		ConfigName.1 = GL Debug
+		ConfigName.2 = GL Release
+		ConfigName.3 = Release
+	EndGlobalSection
+	GlobalSection(ProjectDependencies) = postSolution
+		{E82168D1-767D-4D79-BBD4-580AA485449E}.0 = {C4EDA6E1-DD93-40EA-8FBE-38556FF61188}
+	EndGlobalSection
+	GlobalSection(ProjectConfiguration) = postSolution
+		{C4EDA6E1-DD93-40EA-8FBE-38556FF61188}.Debug.ActiveCfg = Debug|Win32
+		{C4EDA6E1-DD93-40EA-8FBE-38556FF61188}.Debug.Build.0 = Debug|Win32
+		{C4EDA6E1-DD93-40EA-8FBE-38556FF61188}.GL Debug.ActiveCfg = Debug|Win32
+		{C4EDA6E1-DD93-40EA-8FBE-38556FF61188}.GL Debug.Build.0 = Debug|Win32
+		{C4EDA6E1-DD93-40EA-8FBE-38556FF61188}.GL Release.ActiveCfg = Release|Win32
+		{C4EDA6E1-DD93-40EA-8FBE-38556FF61188}.GL Release.Build.0 = Release|Win32
+		{C4EDA6E1-DD93-40EA-8FBE-38556FF61188}.Release.ActiveCfg = Release|Win32
+		{C4EDA6E1-DD93-40EA-8FBE-38556FF61188}.Release.Build.0 = Release|Win32
+		{B1D03692-BA1C-40D9-9875-CA8D4F4F016A}.Debug.ActiveCfg = Debug|Win32
+		{B1D03692-BA1C-40D9-9875-CA8D4F4F016A}.Debug.Build.0 = Debug|Win32
+		{B1D03692-BA1C-40D9-9875-CA8D4F4F016A}.GL Debug.ActiveCfg = Debug|Win32
+		{B1D03692-BA1C-40D9-9875-CA8D4F4F016A}.GL Debug.Build.0 = Debug|Win32
+		{B1D03692-BA1C-40D9-9875-CA8D4F4F016A}.GL Release.ActiveCfg = Release|Win32
+		{B1D03692-BA1C-40D9-9875-CA8D4F4F016A}.GL Release.Build.0 = Release|Win32
+		{B1D03692-BA1C-40D9-9875-CA8D4F4F016A}.Release.ActiveCfg = Release|Win32
+		{B1D03692-BA1C-40D9-9875-CA8D4F4F016A}.Release.Build.0 = Release|Win32
+		{E82168D1-767D-4D79-BBD4-580AA485449E}.Debug.ActiveCfg = GL Debug|Win32
+		{E82168D1-767D-4D79-BBD4-580AA485449E}.Debug.Build.0 = GL Debug|Win32
+		{E82168D1-767D-4D79-BBD4-580AA485449E}.GL Debug.ActiveCfg = GL Debug|Win32
+		{E82168D1-767D-4D79-BBD4-580AA485449E}.GL Debug.Build.0 = GL Debug|Win32
+		{E82168D1-767D-4D79-BBD4-580AA485449E}.GL Release.ActiveCfg = GL Release|Win32
+		{E82168D1-767D-4D79-BBD4-580AA485449E}.GL Release.Build.0 = GL Release|Win32
+		{E82168D1-767D-4D79-BBD4-580AA485449E}.Release.ActiveCfg = GL Release|Win32
+		{E82168D1-767D-4D79-BBD4-580AA485449E}.Release.Build.0 = GL Release|Win32
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+	EndGlobalSection
+	GlobalSection(ExtensibilityAddIns) = postSolution
+	EndGlobalSection
+EndGlobal
