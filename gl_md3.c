@@ -266,6 +266,122 @@ void DecodeNormal(int quant, vec3_t norm) {
 	norm[2] = cos(lng);
 }
 
+/**
+	Set up data that we need to calculate (not stored in the file)
+*/
+void SetupModelSurface(aliashdr_t	*pheader)
+{
+	int	i, j, k, l;
+	mtriangle_t *tris;
+	ftrivertx_t	*verts, *v;
+	vec3_t triangle[3];
+	plane_t	*norms;
+	vec3_t	*tangents, *binormals;
+	vec3_t v1, v2, normal;
+	int	*indecies;
+	fstvert_t *texcoords;
+
+	tris = (mtriangle_t *)((byte *)pheader + pheader->triangles);
+	verts = (ftrivertx_t *)((byte *)pheader + pheader->posedata);
+	indecies = (int *)((byte *)pheader + pheader->indecies);
+	texcoords = (fstvert_t *)((byte *)pheader + pheader->texcoords);
+
+//Setup connectivity
+	for (i=0; i<pheader->numtris; i++)
+		for (j=0 ; j<3 ; j++) {
+			//none found yet 
+			if (tris[i].neighbours[j] == -1) {
+				tris[i].neighbours[j] = findneighbourmd3(i, j, pheader->numtris, tris);
+			}
+		}
+
+//Calculate plane equations
+	norms = Hunk_Alloc (pheader->numtris * pheader->numposes * sizeof(plane_t));
+	pheader->planes = (byte *)norms - (byte *)pheader;
+	for (i=0; i<pheader->numposes; i++) {
+		for (j=0; j<pheader->numtris ; j++) {
+
+			//make 3 vec3_t's of this triangle's vertices
+			for (k=0; k<3; k++) {
+				v = &verts[i*pheader->poseverts + tris[j].vertindex[k]];
+				for (l=0; l<3; l++)
+					triangle[k][l] = v->v[l];		
+			}
+
+			//calculate their normal
+			VectorSubtract(triangle[0], triangle[1], v1);
+			VectorSubtract(triangle[2], triangle[1], v2);
+			CrossProduct(v2,v1, normal);		
+			VectorScale(normal, 1/Length(normal), norms[i*pheader->numtris+j].normal);
+			
+			//distance of plane eq
+			norms[i*pheader->numtris+j].dist = DotProduct(triangle[0],norms[i*pheader->numtris+j].normal);
+		}
+	}
+
+//Calculate tangents for vertices
+	tangents = Hunk_Alloc (pheader->poseverts * pheader->numposes * sizeof(vec3_t));
+	pheader->tangents = (byte *)tangents - (byte *)pheader;
+
+	binormals = Hunk_Alloc (pheader->poseverts * pheader->numposes * sizeof(vec3_t));
+	pheader->binormals = (byte *)binormals - (byte *)pheader;
+	//for all frames
+	for (i=0; i<pheader->numposes; i++) {
+
+		//set temp to zero
+		for (j=0; j<pheader->poseverts; j++) {
+			tangents[i*pheader->poseverts+j][0] = 0;
+			tangents[i*pheader->poseverts+j][1] = 0;
+			tangents[i*pheader->poseverts+j][2] = 0;
+			binormals[i*pheader->poseverts+j][0] = 0;
+			binormals[i*pheader->poseverts+j][1] = 0;
+			binormals[i*pheader->poseverts+j][2] = 0;
+			numNormals[j] = 0;
+		}
+
+		//for all tris
+		for (j=0; j<pheader->numtris; j++) {
+			vec3_t tangent;
+			vec3_t binormal;
+			vec3_t normal;
+			TangentForTrimd3(&indecies[j*3],&verts[i*pheader->poseverts],texcoords,tangent,binormal);
+			//for all vertices in the tri
+			for (k=0; k<3; k++) {
+				l = indecies[j*3+k];
+
+				VectorAdd(tangents[i*pheader->poseverts+l],tangent,
+							tangents[i*pheader->poseverts+l]); 
+				VectorAdd(binormals[i*pheader->poseverts+l],binormal,
+							binormals[i*pheader->poseverts+l]); 
+				numNormals[l]++;
+			}
+		}
+		
+		//calculate average
+		for (j=0; j<pheader->poseverts; j++) {
+			vec3_t norm;
+			float lat, lng;
+			if (!numNormals[j]) continue;
+			tangents[i*pheader->poseverts+j][0] = tangents[i*pheader->poseverts+j][0]/numNormals[j];
+			tangents[i*pheader->poseverts+j][1] = tangents[i*pheader->poseverts+j][1]/numNormals[j];
+			tangents[i*pheader->poseverts+j][2] = tangents[i*pheader->poseverts+j][2]/numNormals[j];
+
+			binormals[i*pheader->poseverts+j][0] = binormals[i*pheader->poseverts+j][0]/numNormals[j];
+			binormals[i*pheader->poseverts+j][1] = binormals[i*pheader->poseverts+j][1]/numNormals[j];
+			binormals[i*pheader->poseverts+j][2] = binormals[i*pheader->poseverts+j][2]/numNormals[j];
+
+			VectorNormalize(tangents[i*pheader->poseverts+j]);
+			VectorNormalize(binormals[i*pheader->poseverts+j]);
+			
+			DecodeNormal(verts[i*pheader->poseverts+j].lightnormalindex, normal);
+
+			Orthogonalize(normal, tangents[i*pheader->poseverts+j], tangents[i*pheader->poseverts+j]);
+			Orthogonalize(normal, binormals[i*pheader->poseverts+j], binormals[i*pheader->poseverts+j]);
+			
+		}
+	}
+}
+
 /*
 =================
 Mod_LoadMd3Model
@@ -292,14 +408,10 @@ void Mod_LoadMd3Model (model_t *mod, void *buffer)
 	mtriangle_t			*tris;
 	md3Triangle_t		*tri;
 	md3St_t				*st;
-	fstvert_t			*texcoords;
 	md3Frame_t			*frame;
-	plane_t				*norms;
 	int					*indecies;
-	vec3_t				v1, v2, normal;
-	vec3_t				triangle[3];
-	vec3_t				*tangents, *binormals;
 	md3Shader_t			*shader;
+	fstvert_t			*texcoords;
 	byte				fake[16];
 	char				shadername[MAX_QPATH];
         alias3data_t			*palias3;
@@ -440,293 +552,200 @@ void Mod_LoadMd3Model (model_t *mod, void *buffer)
 // multiples surfaces : the cached data (alias3data_t) hold an aliashdr_t for each surface
 //
 
-        size = sizeof (alias3data_t);
-        palias3 = Hunk_AllocName (size, mod->name);
-        palias3->numSurfaces = pinmodel->numSurfaces;
+	size = sizeof (alias3data_t);
+	palias3 = Hunk_AllocName (size, mod->name);
+	palias3->numSurfaces = pinmodel->numSurfaces;
         
-        // allocate header offset array
-        size = sizeof (aliashdr_t *) * (pinmodel->numSurfaces - 1);
-        if (size)
-             Hunk_Alloc (size);
+	// allocate header offset array
+	/* Didier, what's this?
+	size = sizeof (aliashdr_t *) * (pinmodel->numSurfaces - 1);
+	if (size)
+		Hunk_Alloc (size);
+	*/
 
-     mod->flags = 0;
-     mod->type = mod_alias;
-     mod->numframes = pinmodel->numFrames;
-     mod->synctype = ST_SYNC;
-
-     mod->mins[0] = mod->mins[1] = mod->mins[2] =  99999.0;
-     mod->maxs[0] = mod->maxs[1] = mod->maxs[2] = -99999.0; 
-     
-for (surfcount = 0; surfcount < pinmodel->numSurfaces; ++surfcount) {
-             
-	//Alocate hunk mem for the header and the frame info (not the actual frame vertices)
-	size = 	sizeof (aliashdr_t) + (pinmodel->numFrames-1) * sizeof (maliasframedesc_t);
-	pheader = Hunk_Alloc (size);
-	// store alias offset
-	palias3->ofsSurfaces[surfcount] = (int)((char*)pheader - (char*)palias3);
-	Q_memset(pheader,0,sizeof(aliashdr_t));
-
-	//Convert the header to the old header
-	pheader->ident = pinmodel->ident;
-	pheader->version = pinmodel->version;
-	VectorCopy(md3scale,pheader->scale);
-	VectorCopy(md3origin,pheader->scale_origin);
-	pheader->boundingradius = 100; //This seems not used anymore by quake
-	VectorCopy(md3origin,pheader->eyeposition);//This seems not used anymore by quake
-	pheader->numskins = 1; //Hacked value
-	pheader->skinwidth = 4;//Hacked value
-	pheader->skinheight = 4;//Hacked value
-	pheader->numverts = surf->numVerts;
-	pheader->numtris = surf->numTriangles;
-          pheader->numframes = surf->numFrames;
-          pheader->synctype = mod->synctype;
-	pheader->flags = 0;//Hacked value
-	pheader->size = 1;//All right, the unofficial specs say the average size of triangles, so we just put something there
-          pheader->numposes = surf->numFrames;
-	pheader->poseverts = surf->numVerts;
-
-	//Allocate the vertices
-	verts = Hunk_Alloc (pheader->numposes * pheader->poseverts * sizeof(ftrivertx_t) );
-	pheader->posedata = (byte *)verts - (byte *)pheader;
-	xyz = (md3XyzNormal_t *) ( (byte *)surf + surf->ofsXyzNormals );
-
-	//Convert the frames
-	frame = (md3Frame_t *) ( (byte *)pinmodel + pinmodel->ofsFrames );
-	for (i=0; i<pheader->numframes; i++, frame++) {
-		strcpy (pheader->frames[i].name, frame->name);
-		pheader->frames[i].firstpose = i;
-		pheader->frames[i].numposes = 1;
-		pheader->frames[i].frame = i;
-		pheader->frames[i].interval = 0.1f;
-		pheader->mins[0] = pheader->mins[1] = pheader->mins[2] =  99999.0;
-		pheader->maxs[0] = pheader->maxs[1] = pheader->maxs[2] = -99999.0; 
-		//Convert the vertices
-		for (j=0; j<pheader->poseverts; j++) {
-			k = i*pheader->poseverts+j;
-			verts[k].v[0] = xyz[k].xyz[0]*MD3_XYZ_SCALE;
-			verts[k].v[1] = xyz[k].xyz[1]*MD3_XYZ_SCALE;
-			verts[k].v[2] = xyz[k].xyz[2]*MD3_XYZ_SCALE;
-			verts[k].lightnormalindex = xyz[k].normal;
-			//setup correct surface bounding box
-			for (l=0; l<3; l++) {
-				pheader->mins[l] = min(pheader->mins[l],verts[k].v[l]);
-				pheader->maxs[l] = max(pheader->maxs[l],verts[k].v[l]);
+	mod->flags = 0;
+	mod->type = mod_alias;
+	mod->numframes = pinmodel->numFrames;
+	mod->synctype = ST_SYNC;
+	
+	mod->mins[0] = mod->mins[1] = mod->mins[2] =  99999.0;
+	mod->maxs[0] = mod->maxs[1] = mod->maxs[2] = -99999.0; 
+	
+	for (surfcount = 0; surfcount < pinmodel->numSurfaces; ++surfcount) {
+		
+		//Alocate hunk mem for the header and the frame info (not the actual frame vertices)
+		size = 	sizeof (aliashdr_t) + (pinmodel->numFrames-1) * sizeof (maliasframedesc_t);
+		pheader = Hunk_Alloc (size);
+		// store alias offset
+		palias3->ofsSurfaces[surfcount] = (int)((char*)pheader - (char*)palias3);
+		Q_memset(pheader,0,sizeof(aliashdr_t));
+		
+		//Convert the header to the old header
+		pheader->ident = pinmodel->ident;
+		pheader->version = pinmodel->version;
+		VectorCopy(md3scale,pheader->scale);
+		VectorCopy(md3origin,pheader->scale_origin);
+		pheader->boundingradius = 100; //This seems not used anymore by quake
+		VectorCopy(md3origin,pheader->eyeposition);//This seems not used anymore by quake
+		pheader->numskins = 1; //Hacked value
+		pheader->skinwidth = 4;//Hacked value
+		pheader->skinheight = 4;//Hacked value
+		pheader->numverts = surf->numVerts;
+		pheader->numtris = surf->numTriangles;
+		pheader->numframes = surf->numFrames;
+		pheader->synctype = mod->synctype;
+		pheader->flags = 0;//Hacked value
+		pheader->size = 1;//All right, the unofficial specs say the average size of triangles, so we just put something there
+		pheader->numposes = surf->numFrames;
+		pheader->poseverts = surf->numVerts;
+		
+		//Allocate the vertices
+		verts = Hunk_Alloc (pheader->numposes * pheader->poseverts * sizeof(ftrivertx_t) );
+		pheader->posedata = (byte *)verts - (byte *)pheader;
+		xyz = (md3XyzNormal_t *) ( (byte *)surf + surf->ofsXyzNormals );
+		
+		//Convert the frames
+		frame = (md3Frame_t *) ( (byte *)pinmodel + pinmodel->ofsFrames );
+		for (i=0; i<pheader->numframes; i++, frame++) {
+			strcpy (pheader->frames[i].name, frame->name);
+			pheader->frames[i].firstpose = i;
+			pheader->frames[i].numposes = 1;
+			pheader->frames[i].frame = i;
+			pheader->frames[i].interval = 0.1f;
+			pheader->mins[0] = pheader->mins[1] = pheader->mins[2] =  99999.0;
+			pheader->maxs[0] = pheader->maxs[1] = pheader->maxs[2] = -99999.0; 
+			//Convert the vertices
+			for (j=0; j<pheader->poseverts; j++) {
+				k = i*pheader->poseverts+j;
+				verts[k].v[0] = xyz[k].xyz[0]*MD3_XYZ_SCALE;
+				verts[k].v[1] = xyz[k].xyz[1]*MD3_XYZ_SCALE;
+				verts[k].v[2] = xyz[k].xyz[2]*MD3_XYZ_SCALE;
+				verts[k].lightnormalindex = xyz[k].normal;
+				//setup correct surface bounding box
+				for (l=0; l<3; l++) {
+					pheader->mins[l] = min(pheader->mins[l],verts[k].v[l]);
+					pheader->maxs[l] = max(pheader->maxs[l],verts[k].v[l]);
+				}
 			}
-		}
-		//setup correct model bounding box
-		for (j=0; j<3; j++) {
-			mod->mins[j] = min(mod->mins[j],pheader->mins[j]);
-			mod->maxs[j] = max(mod->maxs[j],pheader->maxs[j]);
-		}
-
-	}
-	//Con_Printf("%s: %f,%f,%f %f,%f,%f\n",loadname,mod->mins[0],mod->mins[1],mod->mins[2],mod->maxs[0],mod->maxs[1],mod->maxs[2]);
-
-	//Convert the triangles
-	tris = Hunk_Alloc (pheader->numtris * sizeof(mtriangle_t));
-	pheader->triangles = (byte *)tris - (byte *)pheader;
-	tri = (md3Triangle_t *) ( (byte *)surf + surf->ofsTriangles );
-	for (i=0; i<pheader->numtris; i++) {
-		for (j=0; j<3; j++) {
-			tris[i].vertindex[j] = tri[i].indexes[j];
-			tris[i].neighbours[j] = -1;
-		}
-		tris[i].facesfront = true; //doesn't matter
-	}
-
-	//Setup connectivity
-	for (i=0; i<pheader->numtris; i++)
-		for (j=0 ; j<3 ; j++) {
-			//none found yet 
-			if (tris[i].neighbours[j] == -1) {
-				tris[i].neighbours[j] = findneighbourmd3(i, j, pheader->numtris, tris);
+			//setup correct model bounding box
+			for (j=0; j<3; j++) {
+				mod->mins[j] = min(mod->mins[j],pheader->mins[j]);
+				mod->maxs[j] = max(mod->maxs[j],pheader->maxs[j]);
 			}
-		}
-
-	//Calculate plane equations
-	norms = Hunk_Alloc (pheader->numtris * pheader->numposes * sizeof(plane_t));
-	pheader->planes = (byte *)norms - (byte *)pheader;
-	for (i=0; i<pheader->numposes; i++) {
-		for (j=0; j<pheader->numtris ; j++) {
-
-			//make 3 vec3_t's of this triangle's vertices
-			for (k=0; k<3; k++) {
-				v = &verts[i*pheader->poseverts + tris[j].vertindex[k]];
-				for (l=0; l<3; l++)
-					triangle[k][l] = v->v[l];		
-			}
-
-			//calculate their normal
-			VectorSubtract(triangle[0], triangle[1], v1);
-			VectorSubtract(triangle[2], triangle[1], v2);
-			CrossProduct(v2,v1, normal);		
-			VectorScale(normal, 1/Length(normal), norms[i*pheader->numtris+j].normal);
 			
-			//distance of plane eq
-			norms[i*pheader->numtris+j].dist = DotProduct(triangle[0],norms[i*pheader->numtris+j].normal);
 		}
-	}
-
-	//Convert texcoords for triangles
-	texcoords = Hunk_Alloc (pheader->poseverts * sizeof(fstvert_t));
-	pheader->texcoords = (byte *)texcoords - (byte *)pheader;
-	st = (md3St_t *) ( (byte *)surf + surf->ofsSt );
-	for (i=0; i<pheader->poseverts ; i++) {
-		texcoords[i].s = st[i].s;
-		texcoords[i].t = st[i].t;
-	}
-
-	//Create index lists
-	indecies = Hunk_Alloc (pheader->numtris * sizeof(int) * 3);
-	pheader->indecies = (byte *)indecies - (byte *)pheader;
-	for (i=0 ; i<pheader->numtris ; i++) {
-		for (j=0 ; j<3 ; j++) {
-			//Throw vertex index into our index array
-			(*indecies) = tris[i].vertindex[j];
-			indecies++;
-		}
-	}
-	indecies = (int *)((byte *)pheader+pheader->indecies);
-
-	//Calculate tangents for vertices
-	tangents = Hunk_Alloc (pheader->poseverts * pheader->numposes * sizeof(vec3_t));
-	pheader->tangents = (byte *)tangents - (byte *)pheader;
-
-	binormals = Hunk_Alloc (pheader->poseverts * pheader->numposes * sizeof(vec3_t));
-	pheader->binormals = (byte *)binormals - (byte *)pheader;
-	//for all frames
-	for (i=0; i<pheader->numposes; i++) {
-
-		//set temp to zero
-		for (j=0; j<pheader->poseverts; j++) {
-			tangents[i*pheader->poseverts+j][0] = 0;
-			tangents[i*pheader->poseverts+j][1] = 0;
-			tangents[i*pheader->poseverts+j][2] = 0;
-			binormals[i*pheader->poseverts+j][0] = 0;
-			binormals[i*pheader->poseverts+j][1] = 0;
-			binormals[i*pheader->poseverts+j][2] = 0;
-			numNormals[j] = 0;
-		}
-
-		//for all tris
-		for (j=0; j<pheader->numtris; j++) {
-			vec3_t tangent;
-			vec3_t binormal;
-			vec3_t normal;
-			TangentForTrimd3(&indecies[j*3],&verts[i*pheader->poseverts],texcoords,tangent,binormal);
-			//for all vertices in the tri
-			for (k=0; k<3; k++) {
-				l = indecies[j*3+k];
-
-				VectorAdd(tangents[i*pheader->poseverts+l],tangent,
-							tangents[i*pheader->poseverts+l]); 
-				VectorAdd(binormals[i*pheader->poseverts+l],binormal,
-							binormals[i*pheader->poseverts+l]); 
-				numNormals[l]++;
+		//Con_Printf("%s: %f,%f,%f %f,%f,%f\n",loadname,mod->mins[0],mod->mins[1],mod->mins[2],mod->maxs[0],mod->maxs[1],mod->maxs[2]);
+		
+		//Convert the triangles
+		tris = Hunk_Alloc (pheader->numtris * sizeof(mtriangle_t));
+		pheader->triangles = (byte *)tris - (byte *)pheader;
+		tri = (md3Triangle_t *) ( (byte *)surf + surf->ofsTriangles );
+		for (i=0; i<pheader->numtris; i++) {
+			for (j=0; j<3; j++) {
+				tris[i].vertindex[j] = tri[i].indexes[j];
+				tris[i].neighbours[j] = -1;
 			}
+			tris[i].facesfront = true; //doesn't matter
 		}
 		
-		//calculate average
-		for (j=0; j<pheader->poseverts; j++) {
-			vec3_t norm;
-			float lat, lng;
-			if (!numNormals[j]) continue;
-			tangents[i*pheader->poseverts+j][0] = tangents[i*pheader->poseverts+j][0]/numNormals[j];
-			tangents[i*pheader->poseverts+j][1] = tangents[i*pheader->poseverts+j][1]/numNormals[j];
-			tangents[i*pheader->poseverts+j][2] = tangents[i*pheader->poseverts+j][2]/numNormals[j];
-
-			binormals[i*pheader->poseverts+j][0] = binormals[i*pheader->poseverts+j][0]/numNormals[j];
-			binormals[i*pheader->poseverts+j][1] = binormals[i*pheader->poseverts+j][1]/numNormals[j];
-			binormals[i*pheader->poseverts+j][2] = binormals[i*pheader->poseverts+j][2]/numNormals[j];
-
-			VectorNormalize(tangents[i*pheader->poseverts+j]);
-			VectorNormalize(binormals[i*pheader->poseverts+j]);
-			
-			DecodeNormal(verts[i*pheader->poseverts+j].lightnormalindex, normal);
-
-			Orthogonalize(normal, tangents[i*pheader->poseverts+j], tangents[i*pheader->poseverts+j]);
-			Orthogonalize(normal, binormals[i*pheader->poseverts+j], binormals[i*pheader->poseverts+j]);
-			
+		//Convert texcoords for triangles
+		texcoords = Hunk_Alloc (pheader->poseverts * sizeof(fstvert_t));
+		pheader->texcoords = (byte *)texcoords - (byte *)pheader;
+		st = (md3St_t *) ( (byte *)surf + surf->ofsSt );
+		for (i=0; i<pheader->poseverts ; i++) {
+			texcoords[i].s = st[i].s;
+			texcoords[i].t = st[i].t;
 		}
-
-	}
-
-
-	//Load skins
-	for (i=0; i<16; i++)
-		fake[i] = 254;
-
-	shader = (md3Shader_t *) ( (byte *)surf + surf->ofsShaders );
-
-	if (!shader->name[0]) {
-		Q_strcpy(shader->name,"unnamed");
-	}
-	
-	COM_StripExtension (shader->name, shadername);
-	pheader->shader = GL_ShaderForName(shadername);
-
-
+		
+		//Create index lists
+		indecies = Hunk_Alloc (pheader->numtris * sizeof(int) * 3);
+		pheader->indecies = (byte *)indecies - (byte *)pheader;
+		for (i=0 ; i<pheader->numtris ; i++) {
+			for (j=0 ; j<3 ; j++) {
+				//Throw vertex index into our index array
+				(*indecies) = tris[i].vertindex[j];
+				indecies++;
+			}
+		}
+		indecies = (int *)((byte *)pheader+pheader->indecies);
+		
+		SetupModelSurface(pheader);
+		
+		//Load skins
+		for (i=0; i<16; i++)
+			fake[i] = 254;
+		
+		shader = (md3Shader_t *) ( (byte *)surf + surf->ofsShaders );
+		
+		if (!shader->name[0]) {
+			Q_strcpy(shader->name,"unnamed");
+		}
+		
+		COM_StripExtension (shader->name, shadername);
+		pheader->shader = GL_ShaderForName(shadername);
+		
+		
 #ifdef MD3DEBUG
-	Con_Printf("Load shader %s\n",shadername);
+		Con_Printf("Load shader %s\n",shadername);
 #endif
-	// next surface
-	surf = (md3Surface_t *)( (byte *)surf + surf->ofsEnd );
-} /* for numsurf */
+		// next surface
+		surf = (md3Surface_t *)( (byte *)surf + surf->ofsEnd );
+	} /* for numsurf */
 
-     //calculate radius
-     mod->radius = RadiusFromBounds (mod->mins, mod->maxs);
+	//calculate radius
+	mod->radius = RadiusFromBounds (mod->mins, mod->maxs);
 
-        
-        /* monster or player models only ? */
-        /* tags */
-     /*
-        tag = (md3tag_t *)( (byte *)pinmodel + pinmodel->ofsTags );
 
-        for (i = 0; i< pinmodel->numTags; ++i){
+/* monster or player models only ? */
+/* tags */
+/*
+tag = (md3tag_t *)( (byte *)pinmodel + pinmodel->ofsTags );
 
-             Con_Printf("Tag %s\n",tag[i].name);
-
-             // swap everything first 
-             for ( j = 0 ; j < 3 ; j++ ) {
-                  tag[i].origin[j] = LittleFloat( tag[i].origin[j] );
-                  tag[i].axis[0][j] = LittleFloat( tag[i].axis[0][j] );
-                  tag[i].axis[1][j] = LittleFloat( tag[i].axis[1][j] );
-                  tag[i].axis[2][j] = LittleFloat( tag[i].axis[2][j] );
-             }
-             // then look for supported tags
-             // weapon tag ?
-             if (!strcmp(tag[i].name,"tag_weapon")){
-                  // for weapon, we only need origin, as the weapon 
-                  // follows the player look
-                  VectorCopy(palias3->weaponTag.origin,tag[i].origin);
-             }
-        }
-     */
+  for (i = 0; i< pinmodel->numTags; ++i){
+  
+	Con_Printf("Tag %s\n",tag[i].name);
+	
+	  // swap everything first 
+	  for ( j = 0 ; j < 3 ; j++ ) {
+	  tag[i].origin[j] = LittleFloat( tag[i].origin[j] );
+	  tag[i].axis[0][j] = LittleFloat( tag[i].axis[0][j] );
+	  tag[i].axis[1][j] = LittleFloat( tag[i].axis[1][j] );
+	  tag[i].axis[2][j] = LittleFloat( tag[i].axis[2][j] );
+	  }
+	  // then look for supported tags
+	  // weapon tag ?
+	  if (!strcmp(tag[i].name,"tag_weapon")){
+	  // for weapon, we only need origin, as the weapon 
+	  // follows the player look
+	  VectorCopy(palias3->weaponTag.origin,tag[i].origin);
+	  }
+	  }
+*/
 
 	if (!strcmp (mod->name, "progs/g_shot.mdl") || //Hack to give .md3 files renamed to .mdl rotate effects - Eradicator
- 		!strcmp (mod->name, "progs/g_nail.mdl") ||
- 		!strcmp (mod->name, "progs/g_nail2.mdl") ||
- 		!strcmp (mod->name, "progs/g_rock.mdl") ||
- 		!strcmp (mod->name, "progs/g_rock2.mdl") || 
- 		!strcmp (mod->name, "progs/g_light.mdl") ||
+		!strcmp (mod->name, "progs/g_nail.mdl") ||
+		!strcmp (mod->name, "progs/g_nail2.mdl") ||
+		!strcmp (mod->name, "progs/g_rock.mdl") ||
+		!strcmp (mod->name, "progs/g_rock2.mdl") || 
+		!strcmp (mod->name, "progs/g_light.mdl") ||
 		!strcmp (mod->name, "progs/armor.mdl") ||
 		!strcmp (mod->name, "progs/backpack.mdl") ||
- 		!strcmp (mod->name, "progs/w_g_key.mdl") ||
- 		!strcmp (mod->name, "progs/w_s_key.mdl") ||
- 		!strcmp (mod->name, "progs/m_g_key.mdl") ||
- 		!strcmp (mod->name, "progs/m_s_key.mdl") ||
- 		!strcmp (mod->name, "progs/b_g_key.mdl") ||
- 		!strcmp (mod->name, "progs/b_s_key.mdl") ||
- 		!strcmp (mod->name, "progs/quaddama.mdl") ||
- 		!strcmp (mod->name, "progs/invisibl.mdl") ||
- 		!strcmp (mod->name, "progs/invulner.mdl") ||
- 		!strcmp (mod->name, "progs/jetpack.mdl") || 
- 		!strcmp (mod->name, "progs/cube.mdl") ||
- 		!strcmp (mod->name, "progs/suit.mdl") ||
- 		!strcmp (mod->name, "progs/boots.mdl") ||
- 		!strcmp (mod->name, "progs/end1.mdl") ||
- 		!strcmp (mod->name, "progs/end2.mdl") ||
- 		!strcmp (mod->name, "progs/end3.mdl") ||
+		!strcmp (mod->name, "progs/w_g_key.mdl") ||
+		!strcmp (mod->name, "progs/w_s_key.mdl") ||
+		!strcmp (mod->name, "progs/m_g_key.mdl") ||
+		!strcmp (mod->name, "progs/m_s_key.mdl") ||
+		!strcmp (mod->name, "progs/b_g_key.mdl") ||
+		!strcmp (mod->name, "progs/b_s_key.mdl") ||
+		!strcmp (mod->name, "progs/quaddama.mdl") ||
+		!strcmp (mod->name, "progs/invisibl.mdl") ||
+		!strcmp (mod->name, "progs/invulner.mdl") ||
+		!strcmp (mod->name, "progs/jetpack.mdl") || 
+		!strcmp (mod->name, "progs/cube.mdl") ||
+		!strcmp (mod->name, "progs/suit.mdl") ||
+		!strcmp (mod->name, "progs/boots.mdl") ||
+		!strcmp (mod->name, "progs/end1.mdl") ||
+		!strcmp (mod->name, "progs/end2.mdl") ||
+		!strcmp (mod->name, "progs/end3.mdl") ||
 		!strcmp (mod->name, "progs/end4.mdl")) {
 		mod->flags |= EF_ROTATE; 
 	}
@@ -734,21 +753,21 @@ for (surfcount = 0; surfcount < pinmodel->numSurfaces; ++surfcount) {
 		mod->flags |= EF_ROCKET;
 	}
 	else if (!strcmp (mod->name, "progs/gib1.mdl") || //EF_GIB
- 			!strcmp (mod->name, "progs/gib2.mdl") || 
- 			!strcmp (mod->name, "progs/gib3.mdl") || 
- 			!strcmp (mod->name, "progs/h_player.mdl") || 
- 			!strcmp (mod->name, "progs/h_dog.mdl") || 
- 			!strcmp (mod->name, "progs/h_mega.mdl") || 
- 			!strcmp (mod->name, "progs/h_guard.mdl") || 
- 			!strcmp (mod->name, "progs/h_wizard.mdl") || 
- 			!strcmp (mod->name, "progs/h_knight.mdl") || 
- 			!strcmp (mod->name, "progs/h_hellkn.mdl") || 
- 			!strcmp (mod->name, "progs/h_zombie.mdl") || 
- 			!strcmp (mod->name, "progs/h_shams.mdl") || 
- 			!strcmp (mod->name, "progs/h_shal.mdl") || 
- 			!strcmp (mod->name, "progs/h_ogre.mdl") ||
- 			!strcmp (mod->name, "progs/armor.mdl") ||
-			!strcmp (mod->name, "progs/h_demon.mdl")) {
+			 !strcmp (mod->name, "progs/gib2.mdl") || 
+			 !strcmp (mod->name, "progs/gib3.mdl") || 
+			 !strcmp (mod->name, "progs/h_player.mdl") || 
+			 !strcmp (mod->name, "progs/h_dog.mdl") || 
+			 !strcmp (mod->name, "progs/h_mega.mdl") || 
+			 !strcmp (mod->name, "progs/h_guard.mdl") || 
+			 !strcmp (mod->name, "progs/h_wizard.mdl") || 
+			 !strcmp (mod->name, "progs/h_knight.mdl") || 
+			 !strcmp (mod->name, "progs/h_hellkn.mdl") || 
+			 !strcmp (mod->name, "progs/h_zombie.mdl") || 
+			 !strcmp (mod->name, "progs/h_shams.mdl") || 
+			 !strcmp (mod->name, "progs/h_shal.mdl") || 
+			 !strcmp (mod->name, "progs/h_ogre.mdl") ||
+			 !strcmp (mod->name, "progs/armor.mdl") ||
+			 !strcmp (mod->name, "progs/h_demon.mdl")) {
 		mod->flags |= EF_GIB;
 	}
 	else if (!strcmp (mod->name, "progs/grenade.mdl")) {
@@ -766,9 +785,9 @@ for (surfcount = 0; surfcount < pinmodel->numSurfaces; ++surfcount) {
 	{
 		mod->flags |= EF_TRACER3;
 	}
- 	else if (!strcmp (mod->name, "progs/zom_gib.mdl")) //EF_ZOMGIB
- 	{
- 		mod->flags |= EF_ZOMGIB;
+	else if (!strcmp (mod->name, "progs/zom_gib.mdl")) //EF_ZOMGIB
+	{
+		mod->flags |= EF_ZOMGIB;
 	}
 
 
@@ -777,13 +796,244 @@ for (surfcount = 0; surfcount < pinmodel->numSurfaces; ++surfcount) {
 //	
 	end = Hunk_LowMark ();
 	total = end - start;
-	
+
 	Cache_Alloc (&mod->cache, total, loadname);
 	if (!mod->cache.data)
-		return;
+	return;
 	memcpy (mod->cache.data, palias3, total);        
 
-        
+
+
+	Hunk_FreeToLowMark (start);
+
+}
+
+/**
+
+	The tkmo format is very similar to md3 but hasn't got some of it's quirks
+	(mainly related to 3d max exporting)
+
+*/
+
+static char *parseKParam(char *data, const char *keyword,int *result) {
+	data = COM_Parse (data);
+	
+	if (strcmp(com_token, keyword)) {
+		Sys_Error("Invalid TKMO, expected %s found %s\n",keyword, com_token);
+	}
+		
+	data = COM_Parse (data);
+	(*result) = atoi(com_token);
+	return data;
+}
+
+static char *ParseVectorLen(char *data, float *dest, int len) {
+	int i;
+	for (i=0; i<len; i++) {
+		data = COM_Parse(data);
+		dest[i] = atof(com_token);
+	}
+	return data;
+}
+
+int NormalToLatLong( const vec3_t normal);
+
+void Mod_LoadTenebraeKeyframeModel (model_t *mod, void *buffer)
+{
+	int					i, j, k, l;
+	md3Header_t			*pinmodel;
+	int					size;
+	int					start, end, total;
+	md3Surface_t		*surf;
+	md3tag_t			*tag;
+	vec3_t				tkmoscale = {1.0f, 	1.0f, 	1.0f};
+	vec3_t				tkmoorigin = {0.0f, 0.0f, 0.0f};
+	ftrivertx_t			*verts, *v;
+	md3XyzNormal_t		*xyz;
+	mtriangle_t			*tris;
+	md3Triangle_t		*tri;
+	md3St_t				*st;
+	md3Frame_t			*frame;
+	int					*indecies;
+	md3Shader_t			*shader;
+	fstvert_t			*texcoords;
+	byte				fake[16];
+	char				shadername[MAX_QPATH];
+    alias3data_t			*palias3;
+     int				surfcount;   
+	char *data;
+	vec3_t				temp;
+
+	//---//
+
+	start = Hunk_LowMark ();
+	data = (char *)buffer;
+	
+	data = COM_Parse(data);
+	if (strcmp(com_token, "TKMO")) Sys_Error("Invalid TKMO, expected TKMO found %s\n", com_token);
+
+
+	mod->flags = 0;
+	mod->type = mod_alias;
+	data = parseKParam(data, "frames", &mod->numframes);
+	mod->synctype = ST_SYNC;
+	
+	mod->mins[0] = mod->mins[1] = mod->mins[2] =  99999.0;
+	mod->maxs[0] = mod->maxs[1] = mod->maxs[2] = -99999.0; 
+
+	size = sizeof (alias3data_t);
+	palias3 = Hunk_AllocName(size, mod->name);
+	data = parseKParam(data, "materials", &palias3->numSurfaces);
+	
+	for (surfcount=0; surfcount<palias3->numSurfaces; surfcount++) {
+
+		//Alocate hunk mem for the header and the frame info (not the actual frame vertices)
+		size = 	sizeof (aliashdr_t) + (mod->numframes-1) * sizeof (maliasframedesc_t);
+		pheader = Hunk_Alloc (size);
+		palias3->ofsSurfaces[surfcount] = (int)((char*)pheader - (char*)palias3);
+		Q_memset(pheader,0,sizeof(aliashdr_t));
+
+		pheader->numframes = mod->numframes;
+		//Con_Printf("Surface: %i\n", surfcount);
+		pheader->numposes = pheader->numframes;
+
+		// read the shader to use on this surface
+		data = COM_Parse(data);
+		if (strcmp(com_token, "material")) Sys_Error("Invalid TKMO, expected material found %s\n", com_token);
+		data = COM_Parse(data);
+		strcpy(shadername, com_token);
+		
+		//Fields that are filled without reading anything out of the file...
+		//FIXME: a lot of those can probably be removed.
+		pheader->ident = TEKEYFRAMEHEADER;
+		pheader->version = 1;
+		VectorCopy(tkmoscale,pheader->scale);
+		VectorCopy(tkmoorigin,pheader->scale_origin);
+		pheader->boundingradius = 100; //This seems not used anymore by quake
+		VectorCopy(tkmoorigin,pheader->eyeposition);//This seems not used anymore by quake
+		pheader->numskins = 1; //Hacked value
+		pheader->skinwidth = 4;//Hacked value
+		pheader->skinheight = 4;//Hacked value
+		pheader->synctype = mod->synctype;
+		pheader->flags = 0;//Hacked value
+		pheader->size = 1;//All right, the unofficial specs say the average size of triangles, so we just put something there
+
+	//Read the triangle indexes
+		//Con_Printf("Indexes\n");
+		data = parseKParam(data, "faces", &pheader->numtris);
+		tris = Hunk_Alloc (pheader->numtris * sizeof(mtriangle_t));
+		pheader->triangles = (byte *)tris - (byte *)pheader;
+		for (i=0; i<pheader->numtris; i++) {
+			data = ParseVectorLen(data, temp, 3);
+			for (j=0; j<3; j++) {
+				tris[i].vertindex[j] = (int)(temp[j]);
+				tris[i].neighbours[j] = -1;
+			}
+			tris[i].facesfront = true; //doesn't matter
+		}
+
+	//Read the texture coords
+		//Con_Printf("Stverts\n");
+		data = parseKParam(data, "stvertices", &pheader->poseverts);
+		pheader->numverts = pheader->poseverts;
+		texcoords = Hunk_Alloc (pheader->poseverts * sizeof(fstvert_t));
+		pheader->texcoords = (byte *)texcoords - (byte *)pheader;
+		for (i=0; i<pheader->poseverts ; i++) {
+			data = ParseVectorLen(data, temp, 2);
+			texcoords[i].s = temp[0];
+			texcoords[i].t = temp[1];
+		}
+
+	//Read in the frame vertices
+
+		
+		//Allocate the vertices
+		verts = Hunk_Alloc (pheader->numposes * pheader->poseverts * sizeof(ftrivertx_t) );
+		pheader->posedata = (byte *)verts - (byte *)pheader;
+		Con_Printf("Frames: %i\n",pheader->numframes);
+		for (i=0; i<pheader->numframes; i++) {
+			
+			//Con_Printf("Frame %i\n",i);
+
+			//Parse start of frame & framename
+			data = COM_Parse(data);
+			if (strcmp(com_token, "frame")) Sys_Error("Invalid TKMO, expected frame found %s\n", com_token);
+			data = COM_Parse(data);
+			strcpy (pheader->frames[i].name, com_token);
+
+			//Parse verts
+			pheader->frames[i].firstpose = i;
+			pheader->frames[i].numposes = 1;
+			pheader->frames[i].frame = i;
+			pheader->frames[i].interval = 0.1f;
+			pheader->mins[0] = pheader->mins[1] = pheader->mins[2] =  99999.0;
+			pheader->maxs[0] = pheader->maxs[1] = pheader->maxs[2] = -99999.0; 
+			//Convert the vertices
+			for (j=0; j<pheader->poseverts; j++) {
+				vec3_t pos, normal;
+
+				data = ParseVectorLen(data, pos, 3);
+				data = ParseVectorLen(data, normal, 3);
+
+				//Con_Printf("Normal: %f %f %f\n",normal[0],normal[1],normal[2]);
+
+				k = i*pheader->poseverts+j;
+				verts[k].v[0] = pos[0];
+				verts[k].v[1] = pos[1];
+				verts[k].v[2] = pos[2];
+				verts[k].lightnormalindex = NormalToLatLong(normal);
+				
+				//setup correct surface bounding box
+				for (l=0; l<3; l++) {
+					pheader->mins[l] = min(pheader->mins[l],verts[k].v[l]);
+					pheader->maxs[l] = max(pheader->maxs[l],verts[k].v[l]);
+				}
+			}
+
+			//setup correct model bounding box
+			for (j=0; j<3; j++) {
+				mod->mins[j] = min(mod->mins[j],pheader->mins[j]);
+				mod->maxs[j] = max(mod->maxs[j],pheader->maxs[j]);
+			}
+			
+		}
+		
+		//Create index lists
+		indecies = Hunk_Alloc (pheader->numtris * sizeof(int) * 3);
+		pheader->indecies = (byte *)indecies - (byte *)pheader;
+		for (i=0 ; i<pheader->numtris ; i++) {
+			for (j=0 ; j<3 ; j++) {
+				//Throw vertex index into our index array
+				(*indecies) = tris[i].vertindex[j];
+				indecies++;
+			}
+		}
+		indecies = (int *)((byte *)pheader+pheader->indecies);
+		
+		SetupModelSurface(pheader);
+
+		if (!shadername[0]) {
+			Q_strcpy(shadername,"unnamed");
+		}
+		
+		pheader->shader = GL_ShaderForName(shadername);
+	} /* for numsurf */
+
+	//calculate radius
+	mod->radius = RadiusFromBounds (mod->mins, mod->maxs);
+
+//
+// move the complete, relocatable alias model to the cache
+//	
+	end = Hunk_LowMark ();
+	total = end - start;
+
+	Cache_Alloc (&mod->cache, total, loadname);
+	if (!mod->cache.data)
+	return;
+	memcpy (mod->cache.data, palias3, total);        
+
+
 
 	Hunk_FreeToLowMark (start);
 
