@@ -48,12 +48,14 @@ extern PFNGLPNTRIANGLESIATIPROC qglPNTrianglesiATI;
 extern PFNGLPNTRIANGLESFATIPROC qglPNTrianglesfATI;
 
 // Separate_stencil_ATI
+
+/* -DC-  already in glquake.h
 typedef void (APIENTRY *PFNGLSTENCILOPSEPARATEATIPROC)(GLenum face, GLenum sfail, GLenum dpfail, GLenum dppass);
 typedef void (APIENTRY *PFNGLSTENCILFUNCSEPARATEATIPROC)(GLenum frontfunc, GLenum backfunc, GLint ref, GLuint mask);
 
 extern PFNGLSTENCILOPSEPARATEATIPROC qglStencilOpSeparateATI;
 extern PFNGLSTENCILFUNCSEPARATEATIPROC qglStencilFuncSeparateATI;
-
+*/
 // ARB_vertex_program
 
 typedef void (APIENTRY * glVertexAttrib1sARBPROC) (GLuint index, GLshort x);
