@@ -217,7 +217,7 @@ Con_DPrintf ("CL_SignonReply: %i\n", cls.signon);
 		
 		//We do this here since automaticlightpos can change the lightmapbright 
 		for (i=0; i<cl.worldmodel->nummeshes; i++) {
-			 CS_SetupMeshColors(&cl.worldmodel->meshes[i]);
+			 MESH_SetupMeshColors(&cl.worldmodel->meshes[i]);
 		}
 
 		R_LoadSkys();
