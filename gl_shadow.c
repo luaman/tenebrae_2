@@ -208,7 +208,7 @@ void R_ShadowFromEntity(entity_t *ent) {
 
 	shadowlight_t *l;
 
-	l = AllocShadowLight();
+        l = AllocShadowLight();
 	if (!l) return;
 
 	VectorCopy(ent->origin,l->origin);
@@ -264,7 +264,8 @@ void R_ShadowFromEntity(entity_t *ent) {
 	} else {
 		l->halo = false;
 	}
-	BoxForRadius(l);
+
+        BoxForRadius(l);
 }
 
 int cut_ent;
@@ -632,8 +633,8 @@ qboolean CheckSurfInLight(msurface_t *surf, shadowlight_t *light)
 	//Doesn't intersect light volume
 	if (light->isStatic)
 	{
-		vec3_t mins = {10e10,10e10,10e10};
-		vec3_t maxs = {-10e10,-10e10,-10e10};
+		vec3_t mins = {10e10f,10e10f,10e10f};
+		vec3_t maxs = {-10e10f,-10e10f,-10e10f};
 		int i;
 		for (i=0; i<poly->numindecies; i++) {
 			VectorMax(maxs,globalVertexTable[poly->indecies[i]].position,maxs);
@@ -2446,7 +2447,7 @@ void R_StaticLightFromEnt(entity_t *ent) {
 	msurface_t	*s;
 	mapshader_t	*t;
 
-	//Con_Printf("Shadow volumes start\n");
+        //Con_Printf("Shadow volumes start\n");
 	
 	if (!ent->model) {
 		Con_Printf("Light with null model");

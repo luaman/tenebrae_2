@@ -544,8 +544,8 @@ void R_DrawCaustics(void) {
 	int			i;
 	vec3_t		mins, maxs;
 
-	GLfloat sPlane[4] = {0.01, 0.005, 0.0, 0.0 };
-	GLfloat tPlane[4] = {0.0, 0.01, 0.005, 0.0 };
+	GLfloat sPlane[4] = {0.01f, 0.005f, 0.0f, 0.0f };
+	GLfloat tPlane[4] = {0.0f, 0.01f, 0.005f, 0.0f };
 
 	if (!gl_caustics.value) return;
 

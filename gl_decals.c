@@ -288,7 +288,7 @@ qboolean DecalAddPolygon(decal_t *dec, int vertcount, vec3_t *vertices)
 	return true;
 }
 
-const float decalEpsilon = 0.001;
+const float decalEpsilon = 0.001f;
 
 void DecalClipLeaf(decal_t *dec, mleaf_t *leaf)
 {
@@ -568,7 +568,7 @@ void R_DrawDecals (void)
 	glDepthMask(1);
 	glDisable (GL_BLEND);
 	glDisable(GL_ALPHA_TEST);
-	glAlphaFunc(GL_GREATER,0.666);
+	glAlphaFunc(GL_GREATER,0.666f);
 	glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
 	glFogfv(GL_FOG_COLOR, fog_color);
 }

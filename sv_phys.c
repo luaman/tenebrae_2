@@ -331,7 +331,7 @@ int SV_FlyMove (edict_t *ent, float time, trace_t *steptrace)
 			/*Changing the last parameter from 1.0 to 1.01 seems to solve most of the collision
 			problems.  I don't really know why it works but I got the idea from quake2 where it was
 			also changed to 1.01*/
-			ClipVelocity (original_velocity, planes[i], new_velocity, 1.01);
+			ClipVelocity (original_velocity, planes[i], new_velocity, 1.01f);
 			for (j=0 ; j<numplanes ; j++)
 				if (j != i)
 				{
@@ -1037,7 +1037,7 @@ int SV_TryUnstick (edict_t *ent, vec3_t oldvel)
 		ent->v.velocity[0] = oldvel[0];
 		ent->v. velocity[1] = oldvel[1];
 		ent->v. velocity[2] = 0;
-		clip = SV_FlyMove (ent, 0.1, &steptrace);
+		clip = SV_FlyMove (ent, 0.1f, &steptrace);
 
 		if ( fabs(oldorg[1] - ent->v.origin[1]) > 4
 		|| fabs(oldorg[0] - ent->v.origin[0]) > 4 )

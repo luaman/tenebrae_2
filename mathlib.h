@@ -33,6 +33,7 @@ typedef float matrix_1x4[4];          // a 1x4 matrix or a row vector
 
 #ifndef M_PI
 #define M_PI		3.14159265358979323846	// matches value in gcc v2 math.h
+#define M_PI_F		3.14159265358979323846f	// matches value in gcc v2 math.h
 #endif
 
 struct mplane_s;

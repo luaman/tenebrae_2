@@ -258,8 +258,8 @@ void DecodeNormal(int quant, vec3_t norm) {
 	
 	float lat = ( quant >> 8 ) & 0xff;
 	float lng = ( quant & 0xff );
-	lat *= M_PI/128;
-	lng *= M_PI/128;
+	lat *= M_PI_F/128;
+	lng *= M_PI_F/128;
 
 	norm[0] = cos(lat) * sin(lng);
 	norm[1] = sin(lat) * sin(lng);

@@ -243,13 +243,13 @@ void GlareQuad() {
 
 	glBegin (GL_QUADS);
 	glTexCoord2f(-1,1);
-	glVertex3f (0.1, 1, 1);
+	glVertex3f (0.1f, 1, 1);
 	glTexCoord2f(0,1);
-	glVertex3f (0.1, -1, 1);
+	glVertex3f (0.1f, -1, 1);
 	glTexCoord2f(0,0);
-	glVertex3f (0.1, -1, -1);
+	glVertex3f (0.1f, -1, -1);
 	glTexCoord2f(-1,0);
-	glVertex3f (0.1, 1, -1);
+	glVertex3f (0.1f, 1, -1);
 	glEnd ();
 
 }
@@ -278,7 +278,7 @@ glTexEnvf (GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
     glLoadIdentity ();
 	glMatrixMode(GL_MODELVIEW);
 
-	glColor4f (0.2,0.2,0.2,0.2);
+	glColor4f (0.2f,0.2f,0.2f,0.2f);
 
 	glPushMatrix();
 	glTranslatef(0,0,GLARE_OFS);

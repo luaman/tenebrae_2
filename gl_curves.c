@@ -641,14 +641,14 @@ void SetupMeshBox(mesh_t *m) {
 
 	int i;
 
-	m->mins[0] = 10e10;
-	m->mins[1] = 10e10;
-	m->mins[2] = 10e10;
+	m->mins[0] = 10e10f;
+	m->mins[1] = 10e10f;
+	m->mins[2] = 10e10f;
 
 
-	m->maxs[0] = -10e10;
-	m->maxs[1] = -10e10;
-	m->maxs[2] = -10e10;
+	m->maxs[0] = -10e10f;
+	m->maxs[1] = -10e10f;
+	m->maxs[2] = -10e10f;
 
 	for (i=0; i<m->numvertices; i++) {
 		VectorMax(m->maxs, tempVertices[m->firstvertex+i].position ,m->maxs);

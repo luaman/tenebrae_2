@@ -422,7 +422,7 @@ float	CL_LerpPoint (void)
 	if (f > 0.1)
 	{	// dropped packet, or start of demo
 		cl.mtime[1] = cl.mtime[0] - 0.1;
-		f = 0.1;
+		f = 0.1f;
 	}
 	frac = (cl.time - cl.mtime[1]) / f;
 //Con_Printf ("frac: %f\n",frac);
@@ -572,7 +572,7 @@ void CL_RelinkEntities (void)
 			dl->radius = 200 + (rand()&31);
 			dl->minlight = 32;
 			dl->die = cl.time + 0.1;
-			dl->color[0] = 1; dl->color[1] = 0.9; dl->color[2] = 0.7;
+			dl->color[0] = 1; dl->color[1] = 0.9f; dl->color[2] = 0.7f;
 			dl->owner = ent;
 		}
 		if (ent->effects & EF_BRIGHTLIGHT)
@@ -616,8 +616,8 @@ void CL_RelinkEntities (void)
 			dl->radius = 200 + (rand()&31);
 			dl->die = cl.time + 0.001;
 			dl->color[0] = 1;
-			dl->color[1] = 0.2;
-			dl->color[2] = 0.2;
+			dl->color[1] = 0.2f;
+			dl->color[2] = 0.2f;
 			dl->owner = ent;
 		}
 		if (ent->effects & EF_GREEN)
@@ -626,9 +626,9 @@ void CL_RelinkEntities (void)
 			VectorCopy (ent->origin,  dl->origin);
 			dl->radius = 200 + (rand()&31);
 			dl->die = cl.time + 0.001;
-			dl->color[0] = 0.2;
+			dl->color[0] = 0.2f;
 			dl->color[1] = 1;
-			dl->color[2] = 0.2;
+			dl->color[2] = 0.2f;
 			dl->owner = ent;
 		}
 		if (ent->effects & EF_FULLDYNAMIC)
@@ -673,8 +673,8 @@ void CL_RelinkEntities (void)
 			VectorCopy (ent->origin,  dl->origin);
 			dl->radius = 200 + (rand()&31);
 			dl->die = cl.time + 0.001;
-			dl->color[0] = 0.9;
-			dl->color[1] = 0.2;
+			dl->color[0] = 0.9f;
+			dl->color[1] = 0.2f;
 			dl->color[2] = 1;
 			dl->owner = ent;
 		}
@@ -717,7 +717,7 @@ void CL_RelinkEntities (void)
 			VectorCopy (ent->origin, dl->origin);
 			dl->radius = 200;
 			dl->die = cl.time + 0.01;
-			dl->color[0] = 1; dl->color[1] = 0.9; dl->color[2] = 0.7;
+			dl->color[0] = 1; dl->color[1] = 0.9f; dl->color[2] = 0.7f;
 			dl->owner = ent;
 			//PENTA: Hack give the lava ball a lava cube map
 			if (!strcmp (ent->model->name, "progs/lavaball.mdl")) {
@@ -735,7 +735,7 @@ void CL_RelinkEntities (void)
 			VectorCopy (ent->origin, dl->origin);
 			dl->radius = 200;
 			dl->die = cl.time + 0.01;
-			dl->color[0] = 1; dl->color[1] = 0.9; dl->color[2] = 0.7;
+			dl->color[0] = 1; dl->color[1] = 0.9f; dl->color[2] = 0.7f;
 			dl->owner = ent;
 		}
 		else if (ent->model->flags & EF_TRACER3)
@@ -773,18 +773,20 @@ int CL_ReadFromServer (void)
 
 	cl.oldtime = cl.time;
 	cl.time += host_frametime;
-	
-	do
+
+        do
 	{
 		ret = CL_GetMessage ();
-		if (ret == -1)
+
+                if (ret == -1)
 			Host_Error ("CL_ReadFromServer: lost server connection");
 		if (!ret)
 			break;
 		
 		cl.last_received_message = realtime;
 		CL_ParseServerMessage ();
-	} while (ret && cls.state == ca_connected);
+
+        } while (ret && cls.state == ca_connected);
 	
 	if (cl_shownet.value)
 		Con_Printf ("\n");

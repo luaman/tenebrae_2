@@ -242,8 +242,8 @@ void R_InterpolateNormals(aliashdr_t *paliashdr, aliasframeinstant_t *instant, i
 
 		lat = ( verts1[i].lightnormalindex >> 8 ) & 0xff;
 		lng = ( verts1[i].lightnormalindex & 0xff );
-		lat *= M_PI/128;
-		lng *= M_PI/128;
+		lat *= M_PI_F/128.0f;
+		lng *= M_PI_F/128.0f;
 
 		norm1[0] = cos(lat) * sin(lng);
 		norm1[1] = sin(lat) * sin(lng);
@@ -251,8 +251,8 @@ void R_InterpolateNormals(aliashdr_t *paliashdr, aliasframeinstant_t *instant, i
 
 		lat = ( verts2[i].lightnormalindex >> 8 ) & 0xff;
 		lng = ( verts2[i].lightnormalindex & 0xff );
-		lat *= M_PI/128;
-		lng *= M_PI/128;
+		lat *= M_PI_F/128.0f;
+		lng *= M_PI_F/128.0f;
 
 		norm2[0] = cos(lat) * sin(lng);
 		norm2[1] = sin(lat) * sin(lng);
@@ -386,7 +386,7 @@ void R_SetupLerpPoses(aliashdr_t *paliashdr,entity_t *e) {
 			jumps will be less noticable because of the shorter time.  So,
 			this is probably a good assumption.
 		*/
-		e->frame_interval = 0.1;
+		e->frame_interval = 0.1f;
 	}
 
 	if (e->pose2 != pose) {

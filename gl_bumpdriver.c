@@ -35,10 +35,10 @@ NOTE:  This should not draw sprites, sprites are drawn separately.
 bumpdriver_t gl_bumpdriver;
 
 /* Some material definitions. */
-float gl_Light_Ambience2[4] = {0.03,0.03,0.03,0.03};
-float gl_Light_Diffuse2[4] = {0.03,0.03,0.03,0.03};
+float gl_Light_Ambience2[4] = {0.03f,0.03f,0.03f,0.03f};
+float gl_Light_Diffuse2[4] = {0.03f,0.03f,0.03f,0.03f};
 float gl_Light_Specular2[4] = {0,0,0,0};
-float gl_Material_Color2[4] = {0.9, 0.9, 0.9, 0.9};
+float gl_Material_Color2[4] = {0.9f, 0.9f, 0.9f, 0.9f};
 
 void R_DrawLightEntitiesGF3 (shadowlight_t *l);
 void R_DrawLightEntitiesGF (shadowlight_t *l);

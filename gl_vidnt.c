@@ -1276,7 +1276,7 @@ static void Check_Gamma (unsigned char *pal)
 			(gl_vendor && strstr(gl_vendor, "3Dfx")))
 			vid_gamma = 1;
 		else
-			vid_gamma = 0.6; // default to 0.7 on non-3dfx hardware
+			vid_gamma = 0.6f; // default to 0.7 on non-3dfx hardware
 							 //PENTA: lowered to make things a little brighter
 	} else
 		vid_gamma = Q_atof(com_argv[i+1]);

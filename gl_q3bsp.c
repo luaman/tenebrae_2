@@ -160,7 +160,6 @@ Put the vertexes in the global vertex table.
 void ModQ3_LoadVertexes (lump_t *l)
 {
 	dq3vertex_t	*in;
-	mvertex_t	*out;
 	int			i, count;
 	vec3_t		pos;
 	float		tex[2], lightmap[2];
@@ -180,7 +179,7 @@ void ModQ3_LoadVertexes (lump_t *l)
 	loadmodel->numvertexes = count;
 	*/
 	
-	for ( i=0 ; i<count ; i++, in++, out++)
+	for ( i=0 ; i<count ; i++, in++)
 	{
 		pos[0] = LittleFloat (in->point[0]);
 		pos[1] = LittleFloat (in->point[1]);
