@@ -26,6 +26,9 @@ No dynamic lod...
 
 int			numleafbrushes;
 
+void TangentForPoly(int *index, mmvertex_t *vertices,vec3_t Tangent, vec3_t Binormal);
+void NormalForPoly(int *index, mmvertex_t *vertices,vec3_t Normal);
+
 //these are just utility structures
 typedef struct {
 	int firstcontrol;
@@ -370,10 +373,21 @@ void SubdivideCurve(curve_t *in, mesh_t *out, mmvertex_t *verts, int amount) {
 	free(expand);
 }
 
+qboolean degenerateDist(vec3_t v1, vec3_t v2) {
+	vec3_t s;
+	float d;
+	VectorSubtract(v1,v2,s);
+	d = DotProduct(s,s);
+	return (d < 0.01);
+}
+
 void CreateCurveIndecies(curve_t *curve, mesh_t *mesh)
 {
 	int i,j, i1, i2, li1, li2;
 	int w,h, index;
+	qboolean sharedDeg;
+	int degRemove = 0;
+	vec3_t norm;
 
 	h = curve->width;
 	w = curve->height;
@@ -393,23 +407,40 @@ void CreateCurveIndecies(curve_t *curve, mesh_t *mesh)
 		for (j=1; j<h; j++) {
 			i1 = j+(i+1)*h;
 			i2 = j+i*h;
+
+
+			sharedDeg = degenerateDist(globalVertexTable[mesh->firstvertex+li1].position,globalVertexTable[mesh->firstvertex+i2].position);
+			if (!sharedDeg &&
+				!degenerateDist(globalVertexTable[mesh->firstvertex+li2].position,globalVertexTable[mesh->firstvertex+i2].position) &&
+				!degenerateDist(globalVertexTable[mesh->firstvertex+li1].position,globalVertexTable[mesh->firstvertex+li2].position))
+			{
+				mesh->indecies[index++] = li2;
+				mesh->indecies[index++] = li1;
+				mesh->indecies[index++] = i2;
+			} else 
+				degRemove++;
 			
-			mesh->indecies[index++] = li2;
-			mesh->indecies[index++] = li1;
-			mesh->indecies[index++] = i2;
 
-			mesh->indecies[index++] = i2;
-			mesh->indecies[index++] = li1;
-			mesh->indecies[index++] = i1;
-
+			if (!sharedDeg &&
+				!degenerateDist(globalVertexTable[mesh->firstvertex+li1].position,globalVertexTable[mesh->firstvertex+i1].position) &&
+				!degenerateDist(globalVertexTable[mesh->firstvertex+i2].position,globalVertexTable[mesh->firstvertex+i1].position))
+			{
+				mesh->indecies[index++] = i2;
+				mesh->indecies[index++] = li1;
+				mesh->indecies[index++] = i1;
+			} else
+				degRemove++;
+			
 			li1 = i1;
 			li2 = i2;
 		}
 	}
-}
+	mesh->numtriangles-=degRemove;
 
-void TangentForPoly(int *index, mmvertex_t *vertices,vec3_t Tangent, vec3_t Binormal);
-void NormalForPoly(int *index, mmvertex_t *vertices,vec3_t Normal);
+	/*if (degRemove) {
+		Con_Printf("Removed %i degenerate triangles\n",degRemove);
+	}*/
+}
 
 void CreateTangentSpace(mesh_t *mesh) {
 	
@@ -421,13 +452,17 @@ void CreateTangentSpace(mesh_t *mesh) {
 	mesh->tangents = Hunk_Alloc(sizeof(vec3_t)*mesh->numvertices);
 	mesh->binormals = Hunk_Alloc(sizeof(vec3_t)*mesh->numvertices);
 	mesh->normals = Hunk_Alloc(sizeof(vec3_t)*mesh->numvertices);
+	mesh->triplanes = Hunk_Alloc(sizeof(plane_t)*mesh->numtriangles);
 
-	//average for every triangle
 	for (i=0; i<mesh->numtriangles; i++) {
 		TangentForPoly(&mesh->indecies[i*3],&tempVertices[mesh->firstvertex],tang,bin);
 		NormalForPoly(&mesh->indecies[i*3],&tempVertices[mesh->firstvertex],norm);
 
-
+		//per triangle normal for shadow volume
+		VectorCopy(norm,mesh->triplanes[i].normal);
+		mesh->triplanes[i].dist = DotProduct(tempVertices[mesh->firstvertex+mesh->indecies[i*3]].position,norm);
+		
+		//smooth tangent space basis
 		for (j=0; j<3; j++) {
 			VectorAdd(mesh->tangents[mesh->indecies[i*3+j]],tang,mesh->tangents[mesh->indecies[i*3+j]]);
 			VectorAdd(mesh->binormals[mesh->indecies[i*3+j]],bin,mesh->binormals[mesh->indecies[i*3+j]]);
@@ -448,10 +483,81 @@ void CreateTangentSpace(mesh_t *mesh) {
 			VectorNormalize(mesh->normals[i]);
 
 			//CrossProduct(mesh->binormals[i], mesh->tangents[i], mesh->normals[i]);
-		} else Con_Printf("num == 0\n");
+		} /*else Con_Printf("num == 0\n");*/
 	}
 
 	free(num);
+}
+
+/**
+* triangles points to a listf of numTris*3 indecies;
+*/
+int FindNeighbourMesh(int triIndex, int edgeIndex, int numTris, int *triangles, int *neighbours) {
+	int i, j, v1, v0, found,foundj = 0;
+	int *current = &triangles[triIndex*3];
+	int *t;
+	qboolean	dup;
+
+	v0 = current[edgeIndex];
+	v1 = current[(edgeIndex+1)%3];
+
+	//XYZ
+	found = -1;
+	dup = false;
+	for (i=0; i<numTris*3; i+=3) {
+		if (i == triIndex*3) continue;
+		t = &triangles[i];
+
+		for (j=0; j<3; j++) {      
+			if (((current[edgeIndex] == triangles[i+j]) 
+			    && (current[(edgeIndex+1)%3] == triangles[i+(j+1)%3]))
+				||
+			   ((current[edgeIndex] == triangles[i+(j+1)%3]) 
+			    && (current[(edgeIndex+1)%3] == triangles[i+j])))
+			{
+				//no edge for this model found yet?
+				if (found == -1) {
+					found = i;
+					foundj = j;
+				}
+				//the three edges story
+				else
+					dup = true;
+			}
+  
+		}
+	}
+
+	//normal edge, setup neighbour pointers
+	if (!dup) {
+		if (found != -1)
+			neighbours[found+foundj] = triIndex;
+		if (found >= 0)
+			return found/3;
+		return found;
+	}
+	//naughty egde let no-one have the neighbour
+	//Con_Printf("%s: warning: open edge added\n",loadname);
+	return -1;
+}
+
+void SetupMeshConnectivity(mesh_t *m) {
+	int i, j;
+
+	m->neighbours = Hunk_Alloc(sizeof(int)*m->numtriangles*3);
+
+	for (i=0; i<m->numtriangles*3; i++) {
+		m->neighbours[i] = -1;
+	}
+
+	//Setup connectivity
+	for (i=0; i<m->numtriangles; i++)
+		for (j=0 ; j<3 ; j++) {
+			//none found yet 
+			if (m->neighbours[i*3+j] == -1) {
+				m->neighbours[i*3+j] = FindNeighbourMesh(i, j, m->numtriangles, m->indecies, m->neighbours);
+			}
+		}
 }
 
 /*
@@ -479,9 +585,11 @@ void MESH_CreateCurve(dq3face_t *in, mesh_t *mesh, mapshader_t *shader)
 
 	//setup rest of the mesh
 	mesh->shader = shader;
+	mesh->lightmapIndex = in->lightofs;
 
 	CreateCurveIndecies(&curve, mesh);
 	CreateTangentSpace(mesh);
+	SetupMeshConnectivity(mesh);
 
 	mesh->trans.origin[0] = mesh->trans.origin[1] = mesh->trans.origin[2] = 0.0f;
 	mesh->trans.angles[0] = mesh->trans.angles[1] = mesh->trans.angles[2] = 0.0f;
@@ -513,8 +621,10 @@ void MESH_CreateInlineModel(dq3face_t *in, mesh_t *mesh, int *indecies, mapshade
 
 	//setup rest of the mesh
 	mesh->shader = shader;
+	mesh->lightmapIndex = in->lightofs;
 
 	CreateTangentSpace(mesh);
+	SetupMeshConnectivity(mesh);
 
 	mesh->trans.origin[0] = mesh->trans.origin[1] = mesh->trans.origin[2] = 0.0f;
 	mesh->trans.angles[0] = mesh->trans.angles[1] = mesh->trans.angles[2] = 0.0f;
