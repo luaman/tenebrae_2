@@ -926,6 +926,11 @@ void Key_Event (int key, qboolean down)
 //
 	if (!down)
 	{
+		if (key_dest == key_menu) {
+			M_Keyup (key);
+			return;
+		}
+
 		kb = keybindings[key];
 		if (kb && kb[0] == '+')
 		{

@@ -56,6 +56,7 @@ typedef struct qmtable_s
 	void (*Draw) (qwidget_t *self, int x, int y);
 	void (*Focus) (qwidget_t *self);
 	qboolean (*HandleKey) (qwidget_t *self, int key);	
+	void (*Drag) (qwidget_t *self, int x, int y);
 	//int  type;
 } qmtable_t;
 
@@ -97,6 +98,8 @@ struct qwidget_s
 	char             *id;         // idem
 	char             *tag;
 	drawfont_t		 *font;		  //font to use for this item and all sub items
+	shader_t		 *focusShader;
+	int				 focusType;
 	int               num_children;	
 	qmelement_t      *parent;     // bounding element
 	qmelement_t      *previous;   // previous sibling
@@ -109,8 +112,10 @@ struct qwidget_s
 	int               orient:1;
 	xmlalign_t        align;
 	xmlpack_t         pack;
-	int               xoffset;
-	int               yoffset;
+	int				  xpos; //x position of this widget (absolute screen space)
+	int				  ypos; //y position of this widget (absolute screen space) 
+	int               xoffset; //offset where to start drawing children
+	int               yoffset; 
 	xmldim_t          width;
 	xmldim_t          height;
 	int               accesskey;
@@ -173,6 +178,8 @@ qboolean M_XmlEditKey (qwidget_t *ptr, int k);
 qboolean M_XmlWindowKey (qwidget_t *ptr, int k);
 qboolean M_XmlMenuKey (qwidget_t *ptr, int k);
 qboolean M_XmlElementKey (qwidget_t *ptr, int k);
+
+void M_XmlSliderDrag (qwidget_t *ptr,int x, int y);
 
 void M_DrawXmlButton (qwidget_t *ptr, int x, int y);
 void M_DrawXmlImage (qwidget_t *ptr, int x, int y);

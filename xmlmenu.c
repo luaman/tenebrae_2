@@ -46,70 +46,80 @@ qmtable_t box_mtable =
 	M_LoadXmlBox,      // Load
 	NULL,              // Draw
 	NULL,              // Focus
-	M_XmlBoxKey        // HandleKey
+	M_XmlBoxKey,       // HandleKey
+	NULL			   // Drag
 };
 qmtable_t label_mtable =
 {
 	M_LoadXmlLabel,    // Load
 	M_DrawXmlLabel,    // Draw
 	NULL,              // Focus
-	NULL               // HandleKey
+	NULL,               // HandleKey
+	NULL			   // Drag
 };
 qmtable_t image_mtable =
 {
 	M_LoadXmlImage, // Load
 	M_DrawXmlImage, // Draw
 	NULL,         // Focus
-	NULL         // HandleKey
+	NULL,         // HandleKey
+	NULL			   // Drag
 };
 qmtable_t button_mtable =
 {
 	M_LoadXmlButton, // Load
 	M_DrawXmlButton, // Draw
 	NULL,         // Focus
-	M_XmlButtonKey  // HandleKey
+	M_XmlButtonKey,  // HandleKey
+	NULL			   // Drag
 };
 qmtable_t checkbox_mtable =
 {
 	M_LoadXmlCheckBox, // Load
 	M_DrawXmlCheckBox, // Draw
 	NULL,         // Focus
-	M_XmlCheckBoxKey // HandleKey
+	M_XmlCheckBoxKey, // HandleKey
+	NULL			   // Drag
 };
 qmtable_t radio_mtable =
 {
 	M_LoadXmlRadio, // Load
 	M_DrawXmlRadio,  // Draw
 	NULL,         // Focus
-	M_XmlRadioKey   // HandleKey
+	M_XmlRadioKey,   // HandleKey
+	NULL			   // Drag
 };
 qmtable_t rgroup_mtable =
 {
 	M_LoadXmlRadioGroup, // Load
 	M_DrawXmlRadioGroup, // Draw
 	NULL,         // Focus
-	M_XmlRadioGroupKey // HandleKey
+	M_XmlRadioGroupKey, // HandleKey
+	NULL			   // Drag
 };
 qmtable_t slider_mtable =
 {
 	M_LoadXmlSlider, // Load
 	M_DrawXmlSlider, // Draw
 	NULL,         // Focus
-	M_XmlSliderKey // HandleKey
+	M_XmlSliderKey, // HandleKey
+	M_XmlSliderDrag   // Drag
 };
 qmtable_t edit_mtable =
 {
 	M_LoadXmlEdit, // Load
 	M_DrawXmlEdit, // Draw
 	NULL,          // Focus
-	M_XmlEditKey   // HandleKey
+	M_XmlEditKey,   // HandleKey
+	NULL			   // Drag
 };
 qmtable_t window_mtable =
 {
 	M_LoadXmlWindow, // Load
 	NULL,         // Draw
 	NULL,         // Focus
-	M_XmlWindowKey  // HandleKey
+	M_XmlWindowKey,  // HandleKey
+	NULL			   // Drag
 };
 
 /*
@@ -170,9 +180,10 @@ typedef struct xmllabeldata_s
 
 typedef struct xmlsliderdata_s
 {
-	int       range;
-	int       cursor;
+	float     range;
+	float     cursor;
 	char      label[MAX_MLABEL];
+	shader_t	*pic;
 } xmlsliderdata_t;
 
 typedef struct xmleditdata_s
@@ -215,6 +226,7 @@ typedef struct qwindow_s {
 	//char       file[MAX_OSPATH];
 	qwidget_t *widget;
 	qwidget_t *focused;
+	qwidget_t *mouse_capture; // if nonnull this widget has the mouse captured
 	refstring_t string_table;
 	int keycount;
 	qaccesskey_t keytable[MAX_MACCESSKEY];
@@ -250,6 +262,8 @@ qwidget_t box_template =
 				DEF_STR_VALUE,           // id
 				box_tag,         // tag
 				NULL,			//font
+				NULL,			//focusshader
+				0,				//focus type
 				0,            // num_children
 				NULL,         // parent
 				NULL,         // previous
@@ -262,6 +276,8 @@ qwidget_t box_template =
 			0,            // orient = horizontal
 			a_stretch,      // align
 			p_start,        // pack
+			0,            // xpos
+			0,            // ypos
 			0,            // xpos
 			0,            // ypos
 			{0,0},        // width
@@ -281,6 +297,8 @@ qwidget_t vbox_template =
 				DEF_STR_VALUE,           // id
 				vbox_tag,     // tag
 				NULL,			//font
+				NULL,			//focusshader
+				0,				//focus type
 				0,            // num_children
 				NULL,         // parent
 				NULL,         // previous
@@ -293,6 +311,8 @@ qwidget_t vbox_template =
 			1,            // orient = vertical
 			a_stretch,      // align
 			p_start,        // pack
+			0,            // xpos
+			0,            // ypos
 			0,            // xpos
 			0,            // ypos
 			{0,0},        // width
@@ -312,6 +332,8 @@ qwidget_t label_template =
 				DEF_STR_VALUE,           // id
 				label_tag,    // tag
 				NULL,			//font
+				NULL,			//focusshader
+				0,				//focus type
 				0,            // num_children
 				NULL,         // parent
 				NULL,         // previous
@@ -324,6 +346,8 @@ qwidget_t label_template =
 			0,            // orient
 			a_stretch,      // align
 			p_start,        // pack
+			0,            // xpos
+			0,            // ypos
 			0,            // xpos
 			0,            // ypos
 			{0,0},        // width
@@ -343,6 +367,8 @@ qwidget_t image_template =
 				DEF_STR_VALUE,           // id
 				image_tag,         // tag
 				NULL,			//font
+				NULL,			//focusshader
+				0,				//focus type
 				0,            // num_children
 				NULL,         // parent
 				NULL,         // previous
@@ -355,6 +381,8 @@ qwidget_t image_template =
 			0,            // orient
 			a_stretch,      // align
 			p_start,        // pack
+			0,            // xpos
+			0,            // ypos
 			0,            // xpos
 			0,            // ypos
 			{0,0},        // width
@@ -374,6 +402,8 @@ qwidget_t button_template =
 				DEF_STR_VALUE,           // id
 				button_tag,         // tag
 				NULL,			//font
+				NULL,			//focusshader
+				0,				//focus type
 				0,            // num_children
 				NULL,         // parent
 				NULL,         // previous
@@ -386,6 +416,8 @@ qwidget_t button_template =
 			0,            // orient
 			a_stretch,      // align
 			p_start,        // pack
+			0,            // xpos
+			0,            // ypos
 			0,            // xpos
 			0,            // ypos
 			{0,0},        // width
@@ -405,6 +437,8 @@ qwidget_t checkbox_template =
 				DEF_STR_VALUE,           // id
 				checkbox_tag,         // tag
 				NULL,			//font
+				NULL,			//focusshader
+				0,				//focus type
 				0,            // num_children
 				NULL,         // parent
 				NULL,         // previous
@@ -417,6 +451,8 @@ qwidget_t checkbox_template =
 			0,            // orient
 			a_stretch,      // align
 			p_start,        // pack
+			0,            // xpos
+			0,            // ypos
 			0,            // xpos
 			0,            // ypos
 			{0,0},        // width
@@ -436,6 +472,8 @@ qwidget_t radio_template =
 				DEF_STR_VALUE,           // id
 				radio_tag,         // tag
 				NULL,			//font
+				NULL,			//focusshader
+				0,				//focus type
 				0,            // num_children
 				NULL,         // parent
 				NULL,         // previous
@@ -448,6 +486,8 @@ qwidget_t radio_template =
 			0,            // orient
 			a_stretch,      // align
 			p_start,        // pack
+			0,            // xpos
+			0,            // ypos
 			0,            // xpos
 			0,            // ypos
 			{0,0},        // width
@@ -467,6 +507,8 @@ qwidget_t rgroup_template =
 				DEF_STR_VALUE,           // id
 				rgroup_tag,         // tag
 				NULL,			//font
+				NULL,			//focusshader
+				0,				//focus type
 				0,            // num_children
 				NULL,         // parent
 				NULL,         // previous
@@ -479,6 +521,8 @@ qwidget_t rgroup_template =
 			1,            // orient = vertical
 			a_stretch,      // align
 			p_start,        // pack
+			0,            // xpos
+			0,            // ypos
 			0,            // xpos
 			0,            // ypos
 			{0,0},        // width
@@ -498,6 +542,8 @@ qwidget_t slider_template =
 				DEF_STR_VALUE,           // id
 				slider_tag,         // tag
 				NULL,			//font
+				NULL,			//focusshader
+				0,				//focus type
 				0,            // num_children
 				NULL,         // parent
 				NULL,         // previous
@@ -510,6 +556,8 @@ qwidget_t slider_template =
 			0,            // orient
 			a_stretch,      // align
 			p_start,        // pack
+			0,            // xpos
+			0,            // ypos
 			0,            // xpos
 			0,            // ypos
 			{0,0},        // width
@@ -529,6 +577,8 @@ qwidget_t edit_template =
 			DEF_STR_VALUE,           // id
 			edit_tag,         // tag
 			NULL,			//font
+				NULL,			//focusshader
+				0,				//focus type
 			0,            // num_children
 			NULL,         // parent
 			NULL,         // previous
@@ -541,6 +591,8 @@ qwidget_t edit_template =
 			0,            // orient
 			a_stretch,      // align
 			p_start,        // pack
+			0,            // xpos
+			0,            // ypos
 			0,            // xpos
 			0,            // ypos
 			{0,0},        // width
@@ -560,6 +612,8 @@ qwidget_t window_template =
 				DEF_STR_VALUE,           // id
 				window_tag,         // tag
 				NULL,			//font
+				NULL,			//focusshader
+				0,				//focus type
 				0,            // num_children
 				NULL,         // parent
 				NULL,         // previous
@@ -572,6 +626,8 @@ qwidget_t window_template =
 			0,            // orient
 			a_stretch,      // align
 			p_start,        // pack
+			0,            // xpos
+			0,            // ypos
 			0,            // xpos
 			0,            // ypos
 			{0,0},        // width
@@ -704,22 +760,24 @@ xmlChar *xmlbool[] = {
  *  qwidget_t *hud_window;
  */
 
-void M_DrawXmlNestedWidget (qwidget_t *self, int xpos, int ypos);
+void M_DrawXmlNestedWidget (qwidget_t *self);
 
 
 // -------------------------------------------------------------------------------------
-/*
-  window_stack : holds all instances of qwindow_t
-*/
 
-/*
-static struct qwindow_dummy_t {
-	qwindow_t *next;
-} w_dummy = { NULL };
-*/
+#define FOCUS_NOTSPECIFIED	0	//use parent's focus shader
+#define FOCUS_BORDER		1
+#define FOCUS_UNDER			2
+#define FOCUS_OVER			3
 
-qwindow_t *windows_stack = NULL;
-drawfont_t *currentFont = NULL;
+typedef struct {
+	int focusType;			//Type of focus to use
+	shader_t *focusShader;	//Shader to use for focus
+	drawfont_t *currentFont;//Font to use for text
+} menudrawstate_t;
+
+qwindow_t *windows_stack = NULL; //  window_stack : holds all instances of qwindow_t
+static menudrawstate_t currentState;
 
 void M_AddWindowInList (qwindow_t *window)
 {
@@ -1044,8 +1102,9 @@ void M_Init (void)
 	COM_FindAllExt ("menu", "xul", M_LoadXmlWindowFile);
 	Con_Printf("=================================\n");
 
-	currentFont = Draw_DefaultFont();
-	focus_shader = GL_ShaderForName ("menu/focus");
+	currentState.currentFont = Draw_DefaultFont();
+	currentState.focusShader = GL_ShaderForName ("menu/focus");
+	currentState.focusType = FOCUS_BORDER;
 }
 
 /*
@@ -1090,6 +1149,14 @@ void M_Keydown (int key)
 		M_XmlElementKey (focused,key);
 	else 	// current window get the key
 		M_XmlElementKey (visible_window->widget, key);
+}
+
+void M_Keyup (int key)
+{
+	Con_Printf("Mkeyup %i\n",key);
+	if (visible_window->mouse_capture && key == K_MOUSE1) {
+		visible_window->mouse_capture = NULL;
+	}
 }
 
 void M_XmlMouseMove ( int x, int y );
@@ -1145,7 +1212,7 @@ void Sbar_Draw (void)
 
 	w = vid.width - wnd->widget->width.absolute;
 	h = sb_lines - wnd->widget->height.absolute;
-	M_DrawXmlNestedWidget (wnd->widget, w/2, (vid.height - sb_lines) + h/2);
+	M_DrawXmlNestedWidget (wnd->widget);
 
 	visible_window = oldviz;
 }
@@ -1451,10 +1518,30 @@ qboolean M_XmlSliderKey (qwidget_t *self, int k)
 		//S_LocalSound ("misc/menu3.wav");
 		data->cursor += 1/SLIDER_RANGE;
 		break;
+	case K_MOUSE1:
+		//Get the capture
+		visible_window->mouse_capture = self;
+		break;
 	default:
 		return false;
 	}
 	return true;
+}
+
+void M_XmlSliderDrag (qwidget_t *self, int x, int y)
+{
+	xmlsliderdata_t *data = self->data;
+	float zeroone;
+
+	if (x < self->parent->xpos)
+		x = self->parent->xpos;
+	if (x+self->width.absolute >= self->parent->xpos+self->parent->width.absolute)
+		x = self->parent->xpos+self->parent->width.absolute-self->width.absolute;
+
+	//Set the value
+	zeroone = (x-self->parent->xpos)/(float)(self->parent->width.absolute-self->width.absolute);
+	data->cursor = zeroone*data->range;
+	Cvar_SetValue(self->id, zeroone*data->range);
 }
 
 qboolean M_XmlEditKey (qwidget_t *self, int k)
@@ -1534,9 +1621,11 @@ qboolean M_XmlElementKey (qwidget_t *self, int k)
 	return false;
 }
 
-qboolean M_XmlMouseMove_R (qwidget_t *self, int xpos, int ypos, int mouse_x, int mouse_y )
+qboolean M_XmlMouseMove_R (qwidget_t *self, int mouse_x, int mouse_y )
 {
 	qwidget_t *w;
+	int xpos = self->xpos;
+	int ypos = self->ypos;
 
 	//mouse is not in this screen
 	if ((mouse_x < xpos) || (mouse_x > xpos+self->width.absolute) ||
@@ -1553,58 +1642,8 @@ qboolean M_XmlMouseMove_R (qwidget_t *self, int xpos, int ypos, int mouse_x, int
 			return false;
 	}
 		
-	// vertical orientation
-	if (self->orient) {
-		int wwidth;
-		//ypos += widget->yoffset;
-		switch (self->pack){
-		case p_start:
-			for (w = self->children; w != NULL; w = w->next){
-				if (M_XmlMouseMove_R (w, xpos, ypos, mouse_x, mouse_y)) return true;
-				ypos += w->height.absolute;
-			}
-			break;
-		case p_center:
-			for (w = self->children; w != NULL; w = w->next){
-				wwidth = self->width.absolute - w->width.absolute;
-				if (M_XmlMouseMove_R (w, xpos+wwidth/2, ypos, mouse_x, mouse_y)) return true;
-				ypos += w->height.absolute;
-			}
-			break;
-		case p_end:
-			for (w = self->children; w != NULL; w = w->next){
-				wwidth = self->width.absolute - w->width.absolute;
-				if (M_XmlMouseMove_R (w, xpos+wwidth, ypos, mouse_x, mouse_y)) return true;
-				ypos += w->height.absolute;
-			}
-			break;
-		}
-	}
-	else {
-		int wheight;
-		//xpos += self->xoffset;
-		switch (self->pack){
-		case p_start:
-			for (w = self->children; w != NULL; w = w->next){
-				if (M_XmlMouseMove_R (w, xpos, ypos, mouse_x, mouse_y)) return true;
-				xpos += w->width.absolute;
-			}
-			break;
-		case p_center:
-			for (w = self->children; w != NULL; w = w->next){
-				wheight = - w->height.absolute + self->height.absolute;
-				if (M_XmlMouseMove_R (w, xpos, ypos+wheight/2, mouse_x, mouse_y)) return true;
-				xpos += w->width.absolute;
-			}
-			break;
-		case p_end:
-			for (w = self->children; w != NULL; w = w->next){
-				wheight = - w->height.absolute + self->height.absolute;
-				if (M_XmlMouseMove_R (w, xpos, ypos+wheight, mouse_x, mouse_y)) return true;
-				xpos += w->width.absolute;
-			}
-			break;
-		}
+	for (w = self->children; w != NULL; w = w->next){
+		if (M_XmlMouseMove_R (w, mouse_x, mouse_y)) return true;
 	}
 
 	//None of the children could be selected so try ourselve
@@ -1616,9 +1655,13 @@ qboolean M_XmlMouseMove_R (qwidget_t *self, int xpos, int ypos, int mouse_x, int
 }
 
 void M_XmlMouseMove ( int x, int y ) {
-	int w = vid.width - visible_window->widget->width.absolute;
-	int h = vid.height - visible_window->widget->height.absolute;
-	M_XmlMouseMove_R (visible_window->widget, w/2, h/2, x, y);
+	if (visible_window->mouse_capture) {
+		//Hand over to the component
+		if (visible_window->focused->mtable->Drag)
+			(*visible_window->focused->mtable->Drag)(visible_window->focused,x,y);
+	} else {
+		M_XmlMouseMove_R (visible_window->widget, x, y);
+	}
 }
 
 // -------------------------------------------------------------------------------------
@@ -1672,12 +1715,12 @@ draws the str string of length len in the (x1,y1,x2,y2) rectangle
 int M_DrawString (int x1, int y1, int x2, int y2, char *str, int len)
 {
 	// calculate string width and height, center it
-	int w = Draw_StringWidth(str, currentFont);
-	int h = Draw_StringHeight(str, currentFont);
+	int w = Draw_StringWidth(str, currentState.currentFont);
+	int h = Draw_StringHeight(str, currentState.currentFont);
 	int x = x1 + (x2 - x1 - w)/2;
 	int y = y1 + (y2 - y1 - h)/2;
 
-	Draw_StringFont(x, y, str, currentFont);
+	Draw_StringFont(x, y, str, currentState.currentFont);
 	return x + w;
 }
 
@@ -1705,8 +1748,10 @@ void M_Draw (void)
 			Draw_ConsoleBackground (vid.height);
 			S_ExtraUpdate ();
 		}
-		else
-			Draw_FadeScreen ();
+		//PENTA: Fading should be done with a shader now...
+		//so the artist can specify how we fade
+		//else
+		//	Draw_FadeScreen ();
 
 		scr_fullupdate = 0;
 	}
@@ -1747,7 +1792,6 @@ for ex. : width/height are calculated at loading time
 
 void M_DrawXmlButton (qwidget_t *self, int x, int y)
 {
-	// qwidget_t *self = ptr;
 	xmlbuttondata_t *data = self->data;
 	if (data->pic) {
 		M_DrawPic (x, y, x+self->width.absolute, y+self->height.absolute, data->pic);	
@@ -1757,7 +1801,6 @@ void M_DrawXmlButton (qwidget_t *self, int x, int y)
 
 void M_DrawXmlImage (qwidget_t *self, int x, int y)
 {
-	// qwidget_t *self = ptr;
 	xmlimagedata_t *data = self->data;
 	if (!data->pic)
 		data->pic = GL_ShaderForName (data->src);
@@ -1767,7 +1810,6 @@ void M_DrawXmlImage (qwidget_t *self, int x, int y)
 
 void M_DrawXmlLabel (qwidget_t *self, int x, int y)
 {
-	// qwidget_t *self = ptr;
 	xmllabeldata_t *data = self->data;
 	M_DrawString (x, y, x+self->width.absolute, y+self->height.absolute, data->text, strlen(data->text));
 }
@@ -1780,7 +1822,6 @@ void M_DrawXmlBox (qwidget_t *self, int x, int y)
 
 void M_DrawXmlRadio (qwidget_t *self, int x, int y)
 {
-	// qwidget_t *self = ptr;
 	xmlradiodata_t *data = self->data;
 	qboolean on = data->selected;
 	M_DrawString (x, y, x+self->width.absolute, y+self->height.absolute, data->label, strlen(data->label));
@@ -1799,28 +1840,26 @@ void M_DrawXmlRadioGroup (qwidget_t *self, int x, int y)
 
 void M_DrawXmlSlider (qwidget_t *self, int x, int y)
 {
-	int              i;
-	// qwidget_t *self = ptr;
 	xmlsliderdata_t *data = self->data;
-	int              cursor = data->cursor;
+	float zeroone = data->cursor / data->range;
+	float newx = self->parent->xpos + (self->parent->width.absolute-self->width.absolute)*zeroone;
 
-	if (cursor < 0)
-		cursor = 0;
-	if (cursor > 1)
-		cursor = 1;
+	//HACK: Initialize the cursor if it was not initialized yet.
+	//We have to do this as cvars may not be registred during load time
+	if (data->cursor == -1.0f) {
+		data->cursor = Cvar_VariableValue(self->id);
+	}
 
-	M_DrawCharacter (x, y, '<');
-	x += 8;
-	for (i=0 ; i<SLIDER_RANGE ; i++)
-		M_DrawCharacter (x + i*8, y, '=');
-	M_DrawCharacter (x+i*8, y, '>');
-	M_DrawCharacter (x + (SLIDER_RANGE-1)*8 * cursor, y, '#');
+	if (data->pic) {
+		M_DrawPic (newx, y, newx+self->width.absolute, y+self->height.absolute, data->pic);	
+	}
+	M_DrawString (newx, y, newx+self->width.absolute, y+self->height.absolute, data->label, /*sizeof(data->label)*/ strlen(data->label) );
+	self->xpos = (int)newx;
 }
 
 void M_DrawXmlEdit (qwidget_t *self, int x, int y)
 {
 	int              i;
-	// qwidget_t *self = ptr;
 	xmleditdata_t *data = self->data;
 	int              cursor = data->cursor;
 	char		label[MAX_MLABEL];
@@ -1841,9 +1880,15 @@ void M_DrawXmlEdit (qwidget_t *self, int x, int y)
 
 void M_DrawXmlCheckBox (qwidget_t *self,int x, int y)
 {
-	// qwidget_t *self = ptr;
 	xmlcheckboxdata_t *data = self->data;
-	qboolean on = data->checked;
+	qboolean on;
+
+	//HACK: Initialize the cursor if it was not initialized yet.
+	//We have to do this as cvars may not be registred during load time
+	if (data->checked == -1) {
+		data->checked = Cvar_VariableValue(self->id);
+	}
+	on = data->checked;
 
 	x = M_DrawString (x, y, x+self->width.absolute, y+self->height.absolute, data->label, strlen(data->label));
 
@@ -1855,31 +1900,23 @@ void M_DrawXmlCheckBox (qwidget_t *self,int x, int y)
 
 void M_DrawXmlWindow (qwidget_t *self,int x, int y)
 {
-	//qwindow_t *data = self->data;
 	// draw a border ?
 }
 
 
 void M_DrawFocus (qwidget_t *self, int x, int y)
 {
-	// qwidget_t *self = ptr;
 	int xs = x+self->width.absolute;
 	int ys = y+self->height.absolute;
 
-	if (focus_shader == NULL)
-		focus_shader = GL_ShaderForName ("menu/focus");
 
-/*
-	glDisable (GL_ALPHA_TEST);
-	glEnable (GL_BLEND);
-	glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    glColor4f (0.5,0.5,0.5,0.5);
-*/
-	Draw_Border (x, y, xs, ys, 5, focus_shader);
-/*
-	glDisable (GL_BLEND);
-	glEnable (GL_ALPHA_TEST);
-*/
+	//if (focus_shader == NULL)
+	//	focus_shader = GL_ShaderForName ("menu/focus");
+	if (currentState.focusType == FOCUS_BORDER) {
+		Draw_Border (x, y, xs, ys, 5, currentState.focusShader);
+	} else {
+		M_DrawPic (x, y, x+self->width.absolute, y+self->height.absolute, currentState.focusShader);
+	}
 }
 
 /* -DC-
@@ -1919,18 +1956,25 @@ void M_DrawOutlines (qwidget_t *self, int x, int y)
    -> but code duplication
  */
 
-void M_DrawXmlNestedWidget (qwidget_t *self, int xpos, int ypos)
+void M_DrawXmlNestedWidget (qwidget_t *self)
 {
 	// all objects within the window tree have to be a widget
 	//qwidget_t *widget=ptr;
 	qwidget_t *w;
-	drawfont_t *fontStack;
-	
-	//save the current font on the stack
+	menudrawstate_t stateStack;
+	int	xpos = self->xpos;
+	int ypos = self->ypos;
+
+	//save the current drawstate on the stack
 	//and set the widget's font as current font
-	fontStack = currentFont;
+	stateStack = currentState;
+
 	if (self->font)
-		currentFont = self->font;
+		currentState.currentFont = self->font;
+	if (self->focusType)
+		currentState.focusType = self->focusType;
+	if (self->focusShader)
+		currentState.focusShader = self->focusShader;
 
 	if (self->mtable->Draw){
 		self->mtable->Draw (self, xpos, ypos);
@@ -1944,72 +1988,24 @@ void M_DrawXmlNestedWidget (qwidget_t *self, int xpos, int ypos)
 		// draw outlines
 		M_DrawOutlines (self, xpos, ypos);
 	}
+
 	if (self->children == NULL) {
-		currentFont = fontStack; //restore font
+		currentState = stateStack; //restore drawstate
 		return;
 	}
-	// vertical orientation
-	if (self->orient) {
-		int wwidth;
-		//ypos += widget->yoffset;
-		switch (self->pack){
-		case p_start:
-			for (w = self->children; w != NULL; w = w->next){
-				M_DrawXmlNestedWidget (w, xpos, ypos);
-				ypos += w->height.absolute;
-			}
-			break;
-		case p_center:
-			for (w = self->children; w != NULL; w = w->next){
-				wwidth = self->width.absolute - w->width.absolute;
-				M_DrawXmlNestedWidget (w, xpos+wwidth/2, ypos);
-				ypos += w->height.absolute;
-			}
-			break;
-		case p_end:
-			for (w = self->children; w != NULL; w = w->next){
-				wwidth = self->width.absolute - w->width.absolute;
-				M_DrawXmlNestedWidget (w, xpos+wwidth, ypos);
-				ypos += w->height.absolute;
-			}
-			break;
-		}
-	}
-	else {
-		int wheight;
-		//xpos += self->xoffset;
-		switch (self->pack){
-		case p_start:
-			for (w = self->children; w != NULL; w = w->next){
-				M_DrawXmlNestedWidget (w, xpos, ypos);
-				xpos += w->width.absolute;
-			}
-			break;
-		case p_center:
-			for (w = self->children; w != NULL; w = w->next){
-				wheight = - w->height.absolute + self->height.absolute;
-				M_DrawXmlNestedWidget (w, xpos, ypos+wheight/2);
-				xpos += w->width.absolute;
-			}
-			break;
-		case p_end:
-			for (w = self->children; w != NULL; w = w->next){
-				wheight = - w->height.absolute + self->height.absolute;
-				M_DrawXmlNestedWidget (w, xpos, ypos+wheight);
-				xpos += w->width.absolute;
-			}
-			break;
-		}
+
+	for (w = self->children; w != NULL; w = w->next){
+		M_DrawXmlNestedWidget (w);
 	}
 
-	currentFont = fontStack;
+	currentState = stateStack;
 }
 
 void M_DrawWindow (qwindow_t *wnd)
 {
 	int w = vid.width - wnd->widget->width.absolute;
 	int h = vid.height - wnd->widget->height.absolute;
-	M_DrawXmlNestedWidget (wnd->widget, w/2, h/2);
+	M_DrawXmlNestedWidget (wnd->widget);
 }
 
 void M_DrawVisibleWindow ()
@@ -2321,13 +2317,91 @@ void M_CalculateWidgetDim (qwidget_t *root)
 		}
 	}
 	// let's do it for the children now
-	for (w = root->children; w != NULL; w = w->next)
+	for (w = root->children; w != NULL; w = w->next) {
 		M_CalculateWidgetDim (w);
+	}
+}
+
+/*
+================
+M_CalculateWidgetPos
+
+evaluate widgets x and y positions
+The goal is to have all size calculations in one place
+================
+*/
+void M_CalculateWidgetPos (qwidget_t *self, int xpos, int ypos)
+{
+	qwidget_t *w;
+
+	//Store our x and y position on the screen
+	self->xpos = xpos;
+	self->ypos = ypos;
+
+	if (self->children == NULL) {
+		return;
+	}
+
+	// vertical orientation
+	if (self->orient) {
+		int wwidth;
+		ypos += self->yoffset;
+		switch (self->pack){
+		case p_start:
+			for (w = self->children; w != NULL; w = w->next){
+				M_CalculateWidgetPos (w, xpos, ypos);
+				ypos += w->height.absolute;
+			}
+			break;
+		case p_center:
+			for (w = self->children; w != NULL; w = w->next){
+				wwidth = self->width.absolute - w->width.absolute;
+				M_CalculateWidgetPos (w, xpos+wwidth/2, ypos);
+				ypos += w->height.absolute;
+			}
+			break;
+		case p_end:
+			for (w = self->children; w != NULL; w = w->next){
+				wwidth = self->width.absolute - w->width.absolute;
+				M_CalculateWidgetPos (w, xpos+wwidth, ypos);
+				ypos += w->height.absolute;
+			}
+			break;
+		}
+	}
+	else {
+		int wheight;
+		xpos += self->xoffset;
+		switch (self->pack){
+		case p_start:
+			for (w = self->children; w != NULL; w = w->next){
+				M_CalculateWidgetPos (w, xpos, ypos);
+				xpos += w->width.absolute;
+			}
+			break;
+		case p_center:
+			for (w = self->children; w != NULL; w = w->next){
+				wheight = - w->height.absolute + self->height.absolute;
+				M_CalculateWidgetPos (w, xpos, ypos+wheight/2);
+				xpos += w->width.absolute;
+			}
+			break;
+		case p_end:
+			for (w = self->children; w != NULL; w = w->next){
+				wheight = - w->height.absolute + self->height.absolute;
+				M_CalculateWidgetPos (w, xpos, ypos+wheight);
+				xpos += w->width.absolute;
+			}
+			break;
+		}
+	}
 }
 
 void M_PrepareQWindow (qwidget_t *widget)
 {
 	char command[255];
+	int w,h;
+
 	// register alias for quake compat
 	strcpy (command, "alias menu_\0"); 
 	strcat (command, widget->id);           // no more that 32 char in widget->id
@@ -2340,6 +2414,12 @@ void M_PrepareQWindow (qwidget_t *widget)
 	// we have a fully loaded window here : 
 	// let's initialize children dependent data
 	M_CalculateWidgetDim (widget);
+
+	//positions
+	w = vid.width - widget->width.absolute;
+	h = vid.height - widget->height.absolute;
+	M_CalculateWidgetPos (widget, w/2, h/2);
+
 
 	/*
 	// set root on all sub-widget
@@ -2442,7 +2522,7 @@ void M_LoadXmlButton (qwidget_t *self, xmlNodePtr node)
 
 	*/
 	// qwidget_t *self = ptr;
-	static char buffer[MAX_QPATH];
+	char buffer[MAX_QPATH];
 	xmlbuttondata_t *data = self->data;
 	int temp;
 
@@ -2495,7 +2575,7 @@ void M_LoadXmlCheckBox (qwidget_t *self, xmlNodePtr node)
 	temp = M_CompareXmlProp (node, "disabled", xmlbool, 2);
 	if (temp != -1)
 		self->enabled = !temp;
-	data->checked = Cvar_VariableValue (self->id);	
+	data->checked = -1;	
 }
 
 void M_LoadXmlRadio (qwidget_t *self, xmlNodePtr node)
@@ -2571,11 +2651,22 @@ void M_LoadXmlSlider (qwidget_t *self, xmlNodePtr node)
 
 	*/
 	// qwidget_t *self = ptr;
+	char buffer[MAX_QPATH];
 	xmlsliderdata_t *data = self->data;
 
-	data->range = M_ReadXmlPropAsInt (node, "maxpos", 0);
+	data->range = M_ReadXmlPropAsFloat (node, "maxpos", 1.0f);
 	// FIXME : shoud property override cvar value ?
-	data->cursor = M_ReadXmlPropAsInt (node, "curpos", Cvar_VariableValue (self->name));
+	data->cursor = M_ReadXmlPropAsFloat (node, "curpos", -1.0f);//Cvar_VariableValue doesn't work here as the menus are loaded before some cvars are registred
+
+	M_ReadXmlPropAsString (node, "label", data->label, sizeof(data->label));
+
+	buffer[0] = 0;
+	M_ReadXmlPropAsString (node, "image", buffer, sizeof(buffer));
+	
+	if (buffer[0])
+		data->pic = GL_ShaderForName(buffer);
+	else
+		data->pic = NULL;
 }
 
 void M_LoadXmlEdit (qwidget_t *self, xmlNodePtr node)
@@ -2736,6 +2827,23 @@ void M_LoadXmlElement (qwidget_t *self, xmlNodePtr root)
 	M_ReadXmlPropAsString (root, "font", buffer, sizeof(buffer));
 	if (buffer[0])
 		self->font = Draw_FontForName(buffer);
+
+	//check for a focus shader
+	buffer[0] = 0;
+	self->focusShader = NULL;
+	M_ReadXmlPropAsString (root, "focusshader", buffer, sizeof(buffer));
+	if (buffer[0])
+		self->focusShader = GL_ShaderForName(buffer);
+
+	//check for a focus type
+	buffer[0] = 0;
+	self->focusType = FOCUS_NOTSPECIFIED;
+	M_ReadXmlPropAsString (root, "focustype", buffer, sizeof(buffer));
+	if (!strcmp(buffer, "border")) {
+		self->focusType = FOCUS_BORDER;
+	} else if (!strcmp(buffer,"rectangle")) {
+		self->focusType = FOCUS_OVER;
+	}
 		
 	temp = M_CompareXmlProp (root, "orient", xmlorient, 2);
 	if (temp != -1)
