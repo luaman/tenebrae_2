@@ -39,6 +39,10 @@ extern int		mod_numknown;
 
 cvar_t gl_subdivide_size = {"gl_subdivide_size", "16", true};
 
+
+#define MAX_SPRITEFRAMES 64
+#define TESPRITEHEADER	(('P'<<24)+('S'<<16)+('E'<<8)+'T')
+
 /*
 ===============
 Mod_Init
@@ -299,7 +303,7 @@ model_t *Mod_LoadModel (model_t *mod, qboolean crash)
 		Mod_LoadAliasModel (mod, buf);
 		break;
 		
-	case IDSPRITEHEADER:
+	case TESPRITEHEADER:
 		Mod_LoadSpriteModel (mod, buf);
 		break;
 	case IDQ3BSPHEADER:
@@ -308,7 +312,7 @@ model_t *Mod_LoadModel (model_t *mod, qboolean crash)
 		ModQ3_LoadBrushModel(mod, buf);
 		break;
 	default:
-		Sys_Error("Unknown model type\n");
+		Sys_Error("Unknown model type %s\n",loadname);
 		break;
 	}
 /*
@@ -1837,7 +1841,7 @@ void Mod_LoadAliasModel (model_t *mod, void *buffer)
 =================
 Mod_LoadSpriteFrame
 =================
-*/
+*//*
 void * Mod_LoadSpriteFrame (void * pin, mspriteframe_t **ppframe, int framenum)
 {
 	dspriteframe_t		*pinframe;
@@ -1872,13 +1876,14 @@ void * Mod_LoadSpriteFrame (void * pin, mspriteframe_t **ppframe, int framenum)
 
 	return (void *)((byte *)pinframe + sizeof (dspriteframe_t) + size);
 }
+*/
 
 
 /*
 =================
 Mod_LoadSpriteGroup
 =================
-*/
+*//*
 void * Mod_LoadSpriteGroup (void * pin, mspriteframe_t **ppframe, int framenum)
 {
 	dspritegroup_t		*pingroup;
@@ -1924,95 +1929,67 @@ void * Mod_LoadSpriteGroup (void * pin, mspriteframe_t **ppframe, int framenum)
 
 	return ptemp;
 }
-
+*/
 
 /*
 =================
 Mod_LoadSpriteModel
 =================
 */
-void Mod_LoadSpriteModel (model_t *mod, void *buffer)
-{
-	int					i;
-	int					version;
-	dsprite_t			*pin;
-	msprite_t			*psprite;
-	int					numframes;
-	int					size;
-	dspriteframetype_t	*pframetype;
-	char				stringbuff[MAX_OSPATH],filename[MAX_OSPATH];
-	FILE				*f;
+void Mod_LoadSpriteModel (model_t *mod, void*buffer) {
 
-	pin = (dsprite_t *)buffer;
+	char *data = buffer;
+	int	framenum = 0;
+	int	width[MAX_SPRITEFRAMES];
+	int	height[MAX_SPRITEFRAMES];
+	char names[MAX_SPRITEFRAMES][MAX_QPATH];
+	msprite_t *psprite;
+	int size, i;
 
-	version = LittleLong (pin->version);
-	if (version != SPRITE_VERSION)
-		Sys_Error ("%s has wrong version number "
-				 "(%i should be %i)", mod->name, version, SPRITE_VERSION);
+	// Parse information out of script
 
-	numframes = LittleLong (pin->numframes);
+	data = COM_SkipLine(data); //Skip rest of the first line
 
-	size = sizeof (msprite_t) +	(numframes - 1) * sizeof (psprite->frames);
-
-	psprite = Hunk_AllocName (size, loadname);
-
-	mod->cache.data = psprite;
-
-	psprite->type = LittleLong (pin->type);
-
-	//PENTA: Overriden sprites have other types
-	//See if we can find a file, if so then mark it overriden
-	sprintf(stringbuff,"%s_0", mod->name);
-	GL_GetOverrideName(stringbuff,"",filename);
-	COM_FindFile (filename,NULL,&f);
-	if (f) {
-		//mark it as overriden
-		psprite->type = psprite->type+5;
-		fclose(f);
+	while ((data) && (framenum < MAX_SPRITEFRAMES)) {
+		data = COM_Parse (data); //Shader name
+		strncpy(names[framenum], com_token, MAX_QPATH);
+		data = COM_Parse (data); //Width
+		width[framenum] = atoi(com_token);
+		data = COM_Parse (data); //Height
+		height[framenum] = atoi(com_token);
+		framenum++;
 	}
 
-	psprite->maxwidth = LittleLong (pin->width);
-	psprite->maxheight = LittleLong (pin->height);
-	psprite->beamlength = LittleFloat (pin->beamlength);
-	mod->synctype = LittleLong (pin->synctype);
-	psprite->numframes = numframes;
+	// Make a sprite of it
+	size = sizeof (msprite_t) +	(framenum - 1) * sizeof(mspriteframe_t);
+	psprite = Hunk_AllocName (size, loadname);
+	mod->cache.data = psprite;
+
+	psprite->numframes = framenum;
+	psprite->maxwidth = 0;
+	psprite->maxheight = 0;
+	for (i=0; i<framenum; i++) {
+		psprite->frames[i].width	= width[i];
+		psprite->frames[i].height	= height[i];
+		
+		psprite->frames[i].left		= -(width[i]/2.0f);
+		psprite->frames[i].right	= (width[i]/2.0f);
+		psprite->frames[i].up		= (height[i]/2.0f);
+		psprite->frames[i].down		= -(height[i]/2.0f);
+
+		psprite->frames[i].shader	= GL_ShaderForName(names[i]);
+
+		if (width[i] > psprite->maxwidth) 
+			psprite->maxwidth = width[i];
+		if (height[i] > psprite->maxheight) 
+			psprite->maxheight = height[i];
+	}
 
 	mod->mins[0] = mod->mins[1] = -psprite->maxwidth/2;
 	mod->maxs[0] = mod->maxs[1] = psprite->maxwidth/2;
 	mod->mins[2] = -psprite->maxheight/2;
 	mod->maxs[2] = psprite->maxheight/2;
-	
-//
-// load the frames
-//
-	if (numframes < 1)
-		Sys_Error ("Mod_LoadSpriteModel: Invalid # of frames: %d\n", numframes);
-
-	mod->numframes = numframes;
-
-	pframetype = (dspriteframetype_t *)(pin + 1);
-
-	for (i=0 ; i<numframes ; i++)
-	{
-		spriteframetype_t	frametype;
-
-		frametype = LittleLong (pframetype->type);
-		psprite->frames[i].type = frametype;
-
-		if (frametype == SPR_SINGLE)
-		{
-			pframetype = (dspriteframetype_t *)
-					Mod_LoadSpriteFrame (pframetype + 1,
-										 &psprite->frames[i].frameptr, i);
-		}
-		else
-		{
-			pframetype = (dspriteframetype_t *)
-					Mod_LoadSpriteGroup (pframetype + 1,
-										 &psprite->frames[i].frameptr, i);
-		}
-	}
-
+	mod->numframes = framenum;
 	mod->type = mod_sprite;
 }
 

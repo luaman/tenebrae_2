@@ -122,6 +122,8 @@ typedef struct
 typedef enum {STAGE_SIMPLE, STAGE_COLOR, STAGE_BUMP, STAGE_GLOSS, STAGE_GRAYGLOSS} stagetype_t;
 typedef enum {TCMOD_ROTATE, TCMOD_SCROLL, TCMOD_SCALE, TCMOD_STRETCH} tcmodtype_t;
 
+#define STAGE_CUBEMAP 1
+
 typedef struct tcmod_s {
 	float params[7];
 	tcmodtype_t type;
@@ -142,6 +144,7 @@ typedef struct stage_s {
 	int			src_blend, dst_blend; //have special values for bumpmap passes
 	int			alphatresh;
 	char		filename[MAX_QPATH*3+2];
+	int			flags;
 } stage_t;
 
 #define	SURF_NOSHADOW		0x40000	//don't cast stencil shadows
@@ -397,38 +400,20 @@ SPRITE MODELS
 ==============================================================================
 */
 
-
-// FIXME: shorten these?
 typedef struct mspriteframe_s
 {
 	int		width;
 	int		height;
 	float	up, down, left, right;
-	int		gl_texturenum;
+	shader_t	*shader;
 } mspriteframe_t;
 
 typedef struct
 {
+	int				maxwidth;
+	int				maxheight;
 	int				numframes;
-	float			*intervals;
-	mspriteframe_t	*frames[1];
-} mspritegroup_t;
-
-typedef struct
-{
-	spriteframetype_t	type;
-	mspriteframe_t		*frameptr;
-} mspriteframedesc_t;
-
-typedef struct
-{
-	int					type;
-	int					maxwidth;
-	int					maxheight;
-	int					numframes;
-	float				beamlength;		// remove?
-	void				*cachespot;		// remove?
-	mspriteframedesc_t	frames[1];
+	mspriteframe_t	frames[1];
 } msprite_t;
 
 
@@ -577,7 +562,7 @@ typedef struct model_s
 	mleaf_t		*leafs;
 
 	int			numvertexes;
-	mvertex_t	*vertexes;
+	//Vertexes are stored in global vertex table
 
 	int			numedges;
 	medge_t		*edges;
