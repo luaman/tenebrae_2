@@ -435,7 +435,7 @@ trace_t SV_PushEntity (edict_t *ent, vec3_t push)
 	VectorCopy (trace.endpos, ent->v.origin);
 	SV_LinkEdict (ent, true);
 
-	if (trace.ent)
+	if (trace.ent && (trace.fraction < 1.0f)) //PENTA: Fix for stuttering grenade sounds
 		SV_Impact (ent, trace.ent);		
 
 	return trace;
