@@ -2736,6 +2736,8 @@ void R_RenderView (void)
 	float oldfogen;
 	int	viewcont;
 
+	BUMP_ResetStats();
+
 	if (r_norefresh.value)
 		return;
 
@@ -2840,4 +2842,6 @@ void R_RenderView (void)
 	//Draw a poly over the screen (underwater, slime, blood hit)
 	R_DrawGlare() ;
 	R_PolyBlend ();
+
+	BUMP_PrintStats();
 }

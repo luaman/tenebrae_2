@@ -64,6 +64,7 @@ void GL_BindAdvanced(gltexture_t *tex) {
 void Print_Tex_Cache_f(void);
 void R_ReloadShaders_f(void);
 void ReloadTextures_f(void);
+void ToggleStatistics_f(void);
 
 /*
 ===============
@@ -94,6 +95,7 @@ void Draw_Init (void)
 	Cmd_AddCommand ("gl_texcache",Print_Tex_Cache_f);
 	Cmd_AddCommand ("reloadTextures",ReloadTextures_f);
 	Cmd_AddCommand ("reloadShaders", R_ReloadShaders_f); 
+	Cmd_AddCommand ("bumptatistics", ToggleStatistics_f);
 
 	// Load the console font
 	char_texture = EasyTgaLoad("textures/system/charset.tga");
