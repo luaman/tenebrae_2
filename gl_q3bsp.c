@@ -95,7 +95,6 @@ void ModQ3_LoadLighting (lump_t *l)
 	memcpy (loadmodel->lightdata, mod_base + l->fileofs, l->filelen);
 	loadmodel->numlightmaps =  l->filelen/sizeof(dq3lightmap_t);
 
-
 }
 
 
@@ -172,6 +171,7 @@ void ModQ3_LoadVertexes (lump_t *l)
 		Sys_Error ("MOD_LoadBmodel: funny lump size in %s",loadmodel->name);
 	count = l->filelen / sizeof(*in);
 	
+	loadmodel->numvertexes = count;
 	/*
 	Not needed all vertices are fetched from global vertex table
 	out = Hunk_AllocName ( count*sizeof(*out), loadname);	
@@ -586,6 +586,8 @@ void ModQ3_LoadFaces (lump_t *l)
 	
 	loadmodel->surfaces = out;
 	loadmodel->numsurfaces = count;
+
+
 	
 	for ( surfnum=0 ; surfnum<count ; surfnum++, in++, out++)
 	{
@@ -600,6 +602,11 @@ void ModQ3_LoadFaces (lump_t *l)
 		out->samples = NULL;
 		out->lightmaptexturenum = LittleLong(in->lightofs);
 			
+		if ((out->lightmaptexturenum % 2) == 1) {
+			//odd lightmap found disable dexlux.
+			Cvar_Set ("sh_delux", "0");
+		}
+
 		out->shader = &loadmodel->mapshaders[LittleLong(in->texinfo)];
 		out->flags = out->shader->shader->flags;
 		out->visframe = -1;
