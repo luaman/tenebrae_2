@@ -1110,7 +1110,6 @@ typedef struct shadowlight_s {
 	float	rspeed; //rotation speed of cube map;
 	float	cubescale; //scale factor of cube map;
 	float	haloalpha; //alpha of halo
-	vec3_t	oldlightorigin;
 	int		area; //area (from areaportals) light is in
 	shader_t *shader; //shader on this light
 } shadowlight_t;
@@ -1276,7 +1275,6 @@ void		R_ClearDecals(void);
 void		R_ClearRectList (void);
 void		R_ConstructShadowVolume (shadowlight_t *light);
 qboolean	R_ContributeFrame (shadowlight_t *light);
-int		R_CubeMapLookup (int i);
 qboolean	R_CullBox (vec3_t mins, vec3_t maxs);
 void		R_DrawAliasBumped (aliashdr_t *paliashdr, aliasframeinstant_t *instant);
 void		R_DrawAliasBumpedGF3 (aliashdr_t *paliashdr, aliasframeinstant_t *instant);
