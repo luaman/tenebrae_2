@@ -174,6 +174,10 @@ typedef struct shader_s {
 	stage_t		glossstages[SHADER_MAX_BUMP_STAGES];
 	vec3_t		fog_color;
 	float		fog_dist;
+	float		displaceScale;
+	float		displaceBias;
+	char		displacementname[MAX_QPATH];
+	gltexture_t *displacement;
 	int			numstatus;
 	struct shader_s	*status[SHADER_MAX_STATUSES]; //if the object the shader is on it's status is > 0 this shader will be used insead of the base shader...
 	struct shader_s	*next;	//in the shader linked list
@@ -260,6 +264,7 @@ typedef struct msurface_s
 	glpoly_t	*polys;				// multiple if warped
 	struct	msurface_s	*texturechain;
 	struct	msurface_s	*shadowchain;
+	struct	msurface_s	*lightmapchain;
 
 	mapshader_t	*shader;
 	vec3_t		tangent;
@@ -281,16 +286,26 @@ typedef struct {
 	vec3_t scale;
 } transform_t;
 
+typedef struct {
+	int segment;	//segment 0 is the system memory, higher segments are driver mem
+	long offset;		//offset into segment, maximum size of offset varies
+} DriverPtr;
+
 typedef struct mesh_s
 {
 	vec3_t mins; //axis aligned bounding box
 	vec3_t maxs;
 
-	int firstvertex; //in world vertex list
-	vec3_t *tangents;
-	vec3_t *binormals;
-	vec3_t *normals;
+	//User space: For shadow volumes and decail generation
+	vec3_t *userVerts; //Vertices in user memory
 	plane_t *triplanes; //per triangle plane eq's (for shadow volumes)
+
+	//Driver space: For render passes
+	DriverPtr vertices;
+	DriverPtr tangents;
+	DriverPtr binormals;
+	DriverPtr normals;
+
 	int	numvertices;
 
 	int *indecies;
@@ -312,6 +327,7 @@ typedef struct mesh_s
 
 	struct mesh_s *next; //for the texture chains
 	struct mesh_s *shadowchain;
+
 } mesh_t;
 
 typedef struct mnode_s
@@ -565,7 +581,7 @@ typedef struct model_s
 	mleaf_t		*leafs;
 
 	int			numvertexes;
-	//Vertexes are stored in global vertex table
+	vec3_t		*userVerts;	//Vertex positions (the rest is stored in the graphics driver)
 
 	int			numedges;
 	medge_t		*edges;
@@ -631,6 +647,7 @@ void	Mod_ClearAll (void);
 model_t *Mod_ForName (char *name, qboolean crash);
 void	*Mod_Extradata (model_t *mod);	// handles caching
 void	Mod_TouchModel (char *name);
+float	Mod_RadiusFromBounds (vec3_t mins, vec3_t maxs);
 
 mleaf_t *Mod_PointInLeaf (float *p, model_t *model);
 byte	*Mod_LeafPVS (mleaf_t *leaf, model_t *model);
