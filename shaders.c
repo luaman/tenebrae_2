@@ -35,6 +35,12 @@ static shader_t *shaderList;
 
 void GL_ShaderLoadTextures(shader_t *shader);
 
+void ShaderError(void) {
+	if ( !COM_CheckParm ("-forceshaders") )
+		Con_NotifyBox("Shader error\nSee above for details\n");
+}
+
+
 /**
 * Generates a clean stage before one is parsed over it
 */
@@ -305,6 +311,7 @@ char *ParseStage (char *data, shader_t *shader)
 					stage.type = STAGE_GRAYGLOSS;
 					if (shader->numbumpstages < 1) {
 						Con_Printf("Gray gloss defined before bumpmap\n");
+						ShaderError();
 						return NULL;
 					}
 					bumpstage = &shader->bumpstages[shader->numbumpstages-1];
@@ -355,6 +362,7 @@ char *ParseStage (char *data, shader_t *shader)
 				stage.type = STAGE_GLOSS;	
 			} else {
 				Con_Printf("Unknown stage type %s\n",com_token);
+				ShaderError();
 			}
 
 		} else if (!strcmp(command, "map")) {
@@ -392,14 +400,15 @@ char *ParseStage (char *data, shader_t *shader)
 			} else {
 				GET_SAFE_TOKEN;
 				stage.dst_blend = SHADER_BlendModeForName(com_token);
-				if (stage.dst_blend < 0)
+				if (stage.dst_blend < 0) {
 					Con_Printf("Unknown blend func %s\n",com_token);
+					ShaderError();
+				}
 			}
 		} else if (!strcmp(command, "alphafunc")) {
 
 			GET_SAFE_TOKEN;
 			if (!strcmp(com_token,"GE128")) {
-				Con_Printf("alpha test\n");
 				stage.alphatresh = 128;
 			}
 
@@ -410,6 +419,7 @@ char *ParseStage (char *data, shader_t *shader)
 		} else {
 
 			Con_Printf("Unknown statement %s\n",command);
+			ShaderError();
 			data = COM_SkipLine(data);
 			//return NULL; //stop parsing
 
@@ -553,8 +563,10 @@ char *ParseShader (char *data, shader_t *shader)
 		} else {
 
 			//ignore q3map and radiant commands
-			if (strncmp("qer_",com_token,4) && strncmp(com_token,"q3map_",5))
-				/*Con_Printf("Unknown statement %s\n",command)*/;
+			if (strncmp("qer_",com_token,4) && strncmp(com_token,"q3map_",5)) {
+				Con_Printf("Unknown statement %s\n",command);
+				ShaderError();
+			}
 			data = COM_SkipLine(data);
 		}
 	}
@@ -562,7 +574,7 @@ char *ParseShader (char *data, shader_t *shader)
 	return data;
 }
 
-void LoadShadersFromString (char *data)
+void LoadShadersFromString (char *data,const char *filename)
 {	
 	shader_t shader, *s;
 // parse shaders
@@ -576,7 +588,9 @@ void LoadShadersFromString (char *data)
 		s = shaderList;
 		while(s) {
 			if (!strcmp(com_token,s->name)) {
-				Con_Printf("Error: Shader redefined %s\n",com_token);
+				Con_Printf("Shader error:\nShader '%s' was defined a second time in '%s'\n",com_token, filename);
+				Con_Printf("This may cause texture errors\n");
+				ShaderError();
 				return;
 			}
 			s = s->next;
@@ -599,7 +613,7 @@ void LoadShadersFromString (char *data)
 		if (com_token[0] != '{')
 			Sys_Error ("ED_LoadFromFile: found %s when expecting {",com_token);
 
-		Con_Printf("Parsing %s...\n",s->name);
+		//Con_Printf("Parsing %s...\n",s->name);
 		data = ParseShader (data, s);
 	}
 	
@@ -612,7 +626,7 @@ void AddShaderFile(const char *filename) {
 	char *buffer = COM_LoadTempFile (filename);
 	Con_Printf("Parsing shaderscript: %s\n",filename);
 	if (!buffer) return;
-	LoadShadersFromString(buffer);
+	LoadShadersFromString(buffer, filename);
 }
 
 /**
