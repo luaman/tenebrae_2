@@ -594,7 +594,11 @@ void ModQ3_LoadFaces (lump_t *l)
 		out->numedges = 0;
 		out->flags = 0;
 
-		planenum = FindPlane(in->normal,tempVertices[in->firstvertex].position); //ENDIAN bug!! flip in->normal	
+		if (in->type == 1) {
+			planenum = FindPlane(in->normal,tempVertices[in->firstvertex].position); //ENDIAN bug!! flip in->normal	
+		} else {
+			planenum = 0; //just any valid plane pointer...
+		}
 		out->plane = loadmodel->planes + planenum;
 				
 		// lighting info
