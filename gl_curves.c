@@ -34,17 +34,6 @@ typedef struct {
 	int width, height;
 } curve_t;
 
-typedef struct {
-	vec3_t		position;
-	float		texture[2];
-	float		lightmap[2];
-    byte		color[4];
-	vec3_t		tangent;
-	vec3_t		binormal;
-	vec3_t		normal;
-} meshvertex_t;
-
-
 #define MAX_BIN 10
 int binomials[MAX_BIN][MAX_BIN];
 
@@ -89,7 +78,7 @@ EvaluateBezier
 Evaluates the bezier surface with given control points at the u,v parameters
 =================
 */
-void EvaluateBezier(mmvertex_t *controlpoints,int ofsw, int ofsh, int width, int height, float u, float v,meshvertex_t *result) {
+void EvaluateBezier(mmvertex_t *controlpoints,int ofsw, int ofsh, int width, int height, float u, float v,mmvertex_t *result) {
 
 	int i,j;
 	float scale;
@@ -105,9 +94,6 @@ void EvaluateBezier(mmvertex_t *controlpoints,int ofsw, int ofsh, int width, int
 
 	for (i=0; i<3; i++) {
 		result->position[i] = 0.0;
-		result->tangent[i] = 0.0;
-		result->normal[i] = 0.0;
-		result->binormal[i] = 0.0;
 	}
 
 	for (i=0; i<2; i++) {
@@ -191,7 +177,7 @@ void EvaluateBezier(mmvertex_t *controlpoints,int ofsw, int ofsh, int width, int
 /**
 * Quake3 beziers, are made up out of one or more 3x3 bezier patches
 */
-void EvaluateBiquadraticBeziers(mmvertex_t *controlpoints, int width, int height, float u, float v,meshvertex_t *result) {
+void EvaluateBiquadraticBeziers(mmvertex_t *controlpoints, int width, int height, float u, float v,mmvertex_t *result) {
 
 
 //	EvaluateBezier(controlpoints,0,0,width,height,u,v,result);
@@ -224,7 +210,7 @@ void PutMeshOnCurve(curve_t in, mmvertex_t *verts) {
 	int		i, j, l, w, h;
 	float	prev, next;
 	float	du, dv, u ,v;
-	meshvertex_t results[128*128];
+	mmvertex_t results[128*128];
 	du = 1.0f/(in.width-1);
 	dv = 1.0f/(in.height-1);
 
@@ -241,6 +227,104 @@ void PutMeshOnCurve(curve_t in, mmvertex_t *verts) {
 
 #define MAX_EXPANDED_AXIS 128
 
+int	originalWidths[MAX_EXPANDED_AXIS];
+int	originalHeights[MAX_EXPANDED_AXIS];
+
+void ProjectPointOntoVector( vec3_t point, vec3_t vStart, vec3_t vEnd, vec3_t vProj )
+{
+	vec3_t pVec, vec;
+
+	VectorSubtract( point, vStart, pVec );
+	VectorSubtract( vEnd, vStart, vec );
+	VectorNormalize(vec);
+	// project onto the directional vector for this segment
+	VectorMA( vStart, DotProduct( pVec, vec ), vec, vProj );
+}
+
+/**
+* Removes colinear rows and colums, this reduces the triangle count if you have
+* lots of nice and flat curves.
+*/
+mmvertex_t *RemoveLinearMeshColumnsRows(curve_t *inc, mmvertex_t *inverts) {
+	int i, j, k;
+	float len, maxLength;
+	vec3_t proj, dir;
+	static mmvertex_t	expand[MAX_EXPANDED_AXIS][MAX_EXPANDED_AXIS];
+	mmvertex_t *verts;
+	int width, height;
+
+	width = inc->width;
+	height = inc->height;
+
+	for (i=0; i<inc->width; i++) {
+		for (j=0; j<inc->height; j++) {
+			expand[j][i] = inverts[i+j*width];
+		}
+	}
+
+	//columns
+	for (j=1; j<width - 1; j++) {
+		maxLength = 0;
+		for (i=0; i<height; i++) {
+			ProjectPointOntoVector(expand[i][j].position, expand[i][j-1].position, expand[i][j+1].position, proj);
+			VectorSubtract(expand[i][j].position, proj, dir);
+			len = Length(dir);
+			if (len > maxLength) {
+				maxLength = len;
+			}
+		}
+		if (maxLength < 0.1)
+		{
+			width--;
+			for (i=0; i<height; i++) {
+				for (k=j; k<width; k++) {
+					expand[i][k] = expand[i][k+1];
+				}
+			}
+			for (k=j; k<width; k++) {
+				originalWidths[k] = originalWidths[k+1];
+			}
+			j--;
+		}
+	}
+
+	//rows
+	for (j=1; j<height - 1; j++) {
+		maxLength = 0;
+		for (i=0; i<width ; i++) {
+			ProjectPointOntoVector(expand[j][i].position, expand[j-1][i].position, expand[j+1][i].position, proj);
+			VectorSubtract(expand[j][i].position, proj, dir);
+			len = Length(dir);
+			if (len > maxLength) {
+				maxLength = len;
+			}
+		}
+		if (maxLength < 0.1)
+		{
+			height--;
+			for (i=0; i<width; i++) {
+				for (k = j; k < height; k++) {
+					expand[k][i] = expand[k+1][i];
+				}
+			}
+			for (k=j; k<height; k++) {
+				originalHeights[k] = originalHeights[k+1];
+			}
+			j--;
+		}
+	}
+
+	//verts are still in 128*128 array, convert to a with*height array
+	verts = &expand[0][0];
+	for (i=1; i<height; i++) {
+		memmove( &verts[i*width], expand[i], width * sizeof(mmvertex_t) );
+	}
+
+	inc->width = width;
+	inc->height = height;
+	return verts;
+}
+
 /**
 * Evaluate the mesh, subdivide the control grid amount times.
 * Copies the resulting vertices to the out mesh.
@@ -249,13 +333,14 @@ void SubdivideCurve(curve_t *in, mesh_t *out, mmvertex_t *verts, int amount) {
 	int		i, j, l, w, h, newwidth, newheight;
 	float	prev, next;
 	float	du, dv, u ,v;
-	meshvertex_t *expand;
+	mmvertex_t *expand;
+	mmvertex_t *clean;
 
 	newwidth = in->controlwidth*amount;
 	newheight = in->controlheight*amount;
 	
 	//only a temporaly buffer
-	expand = malloc(sizeof(meshvertex_t)*newwidth*newheight);
+	expand = malloc(sizeof(mmvertex_t)*newwidth*newheight);
 
 	if (!expand) Sys_Error("No more memory\n");
 
@@ -268,26 +353,18 @@ void SubdivideCurve(curve_t *in, mesh_t *out, mmvertex_t *verts, int amount) {
 		}
 	}
 
-	out->numvertices = newwidth*newheight;
 	in->width = newwidth;
 	in->height = newheight;
-/*
-	out->tangents = Hunk_Alloc(sizeof(vec3_t)*out->numvertices);
-	out->binormals = Hunk_Alloc(sizeof(vec3_t)*out->numvertices);
-	out->normals = Hunk_Alloc(sizeof(vec3_t)*out->numvertices);
-*/	
-	for (i=0; i<newwidth*newheight; i++) {
 
+	clean = RemoveLinearMeshColumnsRows(in, expand);
+	out->numvertices = in->width*in->height;
+
+	for (i=0; i<in->width*in->height; i++) {
 		//put the vertices in the global vertex table
 		if (i==0)
-			out->firstvertex = R_AllocateVertexInTemp(expand[i].position, expand[i].texture, expand[i].lightmap, expand[i].color);
+			out->firstvertex = R_AllocateVertexInTemp(clean[i].position, clean[i].texture, clean[i].lightmap, clean[i].color);
 		else
-			R_AllocateVertexInTemp(expand[i].position, expand[i].texture, expand[i].lightmap, expand[i].color);
-/*
-		VectorCopy(expand[i].binormal, out->binormals[i]);
-		VectorCopy(expand[i].normal, out->normals[i]);
-		VectorCopy(expand[i].tangent, out->tangents[i]);
-*/
+			R_AllocateVertexInTemp(clean[i].position, clean[i].texture, clean[i].lightmap, clean[i].color);
 	}
 
 	free(expand);
@@ -302,6 +379,7 @@ void CreateCurveIndecies(curve_t *curve, mesh_t *mesh)
 	w = curve->height;
 
 	mesh->numtriangles = (curve->width-1)*(curve->height-1)*2;
+
 	mesh->numindecies = mesh->numtriangles*3;
 	mesh->indecies = (int *)Hunk_Alloc(sizeof(int)*mesh->numindecies);
 
