@@ -149,367 +149,6 @@ void SubdividePolygon (int numverts, float *verts)
 }
 
 /*
-================
-GL_SubdivideSurface
-
-Breaks a polygon up along axial 64 unit
-boundaries so that turbulent and sky warps
-can be done reasonably.
-================
-*//*
-void GL_SubdivideSurface (msurface_t *fa)
-{
-    vec3_t		verts[64];
-    int			numverts;
-    int			i;
-    int			lindex;
-    float		*vec;
-
-    warpface = fa;
-
-    //
-    // convert edges back to a normal polygon
-    //
-    numverts = 0;
-    for (i=0 ; i<fa->numedges ; i++)
-    {
-	lindex = loadmodel->surfedges[fa->firstedge + i];
-
-	if (lindex > 0)
-	    vec = loadmodel->vertexes[loadmodel->edges[lindex].v[0]].position;
-	else
-	    vec = loadmodel->vertexes[loadmodel->edges[-lindex].v[1]].position;
-	VectorCopy (vec, verts[numverts]);
-	numverts++;
-    }
-
-    SubdividePolygon (numverts, verts[0]);
-}
-*/
-//=========================================================
-
-
-
-// speed up sin calculations - Ed
-float	turbsin[] =
-{
-#include "gl_warp_sin.h"
-};
-#define TURBSCALE (256.0 / (2 * M_PI))
-
-/*
-=============
-EmitWaterPolys
-
-Does a water warp on the pre-fragmented glpoly_t chain
-=============
-*/
-void EmitWaterPolys (msurface_t *fa)
-{
-    glpoly_t	*p;
-    float		*v;
-    int			i;
-    float		s, t, os, ot;
-
-
-    for (p=fa->polys ; p ; p=p->next)
-    {
-	glBegin (GL_TRIANGLE_FAN);
-	for (i=0,v=(float *)(&globalVertexTable[p->firstvertex]) ; i<p->numverts ; i++, v+=VERTEXSIZE)
-	{
-	    os = v[3];
-	    ot = v[4];
-
-			
-	    s = os + (turbsin[(int)((ot*0.125+realtime) * TURBSCALE) & 255])*0.25;
-	    s *= (1.0/64);
-
-	    t = ot + (turbsin[(int)((os*0.125+realtime) * TURBSCALE) & 255])*0.25;
-	    t *= (1.0/64);
-
-	    glTexCoord2f (s, t);
-
-	    if (gl_mtexable)
-		qglMultiTexCoord2fARB (GL_TEXTURE1_ARB, s, t);
-
-	    glVertex3f (v[0],v[1],v[2]);
-	}
-	glEnd ();
-    }
-}
-
-float RandomXY(float x, float y, int seedlike)
-{
-    float ret;
-    int n = (int)x+(int)y*seedlike;
-    n = (n<<13)^n;
-    ret = (1- ( (n * (n * n * 19417 + 189851) + 4967243) & 4945007) / 3354521.0);
-    return ret;
-}
-
-void EmitMirrorWaterPolys (msurface_t *fa)
-{
-    glpoly_t	*p;
-    float		*v;
-    int			i;
-    float		s, t, os, ot;
-
-    for (p=fa->polys ; p ; p=p->next)
-    {
-	glBegin (GL_TRIANGLE_FAN);
-	for (i=0,v=(float *)(&globalVertexTable[p->firstvertex]) ; i<p->numverts ; i++, v+=VERTEXSIZE)
-	{
-	    os = v[0];
-	    ot = v[1];
-
-	    //Fake the tex coords a bit so it looks a bit like water
-
-	    s = RandomXY(os,ot,57)*turbsin[(int)((ot*0.125+realtime) * TURBSCALE) & 255];
-	    s *=0.25;
-	    t = RandomXY(os,ot,63)*turbsin[(int)((ot*0.125+realtime) * TURBSCALE) & 255];
-	    t *=0.25;
-
-	    glTexCoord3f (v[0]+s, v[1]+t, v[2]);
-	    glVertex3f (v[0],v[1],v[2]);
-	}
-	glEnd ();
-    }
-}
-
-void EmitMirrorPolys (msurface_t *fa)
-{
-    glpoly_t	*p;
-    float		*v;
-    int			i;
-
-    for (p=fa->polys ; p ; p=p->next)
-    {
-	glBegin (GL_TRIANGLE_FAN);
-	for (i=0,v=(float *)(&globalVertexTable[p->firstvertex]); i<p->numverts ; i++, v+=VERTEXSIZE)
-	{
-	    qglMultiTexCoord2fARB(GL_TEXTURE1_ARB, v[3]/64, v[4]/64);
-	    glTexCoord3fv(v);
-	    glVertex3fv(v);
-	}
-	glEnd ();
-    }
-}
-
-
-/*
-=============
-PENTA:
-
-Binds a water shader
-=============
-*/
-/*
-qboolean OverrideFluidTex(char *name)
-{
-    if (gl_watershader.value < 1) return false;
-    if (r_wateralpha.value == 1) return false;
-
-    if (strstr (name, "water")) {
-	glEnable(GL_BLEND);
-	//glBlendFunc(GL_DST_COLOR,GL_ONE);
-	glBlendFunc(GL_SRC_ALPHA,GL_ONE_MINUS_SRC_ALPHA);
-
-	GL_Bind(newwatertex);
-	glScalef(0.5,0.5,1);
-	glTranslatef(-0.025*realtime,-0.025*realtime,0);
-
-	GL_EnableMultitexture() ;
-	GL_Bind(newwatertex);
-	glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_ADD);
-	glTranslatef(0.05*realtime,0.05*realtime,0);
-	glScalef(0.25,0.25,1);
-	return true;
-
-    }
-	
-    if (strstr (name, "tele")) {
-	glEnable(GL_BLEND);
-	glBlendFunc(GL_ONE,GL_ONE);
-	GL_Bind(newteletex);
-	glTranslatef(realtime,0.5*realtime,0);
-	//glScalef(0.5,0.25,1);
-			
-	GL_EnableMultitexture() ;
-	GL_Bind(newteletex);
-	glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_ADD);
-	glTranslatef(-realtime,0.5*realtime,0);
-	//glScalef(0.5,0.25,1);
-	glFogfv(GL_FOG_COLOR, color_black);
-	return true;
-
-    }
-
-    if (strstr (name, "lava")) {
-	//lava is never transparent
-	glDisable(GL_BLEND);
-	GL_Bind(newlavatex);
-	glColor4f(1,1,1,1);
-	return true;
-
-    }
-
-    if (strstr (name, "slime")) {
-	glEnable(GL_BLEND);
-	//glBlendFunc(GL_DST_COLOR,GL_ONE);
-	glBlendFunc(GL_SRC_ALPHA,GL_ONE_MINUS_SRC_ALPHA);
-
-	GL_Bind(newslimetex);
-	glScalef(0.5,0.5,1);
-	glTranslatef(-0.05*realtime,-0.05*realtime,0);
-
-	GL_EnableMultitexture() ;
-	GL_Bind(newslimetex);
-	glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_ADD);
-	glScalef(0.25,0.25,1);
-	glTranslatef(0.05*realtime,0.05*realtime,0);
-	return true;
-
-    }
-
-    if (strstr (name, "glass")) {
-	glEnable(GL_BLEND);
-	glBlendFunc(GL_DST_COLOR,GL_ONE);
-	GL_Bind(newenvmap);
-	glTexGeni(GL_S,GL_TEXTURE_GEN_MODE,GL_SPHERE_MAP);
-	glTexGeni(GL_T,GL_TEXTURE_GEN_MODE,GL_SPHERE_MAP);
-	glEnable(GL_TEXTURE_GEN_S);
-	glEnable(GL_TEXTURE_GEN_T);
-	glFogfv(GL_FOG_COLOR, color_black);
-	return true;
-
-    }
-	
-    return false;
-}
-*/
-/*
-==================
-PENTA:
-Loads textures needed for the fluid shaders
-==================
-*//*
-void InitShaderTex(void)
-{
-    newwatertex = EasyTgaLoad("penta/q3water.tga");
-    newslimetex = EasyTgaLoad("penta/q3slime.tga");
-    newlavatex = EasyTgaLoad("penta/q3lava.tga");
-    newteletex = EasyTgaLoad("penta/newtele.tga"); 
-    newenvmap = EasyTgaLoad("penta/q3envmap.tga");
-}
-*/
-/*
-=============
-EmitSkyPolys
-=============
-*/
-void EmitSkyPolys (msurface_t *fa)
-{
-    glpoly_t	*p;
-    float		*v;
-    int			i;
-    float	s, t;
-    vec3_t	dir;
-    float	length;
-
-    for (p=fa->polys ; p ; p=p->next)
-    {
-	glBegin (GL_TRIANGLE_FAN);
-	for (i=0,v=(float *)(&globalVertexTable[p->firstvertex]) ; i<p->numverts ; i++, v+=VERTEXSIZE)
-	{
-	    VectorSubtract (v, r_origin, dir);
-	    dir[2] *= 3;	// flatten the sphere
-
-	    length = dir[0]*dir[0] + dir[1]*dir[1] + dir[2]*dir[2];
-	    length = sqrt (length);
-	    length = 6*63/length;
-
-	    dir[0] *= length;
-	    dir[1] *= length;
-
-	    s = (speedscale + dir[0]) * (1.0/128);
-	    t = (speedscale + dir[1]) * (1.0/128);
-
-	    glTexCoord2f (s, t);
-	    glVertex3fv (v);
-	}
-	glEnd ();
-    }
-}
-
-/*
-===============
-EmitBothSkyLayers
-
-Does a sky warp on the pre-fragmented glpoly_t chain
-This will be called for brushmodels, the world
-will have them chained together.
-===============
-*/
-void EmitBothSkyLayers (msurface_t *fa)
-{
-    GL_DisableMultitexture();
-
-    GL_Bind (solidskytexture);
-    speedscale = realtime*8;
-    speedscale -= (int)speedscale & ~127 ;
-
-    EmitSkyPolys (fa);
-
-    glEnable (GL_BLEND);
-    GL_Bind (alphaskytexture);
-    speedscale = realtime*16;
-    speedscale -= (int)speedscale & ~127 ;
-
-    EmitSkyPolys (fa);
-
-//	glDisable (GL_BLEND);
-}
-
-//#ifndef QUAKE2
-/*
-=================
-R_DrawSkyChain
-=================
-*/
-/*
-void R_DrawSkyChain (msurface_t *s)
-{
-    msurface_t	*fa;
-
-    GL_DisableMultitexture();
-
-    glBlendFunc(GL_SRC_ALPHA,GL_ONE_MINUS_SRC_ALPHA);
-    // used when gl_texsort is on
-    GL_Bind(solidskytexture);
-    speedscale = realtime*8;
-    speedscale -= (int)speedscale & ~127 ;
-
-    for (fa=s ; fa ; fa=fa->texturechain)
-	EmitSkyPolys (fa);
-
-    glEnable (GL_BLEND);
-
-
-    GL_Bind (alphaskytexture);
-    speedscale = realtime*16;
-    speedscale -= (int)speedscale & ~127 ;
-
-    for (fa=s ; fa ; fa=fa->texturechain)
-	EmitSkyPolys (fa);
-
-    //glBlendFunc(GL_ZERO,GL_SRC_COLOR);
-    glDisable (GL_BLEND);
-}
-
-#endif
-*/
-
-/*
 =================================================================
 
   Quake 2 environment sky
@@ -1538,7 +1177,7 @@ int	vec_to_st[6][3] =
 };
 
 float	skymins[2][6], skymaxs[2][6];
-
+/*
 void DrawSkyPolygon (int nump, vec3_t vecs)
 {
     int		i,j;
@@ -1618,8 +1257,8 @@ void DrawSkyPolygon (int nump, vec3_t vecs)
 	if (t > skymaxs[1][axis])
 	    skymaxs[1][axis] = t;
     }
-}
-
+}*
+/*
 #define	MAX_CLIP_VERTS	64
 void ClipSkyPolygon (int nump, vec3_t vecs, int stage)
 {
@@ -1711,14 +1350,14 @@ void ClipSkyPolygon (int nump, vec3_t vecs, int stage)
     ClipSkyPolygon (newc[0], newv[0][0], stage+1);
     ClipSkyPolygon (newc[1], newv[1][0], stage+1);
 }
-
+*/
 /*
 =================
 R_DrawSkyChain
 =================
 */
-void R_DrawSkyChain (msurface_t *s)
-{
+//void R_DrawSkyChain (msurface_t *s)
+//{
  /*   msurface_t	*fa;
 
     int		i;
@@ -1745,14 +1384,14 @@ void R_DrawSkyChain (msurface_t *s)
 	    ClipSkyPolygon (p->numverts, v, 0);
 	}
     }*/
-}
+//}
 
 
 /*
 ==============
 R_ClearSkyBox
 ==============
-*/
+*//*
 void R_ClearSkyBox (void)
 {
     int		i;
@@ -1762,7 +1401,7 @@ void R_ClearSkyBox (void)
 	skymins[0][i] = skymins[1][i] = 9999;
 	skymaxs[0][i] = skymaxs[1][i] = -9999;
     }
-}
+}*/
 
 
 void MakeSkyVec (float s, float t, int axis)
