@@ -473,6 +473,19 @@ void VectorScale (vec3_t in, vec_t scale, vec3_t out)
 }
 
 
+void VectorMax(vec3_t i1, vec3_t i2, vec3_t r) {
+	r[0] = max(i1[0],i2[0]);
+	r[1] = max(i1[1],i2[1]);
+	r[2] = max(i1[2],i2[2]);
+}
+
+
+void VectorMin(vec3_t i1, vec3_t i2, vec3_t r) {
+	r[0] = min(i1[0],i2[0]);
+	r[1] = min(i1[1],i2[1]);
+	r[2] = min(i1[2],i2[2]);
+}
+
 int Q_log2(int val)
 {
 	int answer=0;

@@ -92,7 +92,7 @@ extern	float	gldepthmin, gldepthmax;
 
 void GL_Upload32 (unsigned *data, int width, int height,  qboolean mipmap, qboolean alpha);
 void GL_Upload8 (byte *data,char *identifier, int width, int height,  qboolean mipmap, qboolean alpha, qboolean bump);
-int GL_LoadTexture (char *identifier, int width, int height, byte *data, qboolean mipmap, qboolean alpha, qboolean bump);
+//int GL_LoadTexture (char *identifier, int width, int height, byte *data, qboolean mipmap, qboolean alpha, qboolean bump);
 int GL_FindTexture (char *identifier);
 
 typedef struct
@@ -314,35 +314,24 @@ extern	cvar_t	cg_showviewmodel;
 extern	cvar_t	r_waterwarp;
 extern	cvar_t	r_fullbright;
 extern	cvar_t	r_lightmap;
-extern	cvar_t	r_shadows;
 extern	cvar_t	r_mirroralpha;
 extern	cvar_t	r_wateralpha;
-extern	cvar_t	r_dynamic;
 extern	cvar_t	r_novis;
 
 extern	cvar_t	gl_clear;
-extern	cvar_t	gl_cull;
 extern	cvar_t	gl_poly;
 //extern	cvar_t	gl_texsort;
 extern	cvar_t	gl_polyblend;
-//extern	cvar_t	gl_keeptjunctions; PENTA: dont remove t-junctions
-extern	cvar_t	gl_reporttjunctions;
-extern	cvar_t	gl_flashblend;
-extern	cvar_t	gl_nocolors;
-extern	cvar_t	gl_doubleeyes;
 
 extern	int		gl_lightmap_format;
 extern	int		gl_solid_format;
 extern	int		gl_alpha_format;
 
 extern	cvar_t	gl_max_size;
-extern	cvar_t	gl_playermip;
 
-extern  cvar_t	gl_watershader; //PENTA:
 extern  cvar_t	gl_calcdepth;
 
 extern  cvar_t	sh_lightmapbright; //PENTA:
-extern  cvar_t	sh_radiusscale;
 extern  cvar_t	sh_visiblevolumes;
 extern  cvar_t  sh_entityshadows;
 extern  cvar_t  sh_meshshadows;
@@ -360,7 +349,6 @@ extern  cvar_t  sh_infinitevolumes;//PENTA:
 extern  cvar_t  sh_noscissor;
 extern	cvar_t	sh_nocleversave;
 extern	cvar_t	sh_bumpmaps;//PENTA: enable disable bump mapping
-extern	cvar_t	sh_colormaps;//PENTA: enable disable textures on the world (light will remain)
 extern	cvar_t	sh_playershadow;//PENTA: the player casts a shadow (the one YOU are playing with, others always cast shadows)
 extern	cvar_t	sh_nocache;
 extern	cvar_t	sh_glares;
@@ -418,7 +406,6 @@ extern	const char *gl_renderer;
 extern	const char *gl_version;
 extern	const char *gl_extensions;
 
-void R_TranslatePlayerSkin (int playernum);
 void GL_Bind (int texnum);
 
 #ifndef _WIN32
@@ -1400,12 +1387,12 @@ void		EmitMirrorPolys (msurface_t *fa);
 void		EmitMirrorWaterPolys (msurface_t *fa);
 void		EmitSkyPolys (msurface_t *fa);
 void		EmitWaterPolys (msurface_t *fa);
-void		InitShaderTex (void);
+//void		InitShaderTex (void);
 void 		LoadColorTGA (FILE *fin, byte *pixels, int *width, int *height);
 void		LoadGrayTGA (FILE *fin,byte *pixels,int *width, int *height);
 int             LoadTextureInPlace(char* filename, int size, byte* mem, int* width, int* height);
 void            LoadTGA (FILE *fin);
-qboolean	OverrideFluidTex (char *name);
+//qboolean	OverrideFluidTex (char *name);
 void		ProjectPlane (const vec3_t src,const vec3_t v1,const vec3_t v2,vec3_t dst);
 void		TraceLine (vec3_t start, vec3_t end, vec3_t impact);
 
@@ -1479,7 +1466,6 @@ extern int lightmap_textures;
 
 void Draw_TextureMode_f (void);
 
-extern cvar_t gl_nobind;
 extern cvar_t gl_max_size;
 extern cvar_t gl_picmip;
 extern cvar_t gl_gloss;
