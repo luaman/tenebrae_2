@@ -187,7 +187,7 @@ Converts a normal pointer to a VBO compatible pointer (used for some of the geom
 DriverPtr GL_WrapUserPointer(void *p) {
 	DriverPtr dr;
 	dr.segment = 0;
-	dr.offset = (byte *)p-NULL;
+	dr.offset = (byte *)p-(byte*)NULL;
 	return dr;
 }
 
