@@ -524,12 +524,9 @@ void	VID_Shutdown (void)
    	HGLRC hRC;
    	HDC	  hDC;
 
-	//PENTA: free our vertex array range memory
-	if (gl_var) {
-		wglFreeMemoryNV(AGP_Buffer);		
-	}
-
 	R_ShutdownShaders();
+	GL_FreeVertexCache();
+	GL_FreeDriverMem();
 
 	if (vid_initialized)
 	{
