@@ -96,8 +96,6 @@ int		GL_LoadPicTexture (qpic_t *pic);
 */
 void GL_Bind (int texnum)
 {
-	if (gl_nobind.value)
-		texnum = char_texture;
 	if (currenttexture == texnum)
 		return;
 	currenttexture = texnum;
@@ -355,7 +353,6 @@ void Draw_Init (void)
 //	int		fstep;		// <AWE> unused because of "#if 0".
 
 
-	Cvar_RegisterVariable (&gl_nobind);
 	Cvar_RegisterVariable (&gl_max_size);
 	Cvar_RegisterVariable (&gl_picmip);
 	Cvar_RegisterVariable (&gl_gloss);
@@ -497,7 +494,7 @@ void Draw_Init (void)
 	}
 
 	//Load water shader textures
-	InitShaderTex();
+	//InitShaderTex();
 	//load mirror dummys
 	R_InitMirrorChains();
 
