@@ -18,85 +18,44 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 PENTA: the whole file is freakin penta...
 
-"Shader" loading an management
+"Shader" loading an management.
+
+All .shader files are parsed on engine startup.  We don't load textures for these of course,
+textures are only loaded per level.
 */
 #include "quakedef.h"
 
-#define SHADER_MAX_NAME 128
-#define SHADER_MAX_STAGES 8
-#define SHADER_MAX_TCMOD 8
-#define SHADER_MAX_STATUSES 8
-
-typedef enum {STAGE_SIMPLE, STAGE_COLOR, STAGE_BUMP, STAGE_GLOSS} stagetype_t;
-typedef enum {TCMOD_ROTATE, TCMOD_SCROLL, TCMOD_SCALE, TCMOD_STRETCH} tcmodtype_t;
-/**
-* A single stage in the shader,
-* a stage is one block { } in a shader definition
-* this corresponds to a single pass for simple shaders
-* or a single texture definition for bumpmapping.
-*/
-typedef struct tcmod_s {
-	float params[7];
-	tcmodtype_t type;
-} tcmod_t;
-
-typedef struct stage_s {
-	stagetype_t type;
-	int			numtcmods;
-	tcmod_t		tcmods[SHADER_MAX_TCMOD];	
-	int			numtextures;
-	gltexture_t *texture[8];  //animations
-	int			src_blend, dst_blend; //have special values for bumpmap passes
-	int			alphatresh;
-} stage_t;
-
-#define	SURF_NOSHADOW		0x40000	//don't cast stencil shadows
-#define	SURF_BUMP			0x80000	//do diffuse bumpmapping and gloss if gloss is enabled too
-#define	SURF_GLOSS			0x100000//do gloss
-#define	SURF_PPLIGHT		0x200000//do per pixel lighting...
-									//if bump is unset it uses a flat bumpmap and no gloss
-									//if bump is set and gloss unet it does only diffuse bumps
-
-/**
-* A shader, holds the stages and the general info for that shader.
-*/
-typedef struct shader_s {
-	char		name[SHADER_MAX_NAME];
-	int			flags;
-	int			numstages;
-	stage_t		stages[SHADER_MAX_STAGES];
-	stage_t		colorStage;
-	stage_t		bumpStage;
-	stage_t		glossStage;
-	vec3_t		fog_color;
-	float		fog_dist;
-	int			numstatus;
-	struct shader_s	*status[SHADER_MAX_STATUSES]; //if the object the shader is on it's status is > 0 this shader will be used insead of the base shader...
-	struct shader_s	*next;	//in the shader linked list
-} shader_t;
-
 static shader_t *shaderList;
+
+/*=====================================================
+
+	Generic shader routines
+
+======================================================*/
+
+void GL_ShaderLoadTextures(shader_t *shader);
 
 /**
 * Generates a clean stage before one is parsed over it
 */
 void clearStage(stage_t *stage) {
 	memset(stage,0,sizeof(stage_t));
+	stage->texture[0] = NULL;
 	stage->type = STAGE_SIMPLE;
+	stage->src_blend = -1;
+	stage->dst_blend = -1;
 }
 
 /**
 * Generates a default shader from the given name.
 */
 void initDefaultStage(char *texname, stage_t *stage, stagetype_t type) {
-	memset(stage,0,sizeof(stage_t));
+	//memset(stage,0,sizeof(stage_t));
+	clearStage(stage);
 	stage->numtextures = 1;
-	if (type == STAGE_BUMP) {
-		stage->texture[0] = GL_CacheTexture(texname,true,TEXTURE_NORMAL);
-	} else
-		stage->texture[0] = GL_CacheTexture(texname,true,TEXTURE_RGB);
 	stage->numtcmods = 0;
 	stage->type = type;
+	strncpy(stage->filename,texname,2*MAX_QPATH+1);
 }
 
 /**
@@ -105,14 +64,22 @@ void initDefaultStage(char *texname, stage_t *stage, stagetype_t type) {
 void initDefaultShader(char *name, shader_t *shader) {
 	char namebuff[256];
 
+	memset(shader,0,sizeof(shader));
 	strncpy(shader->name,name,sizeof(shader->name));
 	shader->flags = 0;
-	shader->numstages = 3;
-	initDefaultStage(name, &shader->stages[0], STAGE_COLOR);
-	sprintf(namebuff,"%s%s",name,"_normal");
-	initDefaultStage(namebuff, &shader->stages[1], STAGE_BUMP);
-	sprintf(namebuff,"%s%s",name,"_gloss");
-	initDefaultStage(namebuff, &shader->stages[2], STAGE_GLOSS);
+	shader->numstages = 0;
+	shader->mipmap = true;
+	shader->cull = true;
+	sprintf(namebuff,"%s.tga",name);
+	initDefaultStage(namebuff, &shader->colorstages[0], STAGE_COLOR);
+	sprintf(namebuff,"%s_norm.tga|%s_gloss.tga",name,name);
+	initDefaultStage(namebuff, &shader->bumpstages[0], STAGE_BUMP);
+	initDefaultStage(namebuff, &shader->glossstages[0], STAGE_GRAYGLOSS);
+
+	shader->numbumpstages = 1;
+	shader->numglossstages = 1;
+	shader->numcolorstages = 1;
+	shader->flags |= (SURF_GLOSS | SURF_PPLIGHT | SURF_BUMP);
 }
 
 /*
@@ -128,8 +95,10 @@ shader_t *GL_ShaderForName(char *name) {
 	shader_t *s;
 	s = shaderList;
 
+	//Con_Printf("ShaderForName %s\n",name);
 	while(s) {
 		if (!strcmp(name,s->name)) {
+			GL_ShaderLoadTextures(s);
 			return s;
 		}
 		s = s->next;
@@ -144,9 +113,83 @@ shader_t *GL_ShaderForName(char *name) {
 	initDefaultShader(name,s);
 	s->next = shaderList;
 	shaderList = s;
-
+	GL_ShaderLoadTextures(s);
 	return s;
 }
+
+/*
+================
+StageLoadTextures
+
+load all the textures for the given stage
+================
+*/
+void StageLoadTextures(stage_t *stage, shader_t *shader) {
+	
+	stage->numtextures = 1;
+
+	switch (stage->type) {
+	case STAGE_COLOR:
+	case STAGE_GLOSS:
+	case STAGE_SIMPLE:
+		stage->texture[0] = GL_CacheTexture(stage->filename, shader->mipmap, TEXTURE_RGB);
+		break;
+	case STAGE_BUMP:
+		stage->texture[0] = GL_CacheTexture(stage->filename, shader->mipmap, TEXTURE_NORMAL);
+		break;
+	}
+}
+
+/*
+================
+GL_ShaderLoadTextures
+
+load all the textures for the given shader
+================
+*/
+void GL_ShaderLoadTextures(shader_t *shader) {
+	int i, j;
+
+	for (i=0; i<shader->numstages; i++) {
+		StageLoadTextures(&shader->stages[i],shader);
+	}
+
+	for (i=0; i<shader->numbumpstages; i++) {
+		StageLoadTextures(&shader->bumpstages[i],shader);
+	}
+
+	for (i=0; i<shader->numglossstages; i++) {
+		StageLoadTextures(&shader->glossstages[i],shader);
+	}
+
+	for (i=0; i<shader->numcolorstages; i++) {
+		StageLoadTextures(&shader->colorstages[i],shader);
+	}
+
+	for (i=0; i<shader->numglossstages; i++) {
+		if (shader->glossstages[i].type == STAGE_GRAYGLOSS) {
+			for (j=0; j< shader->glossstages[i].numtextures; j++)
+				shader->glossstages[i].texture[j] = shader->bumpstages[i].texture[j];
+		}
+	}
+}
+
+qboolean IsShaderBlended(shader_t *s) {
+
+	if (s->numstages)
+		return (s->stages[0].src_blend >= 0);
+
+	if (s->numcolorstages)
+		return (s->colorstages[0].src_blend >= 0);
+
+	return false;
+}
+
+/*=====================================================
+
+	Shader script parsing
+
+======================================================*/
 
 // parse some stuff but make sure you give some errors
 #define GET_SAFE_TOKEN data = COM_Parse (data);\
@@ -170,48 +213,48 @@ char *ParceTcMod(char *data, stage_t *stage) {
 
 		stage->tcmods[stage->numtcmods].type = TCMOD_ROTATE;
 		GET_SAFE_TOKEN;
-		stage->tcmods[stage->numtcmods].params[0] = atoi(com_token);
+		stage->tcmods[stage->numtcmods].params[0] = atof(com_token);
 
 	} else if (!strcmp(com_token, "scroll")) {
 
 		stage->tcmods[stage->numtcmods].type = TCMOD_SCROLL;
 		GET_SAFE_TOKEN;
-		stage->tcmods[stage->numtcmods].params[0] = atoi(com_token);
+		stage->tcmods[stage->numtcmods].params[0] = atof(com_token);
 		GET_SAFE_TOKEN;
-		stage->tcmods[stage->numtcmods].params[1] = atoi(com_token);
+		stage->tcmods[stage->numtcmods].params[1] = atof(com_token);
 
 	} else if (!strcmp(com_token, "scale")) {
 		
 		stage->tcmods[stage->numtcmods].type = TCMOD_SCALE;
 		GET_SAFE_TOKEN;
-		stage->tcmods[stage->numtcmods].params[0] = atoi(com_token);
+		stage->tcmods[stage->numtcmods].params[0] = atof(com_token);
 		GET_SAFE_TOKEN;
-		stage->tcmods[stage->numtcmods].params[1] = atoi(com_token);
+		stage->tcmods[stage->numtcmods].params[1] = atof(com_token);
 
 	} else if (!strcmp(com_token, "stretch")) {
 		
 		stage->tcmods[stage->numtcmods].type = TCMOD_STRETCH;
 		GET_SAFE_TOKEN;
-		stage->tcmods[stage->numtcmods].params[0] = atoi(com_token);
+		stage->tcmods[stage->numtcmods].params[0] = atof(com_token);
 		GET_SAFE_TOKEN;
-		stage->tcmods[stage->numtcmods].params[1] = atoi(com_token);
+		stage->tcmods[stage->numtcmods].params[1] = atof(com_token);
 		GET_SAFE_TOKEN;
-		stage->tcmods[stage->numtcmods].params[2] = atoi(com_token);
+		stage->tcmods[stage->numtcmods].params[2] = atof(com_token);
 		GET_SAFE_TOKEN;
-		stage->tcmods[stage->numtcmods].params[3] = atoi(com_token);
+		stage->tcmods[stage->numtcmods].params[3] = atof(com_token);
 		GET_SAFE_TOKEN;
-		stage->tcmods[stage->numtcmods].params[4] = atoi(com_token);
+		stage->tcmods[stage->numtcmods].params[4] = atof(com_token);
 
 	} else if (!strcmp(com_token, "turb")) {
 		
 		//parse it and give a warning that it's not supported
 		stage->tcmods[stage->numtcmods].type = TCMOD_SCALE;
 		GET_SAFE_TOKEN;
-		stage->tcmods[stage->numtcmods].params[0] = atoi(com_token);
+		stage->tcmods[stage->numtcmods].params[0] = atof(com_token);
 		GET_SAFE_TOKEN;
-		stage->tcmods[stage->numtcmods].params[1] = atoi(com_token);
+		stage->tcmods[stage->numtcmods].params[1] = atof(com_token);
 		GET_SAFE_TOKEN;
-		stage->tcmods[stage->numtcmods].params[2] = atoi(com_token);
+		stage->tcmods[stage->numtcmods].params[2] = atof(com_token);
 		GET_SAFE_TOKEN;
 		stage->tcmods[stage->numtcmods].params[3] = atoi(com_token);
 		Con_Printf("Warning: turb not supported by Tenebrae.\n");
@@ -234,9 +277,10 @@ char *ParseStage (char *data, shader_t *shader)
 	char		command[256];
 	char		texture[256];
 	stage_t		stage;
-
+	qboolean	isgraygloss;
 	//Con_Printf("Parsing shader stage...\n");
 	clearStage(&stage);
+	isgraygloss  = false;
 
 // go through all the dictionary pairs
 	while (1)
@@ -245,18 +289,46 @@ char *ParseStage (char *data, shader_t *shader)
 
 		//end of stage
 		if (com_token[0] == '}') {
-			//end of stage cleanup...
+			//end of stage is parsed now set everything up correctly
+			strncpy(stage.filename,texture,MAX_QPATH);
+			stage.numtextures = 1;
 
-			//stage->texture = GL_CacheTexture(com_token);
 			if (stage.type == STAGE_GLOSS) {
-				shader->glossStage = stage;
+
+				//if it has a gray gloss map we change the bumpmaps filename so it loads the gray
+				//glossmap too, we won't bother with the glossmap in the graygloss shaders anymore
+				//as we just bind the bumpmap.
+				if (isgraygloss) {
+					stage_t *bumpstage;
+
+					//setup the filenames correctly
+					stage.type = STAGE_GRAYGLOSS;
+					if (shader->numbumpstages < 1) {
+						Con_Printf("Gray gloss defined before bumpmap\n");
+						return NULL;
+					}
+					bumpstage = &shader->bumpstages[shader->numbumpstages-1];
+					sprintf(stage.filename,"%s|%s",texture,bumpstage->filename);
+					strcpy(bumpstage->filename, stage.filename);
+				}
 				shader->flags = shader->flags | SURF_GLOSS;
+				if (shader->numglossstages >= SHADER_MAX_BUMP_STAGES)
+					return NULL;
+				shader->glossstages[shader->numglossstages] = stage;
+				shader->numglossstages++;
 			} else if (stage.type == STAGE_COLOR) {
-				shader->colorStage = stage;
-				shader->flags = shader->flags | SURF_PPLIGHT;	
+				shader->flags = shader->flags | SURF_PPLIGHT;
+				if (shader->numcolorstages >= SHADER_MAX_BUMP_STAGES)
+					return NULL;
+				shader->colorstages[shader->numcolorstages] = stage;
+				shader->numcolorstages++;				
 			} else if (stage.type == STAGE_BUMP) {
-				shader->bumpStage = stage;
 				shader->flags = shader->flags | SURF_BUMP;
+				if (shader->numbumpstages >= SHADER_MAX_BUMP_STAGES)
+					return NULL;
+				shader->bumpstages[shader->numbumpstages] = stage;
+				shader->numbumpstages++;
+
 			} else {
 				if (shader->numstages >= SHADER_MAX_STAGES)
 					return NULL;
@@ -280,7 +352,7 @@ char *ParseStage (char *data, shader_t *shader)
 			} else if (!strcmp(com_token, "bumpmap")) {
 				stage.type = STAGE_BUMP;
 			} else if (!strcmp(com_token, "specularmap")) {
-				stage.type = STAGE_GLOSS;
+				stage.type = STAGE_GLOSS;	
 			} else {
 				Con_Printf("Unknown stage type %s\n",com_token);
 			}
@@ -288,10 +360,14 @@ char *ParseStage (char *data, shader_t *shader)
 		} else if (!strcmp(command, "map")) {
 
 			GET_SAFE_TOKEN;
-			//add the textures to the known texture list
-			//stage.texture = GL_CacheTexture(com_token);
-			//Con_Printf("Cache texture %s\n",com_token);
-			strncpy(texture,com_token,sizeof(texture));
+
+			//If it has a gray modifier it means the glossmap has to be stored in the bumpmap alpha
+			if (!strcmp(com_token, "gray")) {
+				GET_SAFE_TOKEN;
+				strncpy(texture,com_token,MAX_QPATH);
+				isgraygloss = true;
+			} else
+				strncpy(texture,com_token,MAX_QPATH);
 
 		} else if (!strcmp(command, "tcMod")) {
 
@@ -308,20 +384,19 @@ char *ParseStage (char *data, shader_t *shader)
 				} else if (!strcmp(com_token,"add")) {
 					stage.src_blend = GL_ONE;
 					stage.dst_blend = GL_ONE;
+				} else {
+					stage.src_blend = -1;
+					stage.dst_blend = -1;
 				}
 			} else {
 				GET_SAFE_TOKEN;
 				stage.dst_blend = SC_BlendModeForName(com_token);
 			}
-
-			if (stage.type != STAGE_SIMPLE) {
-				Con_Printf("Warning: Blendfunc with nonsimpel stage type will be ignored.\n");
-			}
-
 		} else if (!strcmp(command, "alphafunc")) {
 
 			GET_SAFE_TOKEN;
 			if (!strcmp(com_token,"GE128")) {
+				Con_Printf("alpha test\n");
 				stage.alphatresh = 128;
 			}
 
@@ -344,9 +419,15 @@ char *ParseStage (char *data, shader_t *shader)
 * Automatically generate a bump stage with the bumpmap keyword
 */
 void normalStage(shader_t *shader, char *name) {
-	clearStage(&shader->bumpStage);
-	shader->bumpStage.type = STAGE_BUMP;
-	//shader->bumpstage->texture = GL_CacheTexture(com_token);	
+	stage_t *stage;
+	if (shader->numbumpstages >= SHADER_MAX_BUMP_STAGES)
+			return;
+	stage = &shader->bumpstages[shader->numbumpstages];
+	shader->numbumpstages++;
+
+	clearStage(stage);
+	stage->type = STAGE_BUMP;
+	strncpy(stage->filename,name,MAX_QPATH);
 	shader->flags = shader->flags | SURF_BUMP;
 }
 
@@ -354,20 +435,67 @@ void normalStage(shader_t *shader, char *name) {
 * Automatically generate a specular stage with the specularmap keyword
 */
 void specularStage(shader_t *shader, char *name) {
-	clearStage(&shader->glossStage);
-	shader->glossStage.type = STAGE_GLOSS;
-	//shader->glossStage->texture = GL_CacheTexture(com_token);	
-	shader->flags = shader->flags | SURF_GLOSS;	
+	stage_t *stage;
+	if (shader->numglossstages >= SHADER_MAX_BUMP_STAGES)
+			return;
+	stage = &shader->glossstages[shader->numglossstages];
+	shader->numglossstages++;
+
+	clearStage(stage);
+	stage->type = STAGE_GLOSS;
+	strncpy(stage->filename,name,MAX_QPATH);
+	shader->flags = shader->flags | SURF_GLOSS;
+}
+
+/**
+* Automatically generate a specular stage with the normalspecular keyword
+* This is a shader with a grayscale gloss map .
+*/
+void normalSpecularStage(shader_t *shader, char *name, char *name2) {
+	stage_t *stage, *stage2;
+	char buff[MAX_QPATH*2+1];
+
+	if (shader->numglossstages >= SHADER_MAX_BUMP_STAGES)
+			return;
+
+	if (shader->numbumpstages >= SHADER_MAX_BUMP_STAGES)
+			return;
+
+	stage = &shader->bumpstages[shader->numbumpstages];
+	shader->numbumpstages++;
+
+	clearStage(stage);
+	stage->type = STAGE_BUMP;
+	strncpy(stage->filename,name,MAX_QPATH);
+	shader->flags = shader->flags | SURF_BUMP;
+
+	stage2 = &shader->glossstages[shader->numglossstages];
+	shader->numglossstages++;
+
+	clearStage(stage2);
+	stage2->type = STAGE_GRAYGLOSS;
+	strncpy(stage2->filename,name2,MAX_QPATH);
+	shader->flags = shader->flags | SURF_GLOSS;
+	
+	sprintf(buff,"%s|%s",stage->filename, stage2->filename);
+	strcpy(stage->filename, buff);
+	strcpy(stage2->filename, buff);
 }
 
 /**
 * Automatically generate a bump stage with the colormap keyword
 */
 void diffuseStage(shader_t *shader, char *name) {
-	clearStage(&shader->colorStage);
-	shader->colorStage.type = STAGE_COLOR;
-	//shader->colorStage->texture = GL_CacheTexture(com_token);	
-	shader->flags = shader->flags | SURF_PPLIGHT;	
+	stage_t *stage;
+	if (shader->numcolorstages >= SHADER_MAX_BUMP_STAGES)
+			return;
+	stage = &shader->colorstages[shader->numcolorstages];
+	shader->numcolorstages++;
+
+	clearStage(stage);
+	stage->type = STAGE_COLOR;
+	strncpy(stage->filename,name,MAX_QPATH);
+	shader->flags = shader->flags | SURF_PPLIGHT;
 }
 
 /**
@@ -402,8 +530,21 @@ char *ParseShader (char *data, shader_t *shader)
 		} else if (!strcmp(command,"specularmap")) {
 			GET_SAFE_TOKEN;
 			specularStage(shader,com_token);
+		} else if (!strcmp(command,"normalspecular")) {
+			GET_SAFE_TOKEN;
+			strcpy(command,com_token);
+			GET_SAFE_TOKEN;
+			normalSpecularStage(shader,command, com_token);
 		} else if (!strcmp(command,"surfaceparm")) {
 			data = COM_SkipLine(data);
+		} else if (!strcmp(command,"nomipmaps")) {
+			shader->mipmap = false;
+		} else if (!strcmp(command,"cull")) {
+			GET_SAFE_TOKEN;
+			if (!strcmp(com_token,"disable")) {
+				shader->cull = false;
+			} else
+				shader->cull = true;
 		} else {
 
 			//ignore q3map and radiant commands
@@ -418,25 +559,43 @@ char *ParseShader (char *data, shader_t *shader)
 
 void LoadShadersFromString (char *data)
 {	
-	shader_t shader;
+	shader_t shader, *s;
 // parse shaders
-	memset(&shader,0,sizeof(shader));
 	while (1)
 	{
 		data = COM_Parse (data);
 		if (!data)
 			break;
 
-		strncpy(shader.name,com_token,sizeof(shader.name));
+		//check if shader already exists
+		s = shaderList;
+		while(s) {
+			if (!strcmp(com_token,s->name)) {
+				Con_Printf("Error: Shader redefined %s\n",com_token);
+				return;
+			}
+			s = s->next;
+		}
 
+		//make a new one
+		s = malloc(sizeof(shader_t));
+		if (!s) Sys_Error("Not enough mem");
+		memset(s,0,sizeof(shader_t));
+		s->next = shaderList;
+		shaderList = s;
+		strncpy(s->name,com_token,sizeof(s->name));
+		s->mipmap = true;
+		s->cull = true;
+
+		//parse it from the file
 		data = COM_Parse (data);
 		if (!data)
 			break;
 		if (com_token[0] != '{')
 			Sys_Error ("ED_LoadFromFile: found %s when expecting {",com_token);
 
-		//Con_Printf("Parsing shader %s\n",shader.name);
-		data = ParseShader (data, &shader);
+		Con_Printf("Parsing %s...\n",s->name);
+		data = ParseShader (data, s);
 	}
 	
 	if ((!fog_start.value) && (!fog_end.value)) {
