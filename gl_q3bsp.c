@@ -168,6 +168,7 @@ void ModQ3_LoadVertexes (lump_t *l)
 		Sys_Error ("MOD_LoadBmodel: funny lump size in %s",loadmodel->name);
 	count = l->filelen / sizeof(*in);
 	
+	Con_DPrintf("%i vertexes in map\n", count);
 	loadmodel->numvertexes = count;
 	/*
 	Not needed all vertices are fetched from global vertex table
@@ -177,6 +178,8 @@ void ModQ3_LoadVertexes (lump_t *l)
 	loadmodel->numvertexes = count;
 	*/
 	
+	loadmodel->userVerts = Hunk_AllocName (count*sizeof(vec3_t), loadname);	
+
 	for ( i=0 ; i<count ; i++, in++)
 	{
 		pos[0] = LittleFloat (in->point[0]);
@@ -195,6 +198,7 @@ void ModQ3_LoadVertexes (lump_t *l)
 		color[3] = in->color[3];
 
 		R_AllocateVertexInTemp(pos, tex, lightmap, color);
+		VectorCopy(pos,loadmodel->userVerts[i]);
 	}
 }
 
@@ -594,10 +598,12 @@ void ModQ3_LoadFaces (lump_t *l)
 	loadmodel->surfaces = out;
 	loadmodel->numsurfaces = count;
 
-
-	
 	for ( surfnum=0 ; surfnum<count ; surfnum++, in++, out++)
 	{
+		mmvertex_t *v;
+		float lmScale, lmXOffset, lmYOffset;
+		int firstVert, numVerts;
+
 		out->firstedge = -1;
 		out->numedges = 0;
 		out->flags = 0;
@@ -622,8 +628,23 @@ void ModQ3_LoadFaces (lump_t *l)
 		out->flags = out->shader->shader->flags;
 		out->visframe = -1;
 
+		//Convert the lightmap texture coords to packed lightmap coords
+		lmScale = 1/(float)PACKED_LIGHTMAP_COLUMS;
+		lmXOffset = LIGHTMAP_COLUMN(out->lightmaptexturenum/2)*lmScale;
+		lmYOffset = LIGHTMAP_ROW(out->lightmaptexturenum/2)*lmScale;
+		numVerts = LittleLong(in->numvertices);
+		firstVert = LittleLong(in->firstvertex);
+		out->lightmaptexturenum = ((out->lightmaptexturenum/2)/PACKED_LIGHTMAP_COUNT)*2;
+
+		for (i=0; i<numVerts; i++) {
+			v = &tempVertices[firstVert+i];
+			v->lightmap[0] = v->lightmap[0]*lmScale+lmXOffset;
+			v->lightmap[1] = v->lightmap[1]*lmScale+lmYOffset;
+		}
+
 		// normal surface
 		if (in->type == 1) {
+
 			//fill in the glpoly
 			poly = Hunk_Alloc (sizeof(glpoly_t)+(LittleLong(in->nummeshvertices)-1)*sizeof(int));
 			poly->numverts = LittleLong(in->numvertices);
@@ -1332,6 +1353,8 @@ void ModQ3_InitAreas(void) {
 	memset(map_areas,0,sizeof(map_areas));
 }
 
+extern int numTempVertices;
+
 void ModQ3_LoadBrushModel (model_t *mod, void *buffer)
 {
 	int			i, j;
@@ -1396,7 +1419,7 @@ void ModQ3_LoadBrushModel (model_t *mod, void *buffer)
 
 	Con_Printf("Configuring faces...\n");
 	ModQ3_SetupFaces ();
-
+	Con_Printf("%ikb of vertex data (%i vertices)\n", (numTempVertices*sizeof(mmvertex_t))/1024, numTempVertices);
 
 	mod->numframes = 2;		// regular and alternate animation
 
@@ -1416,7 +1439,7 @@ void ModQ3_LoadBrushModel (model_t *mod, void *buffer)
 		submodel->nummodelbrushes = bm->numbrushes;
 		VectorCopy (bm->maxs, submodel->maxs);
 		VectorCopy (bm->mins, submodel->mins);
-		submodel->radius = RadiusFromBounds (submodel->mins, submodel->maxs);
+		submodel->radius = Mod_RadiusFromBounds (submodel->mins, submodel->maxs);
 		submodel->numleafs = bm->visleafs;
 		submodel->hulls[0].firstclipnode = 0;//bm->headnode[0];
 		for (j=1 ; j<MAX_MAP_HULLS ; j++)
