@@ -78,6 +78,10 @@ GLfloat		gl_textureanisotropylevel = 2.0f;
 // <AWE> On MacOSX X we use this var to store the state. 0 = off, 1 = on.
 //cvar_t	gl_anisotropic = { "gl_anisotropic", "0", 1 }; 
 
+qboolean	gl_occlusiontest = false;
+occlusion_cut_meshes;
+occlusion_cut_entities;
+occlusion_cut_lights;
 
 unsigned short  d_8to16table[256];
 unsigned        d_8to24table[256];
@@ -487,6 +491,14 @@ void CheckTextureCompressionExtension(void)
      }
 }
 
+void CheckOcclusionTest(void)
+{
+     if (strstr(gl_extensions, "GL_HP_occlusion_test") )
+     {
+          Con_Printf("Occlusion test available\n");
+          gl_occlusiontest = true;
+     }
+}
 /*
   ===============
   GL_Init
@@ -544,6 +556,8 @@ void GL_Init (void)
      CheckAnisotropicExtension ();
      Con_Printf ("Checking TC\n");
      CheckTextureCompressionExtension ();
+	 Con_Printf ("checking OT\n");
+	 CheckOcclusionTest();
 
      //if something goes wrong here throw an sys_error as we don't want to end up
      //having invalid function pointers called...
