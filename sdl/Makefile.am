@@ -1,35 +1,52 @@
 
-if HAVE_SDL
-SDL_PRG = tenebrae.sdl
-else
-SDL_PRG =
-endif
+noinst_LIBRARIES = libnvparse.a
 
-bin_PROGRAMS = $(SDL_PRG) tenebrae.glx
+libnvparse_a_CXXFLAGS = @CFLAGS@ -I$(NVPARSE_DIR)
 
-tenebrae_glx_LDADD = @MATHLIB@ @INETLIB@ @X11_LIBS@ @OPENGLLIBS@ 
-
-tenebrae_sdl_LDADD = @MATHLIB@ @INETLIB@ @SDL_LIBS@ @OPENGLLIBS@ 
+# crappy hack to make sure yy* var in the generated file are mapped to nvparse_yy*
+libnvparse_a_LFLAGS = -Pnvparse_yy -o$(LEX_OUTPUT_ROOT).c
 
 MASTER_DIR=..
 
 NVPARSE_DIR=$(MASTER_DIR)/nvparse
 
+if HAVE_SDL
+SDL_PRG = sdl_tenebrae
+else
+SDL_PRG =
+endif
+
+if HAVE_GLX
+GLX_PRG = glx_tenebrae
+else 
+GLX_PRG = 
+endif
+
+bin_PROGRAMS = $(SDL_PRG) $(GLX_PRG)
+
+glx_tenebrae_LDADD = @MATHLIB@ @INETLIB@ @X11_LIBS@ @OPENGLLIBS@ $(noinst_LIBRARIES)
+sdl_tenebrae_LDADD = @MATHLIB@ @INETLIB@ @SDL_LIBS@ @OPENGLLIBS@ $(noinst_LIBRARIES)
+
+glx_tenebrae_LFLAGS = -i -Cfr
+sdl_tenebrae_LFLAGS = -i -Cfr
+
+
 # datadir is a variable defined by autoconf to @prefix@/share/ 
-tenebrae_glx_CFLAGS = @CFLAGS@ @X11_CFLAGS@  -D__glx__ -DGLQUAKE -DBASEDIR=@GAMEDIR@ -I$(MASTER_DIR) -I$(NVPARSE_DIR)
-tenebrae_sdl_CFLAGS = @CFLAGS@ @SDL_CFLAGS@ -DSDL -DGLQUAKE -DBASEDIR=@GAMEDIR@ -I$(MASTER_DIR) -I$(NVPARSE_DIR)
+glx_tenebrae_CFLAGS = @CFLAGS@ @X11_CFLAGS@  -D__glx__ -DGLQUAKE -DBASEDIR=@GAMEDIR@ -I$(MASTER_DIR) -I$(NVPARSE_DIR) 
+sdl_tenebrae_CFLAGS = @CFLAGS@ @SDL_CFLAGS@ -DSDL      -DGLQUAKE -DBASEDIR=@GAMEDIR@ -I$(MASTER_DIR) -I$(NVPARSE_DIR) 
 
-tenebrae_glx_CXXFLAGS = $(tenebrae_glx_CFLAGS)
-tenebrae_sdl_CXXFLAGS = $(tenebrae_sdl_CFLAGS)
 
-tenebrae_glx_SOURCES =			\
+libnvparse_a_SOURCES = 			\
+	$(NVPARSE_SRCS)
+
+glx_tenebrae_SOURCES =			\
 	$(MASTER_DIR)/cd_linux.c		\
-	$(MASTER_DIR)/snd_linux.		\
-	$(MASTER_DIR)/sys_linux.		\
+	$(MASTER_DIR)/snd_linux.c		\
+	$(MASTER_DIR)/sys_linux.c		\
 	$(MASTER_DIR)/gl_vidlinuxglx.c		\
 	$(COMMON_SRCS)
 
-tenebrae_sdl_SOURCES = 			\
+sdl_tenebrae_SOURCES = 			\
 	$(MASTER_DIR)/cd_sdl.c			\
 	$(MASTER_DIR)/sys_sdl.c			\
 	$(MASTER_DIR)/snd_sdl.c			\
@@ -135,8 +152,8 @@ COMMON_SRCS =				\
 	$(MASTER_DIR)/textures.c		\
 	$(GL_SRCS)				\
 	$(GL_TENEBRAE_SRCS)			\
-	$(LEX_TENEBRAE_SRCS)			\
-	$(NVPARSE_SRCS)
+	$(LEX_TENEBRAE_SRCS)			
+
 
 QUAKE_SRCS =				\
 	$(MASTER_DIR)/d_edge.c			\
@@ -244,9 +261,6 @@ LNX_SRCS =				\
 	$(MASTER_DIR)/vid_svgalib.c		\
 	$(MASTER_DIR)/vid_x.c
 
-GL_LNX_SRCS =				\
-	$(MASTER_DIR)/gl_vidlinuxglx.c
-
 GL_WIN_SRCS =				\
 	$(MASTER_DIR)/gl_vidnt.c
 
@@ -306,6 +320,9 @@ NVPARSE_SRCS =				\
 	$(NVPARSE_DIR)/rc1.0_combiners.cpp	\
 	$(NVPARSE_DIR)/rc1.0_general.cpp	\
 	$(NVPARSE_DIR)/rc1.0_final.cpp		\
+	$(NVPARSE_DIR)/_rc1.0_parser.cpp	\
+	$(NVPARSE_DIR)/_rc1.0_lexer.cpp		\
+	$(NVPARSE_DIR)/_rc1.0_parser.h		\
 	$(NVPARSE_DIR)/nvparse_errors.h		\
 	$(NVPARSE_DIR)/nvparse_externs.h	\
 	$(NVPARSE_DIR)/nvparse.h		\
@@ -336,7 +353,6 @@ EXTRA_DIST =				\
 	$(SUN_SRCS)				\
 	$(NEXT_SRCS)				\
 	$(GL_SRCS)				\
-	$(GL_LNX_SRCS)				\
 	$(GL_WIN_SRCS)
 
 
@@ -347,6 +363,7 @@ EXTRA_DIST =				\
 
 $(NVPARSE_DIR)/rc1.0_tokens.ll : $(NVPARSE_DIR)/rc1.0_tokens.l
 	cp $(NVPARSE_DIR)/rc1.0_tokens.l $(NVPARSE_DIR)/rc1.0_tokens.ll
+
 
 # hack to handle the rc1.0_grammar.y yacc->cpp file case 
 

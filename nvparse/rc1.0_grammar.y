@@ -1,11 +1,16 @@
 %start WholeEnchilada
 %{
+
+#include "yy_nvparse.h"
+
 void yyerror(char* s);
 int yylex ( void );
 
 #ifdef _WIN32
 # include <windows.h>
 #endif
+
+
 
 #include <stdio.h>
 #include <malloc.h>

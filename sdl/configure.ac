@@ -1,5 +1,5 @@
 # Process this file with autoconf to produce a configure script.
-AC_INIT(tenebrae, 1.0.2)
+AC_INIT(tenebrae, cvs)
 
 # =================================================================
 # Detect the canonical target build environment
@@ -14,12 +14,13 @@ AC_CONFIG_SRCDIR([../sys_sdl.c])
 AM_CONFIG_HEADER([config.h])
 
 # =================================================================
-# Checks for programs.
+# Checks for programs : cc, c++, yacc, install, make, ar
 AC_PROG_CC
 AC_PROG_CXX
 AC_PROG_YACC
 AC_PROG_INSTALL
 AC_PROG_MAKE_SET
+AC_PROG_RANLIB
 
 # =================================================================
 # autoconf 2.53 doesn't check that
@@ -56,11 +57,6 @@ case "$target" in
         INETLIB="-lwsock32"
 	OPENGLLIBS="-lopengl32 -lglu32"
         ;;
-    *-*-beos*)
-	AC_MSG_ERROR([BeOS support broken]) 
-        MATHLIB=""
-        INETLIB=""
-        ;;
     *)
         MATHLIB="-lm"
         INETLIB=""
@@ -73,17 +69,6 @@ AC_SUBST(INETLIB)
 AC_SUBST(OPENGLLIBS)
 
 # =================================================================
-# Check for X11 
-# FIXME !!!!
-
-X11_LIBS="-L/usr/X11R6/lib -lpthread -lX11 -lXext -lXxf86dga -lXxf86vm"
-
-X11_CFLAGS=""
-
-AC_SUBST(X11_CFLAGS)
-AC_SUBST(X11_LIBS)
-
-# =================================================================
 # Check for lex/flex
 
 AM_PROG_LEX
@@ -92,28 +77,6 @@ if test "$LEX" != flex; then
   AC_SUBST(LEX_OUTPUT_ROOT, lex.yy)
   AC_SUBST(LEXLIB, '')
 fi
-
-LFLAGS="-i -Cfr"
-AC_SUBST(LFLAGS)
-
-
-# =================================================================
-# Check for SDL
-
-SDL_VERSION=1.2.0
-
-AC_ARG_ENABLE(sdl,
-[  AC_HELP_STRING([--disable-sdl], [disable sdl build [default=no]]) ],
-   [ sdl_enabled=no ],
-   [ sdl_enabled=yes ]
-)
-
-AM_PATH_SDL($SDL_VERSION,
-            [ have_sdl=yes ]
-)
-
-AM_CONDITIONAL(HAVE_SDL, test x$have_sdl = xyes && test x$sdl_enabled = xyes )
-
 
 # =================================================================
 # Check for PNG
@@ -151,6 +114,44 @@ AC_SUBST(XML_CFLAGS)
 
 CFLAGS="$CFLAGS $PNG_CFLAGS $XML_CFLAGS"
 LIBS="$LIBS $PNG_LIBS $XML_LIBS"
+
+# =================================================================
+# Check for X11 
+# FIXME : DGA extension necessary -> add a check
+# FIXME : at this point, only Xfree is supported, so check for it
+
+X11_LIBS="-L/usr/X11R6/lib -lpthread -lX11 -lXext -lXxf86dga -lXxf86vm"
+X11_CFLAGS=""
+
+#AC_PATH_XTRA
+
+#X11_CFLAGS="$X_FLAGS"
+#X11_LIBS="$X_PRE_LIBS $X_LIBS $X_EXTRA_LIBS -lXext -lXxf86dga -lXxf86vm"
+
+
+AC_SUBST(X11_CFLAGS)
+AC_SUBST(X11_LIBS)
+
+AM_CONDITIONAL(HAVE_GLX, test x$X_DISPLAY_MISSING = x )
+
+
+# =================================================================
+# Check for SDL
+
+SDL_VERSION=1.2.0
+
+AC_ARG_ENABLE(sdl,
+[  AC_HELP_STRING([--disable-sdl], [disable sdl build [default=no]]) ],
+   [ sdl_enabled=no ],
+   [ sdl_enabled=yes ]
+)
+
+AM_PATH_SDL($SDL_VERSION,
+            [ have_sdl=yes ]
+)
+
+AM_CONDITIONAL(HAVE_SDL, test x$have_sdl = xyes && test x$sdl_enabled = xyes )
+
 
 
 # =================================================================
@@ -191,7 +192,7 @@ CFLAGS="$CFLAGS -DELF"
 
 # =================================================================
 # Checks for header files.
-AC_PATH_X
+
 AC_HEADER_STDC
 AC_HEADER_SYS_WAIT
 AC_CHECK_HEADERS([arpa/inet.h fcntl.h limits.h netdb.h netinet/in.h stddef.h stdlib.h string.h sys/file.h sys/ioctl.h sys/param.h sys/socket.h sys/time.h termios.h unistd.h])
