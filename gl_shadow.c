@@ -48,6 +48,8 @@ mesh_t *meshshadowchain;
 byte *lightvis;
 byte worldvis[MAX_MAP_LEAFS/8];
 
+extern aabox_t worldbox;
+
 /* -DC- isn't that volumeVertsBuff ?
 vec3_t volumevertices[MAX_VOLUME_VERTICES];//buffer for the vertices of the shadow volume
 int usedvolumevertices;
@@ -75,6 +77,42 @@ shadowlight_t* AllocShadowLight(void) {
 	shadowlights[numShadowLights].owner = NULL;
 	numShadowLights++;
 	return &shadowlights[numShadowLights-1];
+}
+
+void DrawLightVolumeInfo(void) {
+
+	int i;
+	aabox_t b;
+	if (!sh_showlightvolume.value) return;
+
+	glDisable(GL_TEXTURE_2D);
+	glDisable(GL_DEPTH_TEST);
+	glColor3f(0.0,0.0,1.0);
+	for (i=0; i<numUsedShadowLights; i++) {
+		shadowlight_t *l = usedshadowlights[i];
+		if (!l->shadowchainfilled) continue;
+
+		b = intersectBoxes(&l->box, &worldbox);
+		drawBoxWireframe(&b);
+	}
+	glEnable(GL_DEPTH_TEST);
+	glEnable(GL_TEXTURE_2D);
+}
+
+void BoxForRadius(shadowlight_t *l) {
+	l->box.mins[0] = l->origin[0] - l->radius;
+	l->box.mins[1] = l->origin[1] - l->radius;
+	l->box.mins[2] = l->origin[2] - l->radius;
+
+	l->box.maxs[0] = l->origin[0] + l->radius;
+	l->box.maxs[1] = l->origin[1] + l->radius;
+	l->box.maxs[2] = l->origin[2] + l->radius;
+
+	l->radiusv[0] = l->radius;
+	l->radiusv[1] = l->radius;
+	l->radiusv[2] = l->radius;
+
+	//l->filtercube = 0;
 }
 
 /*
@@ -129,12 +167,33 @@ void R_ShadowFromDlight(dlight_t *light) {
 	} else {
 		l->halo = false;
 	}
+
+	BoxForRadius(l);
 }
 
+/*
+=============
+R_MarkDLights
+
+Adds dynamic lights to the shadow light list
+=============
+*/
+void R_MarkDlights (void)
+{
+	int		i;
+	dlight_t	*l;
+
+	l = cl_dlights;
+	for (i=0 ; i<MAX_DLIGHTS ; i++, l++)
+	{
+		if (l->die < cl.time || !l->radius)
+			continue;
+		R_ShadowFromDlight(l);
+	}
+}
 
 #define NUM_CUBEMAPS 64
 int cubemap_tex_obj [NUM_CUBEMAPS];
-
 
 /*
 =============
@@ -221,56 +280,7 @@ void R_ShadowFromEntity(entity_t *ent) {
 	} else {
 		l->halo = false;
 	}
-
-}
-
-/*
-=============
-R_MarkDLights
-
-Adds dynamic lights to the shadow light list
-=============
-*/
-void R_MarkDlights (void)
-{
-	int		i;
-	dlight_t	*l;
-
-	l = cl_dlights;
-	for (i=0 ; i<MAX_DLIGHTS ; i++, l++)
-	{
-		if (l->die < cl.time || !l->radius)
-			continue;
-		R_ShadowFromDlight(l);
-	}
-}
-
-
-/*
-=============
-R_MarkEntities
-
-Adds entities that have a lightsource attched to
-the shadow light list.
-(used for static ents)
-We just check if they have a torch/flame model or not.
-=============
-*/
-void R_MarkEntities (void)
-{
-	int		i;
-	entity_t *current;
-
-	for (i=0 ; i<cl.num_statics; i++)
-	{
-		current = &cl_static_entities[i];
-
-		if (!strcmp (current->model->name, "progs/flame2.mdl")
-		|| !strcmp (current->model->name, "progs/flame.mdl") )
-		{
-			R_ShadowFromEntity(current);
-		}
-	}
+	BoxForRadius(l);
 }
 
 int cut_ent;
@@ -317,18 +327,283 @@ void R_InitShadowsForFrame(void) {
 	}
 }
 
+#define MAX_LEAF_LIST 32
+mleaf_t *leafList[MAX_LEAF_LIST];
+int numLeafList;
+extern vec3_t		r_emins, r_emaxs;	// <AWE> added "extern".
 
-qboolean R_MarkShadowSurf(msurface_t *surf, shadowlight_t *light) 
+/*
+=============
+R_ProjectSphere
+
+Returns the rectangle the sphere will be in when it is drawn.
+FIXME: This is crappy code we draw a "sprite" and project those points
+it should be possible to analytically derive a eq.
+
+=============
+*/
+
+/*
+void R_ProjectSphere (shadowlight_t *light, int *rect)
+{
+	int		i, j;
+	float	a;
+	vec3_t	v, vp2;
+	float	rad;
+	double minx, maxx, miny, maxy;
+	double px, py, pz;
+
+	rad = light->radius;
+	
+	//rect[0] = 100;
+	//rect[1] = 100;
+	//rect[2] = 300;
+	//rect[3] = 300;
+
+	//return;
+	
+	VectorSubtract (light->origin, r_origin, v);
+
+	//dave - slight fix
+	VectorSubtract (light->origin, r_origin, vp2);
+	VectorNormalize(vp2);
+
+	minx = 1000000;
+	miny = 1000000;
+	maxx = -1000000;
+	maxy = -1000000;
+
+	for (i=32 ; i>=0 ; i--)
+	{
+		a = i/32.0 * M_PI*2;
+		for (j=0 ; j<3 ; j++)
+			v[j] = light->origin[j] + vright[j]*cos(a)*rad + vup[j]*sin(a)*rad;
+
+		gluProject(v[0], v[1], v[2], r_Dworld_matrix, r_Dproject_matrix,
+                           (GLint *) r_Iviewport, &px, &py, &pz);			// <AWE> added cast.
+
+		if (px > maxx) maxx = px;
+		if (px < minx) minx = px;
+		if (py > maxy) maxy = py;
+		if (py < miny) miny = py;
+
+	}
+
+	rect[0] = (int)minx;
+	rect[1] = (int)miny;
+	rect[2] = (int)maxx;
+	rect[3] = (int)maxy;	
+}
+*/
+
+/*
+=============
+
+R_ProjectBoundingBox
+
+	Returns the screen rectangle this light's bounding box will be in when it is drawn.
+
+=============
+*/
+void R_ProjectBoundingBox (shadowlight_t *light, int *rect) {
+
+	vec3_t dest;
+	double minx, maxx, miny, maxy;
+	double px, py, pz;
+	int i, j, k;
+	static float verts[9*3];
+	matrix_4x4 modelviewproj, world, proj;
+	matrix_1x4 point, res;
+	aabox_t box;
+	minx = 100000000;
+	miny = 100000000;
+	maxx = -100000000;
+	maxy = -100000000;
+
+	box = intersectBoxes(&light->box, &worldbox);
+
+	i=0;
+	VectorConstruct(box.maxs[0],box.maxs[1],box.maxs[2],&verts[i]);
+	i+=3;
+	VectorConstruct(box.mins[0],box.maxs[1],box.maxs[2],&verts[i]);
+	i+=3;
+	VectorConstruct(box.maxs[0],box.mins[1],box.maxs[2],&verts[i]);
+	i+=3;
+	VectorConstruct(box.mins[0],box.mins[1],box.maxs[2],&verts[i]);
+	i+=3;
+	VectorConstruct(box.mins[0],box.mins[1],box.mins[2],&verts[i]);
+	i+=3;
+	VectorConstruct(box.maxs[0],box.mins[1],box.mins[2],&verts[i]);
+	i+=3;
+	VectorConstruct(box.maxs[0],box.maxs[1],box.mins[2],&verts[i]);
+	i+=3;
+	VectorConstruct(box.mins[0],box.maxs[1],box.mins[2],&verts[i]);
+	i+=3;
+
+	glGetFloatv (GL_MODELVIEW_MATRIX, &world[0][0]);
+//	glMatrixMode(GL_PROJECTION);
+//	glPushMatrix();
+	//gluPerspective(90,  r_Iviewport[0]/ (float)r_Iviewport[1], 0.1, 2000.0);
+	glGetFloatv (GL_PROJECTION_MATRIX, &proj[0][0]);
+//	glGetDoublev (GL_PROJECTION_MATRIX, &r_Dproject_matrix[0]);
+
+	Mat_Mul_4x4_4x4(world, proj, modelviewproj);
+
+	for (i=0; i<8; i++) {
+		//float s;
+		//float *v = &verts[i*3];
+		
+		point[0] = verts[i*3+0];
+		point[1] = verts[i*3+1];
+		point[2] = verts[i*3+2];
+		point[3] = 1.0f;
+		Mat_Mul_1x4_4x4(point, modelviewproj, res);
+		
+		//gluProject(v[0], v[1], v[2], r_Dworld_matrix, r_Dproject_matrix,
+         //    (GLint *) r_Iviewport, &px, &py, &pz);
+
+		//if (res[3] < 0) {
+		//Con_Printf("%f %f\n", (float)px, (float)py);
+		//s = (pz < 0) ? -1 : 1;
+
+
+		px = (res[0]*(1/res[3])+1.0) * 0.5;
+		py = (res[1]*(1/res[3])+1.0) * 0.5;
+
+		px = px * r_Iviewport[2] + r_Iviewport[0];
+		py = py * r_Iviewport[3] + r_Iviewport[1];
+
+		//Con_Printf("%f %f\n", (float)px, (float)py);
+
+			//continue;
+		//}
+		
+		/*
+		if (px < r_Iviewport[0]) px = r_Iviewport[0];
+		if (py < r_Iviewport[1]) py = r_Iviewport[1];
+		if (px > r_Iviewport[0]+r_Iviewport[2]) px = r_Iviewport[0]+r_Iviewport[2];
+		if (py > r_Iviewport[1]+r_Iviewport[3]) py = r_Iviewport[1]+r_Iviewport[3];
+		*/
+
+		if (px > maxx) maxx = px;
+		if (px < minx) minx = px;
+		if (py > maxy) maxy = py;
+		if (py < miny) miny = py;
+	}
+
+/*	glPopMatrix();
+	glGetDoublev (GL_PROJECTION_MATRIX, &r_Dproject_matrix[0]);
+	glMatrixMode(GL_MODELVIEW);*/
+	/*
+	for (i=-1; i<=1; i+=2) {
+		for (j=-1; j<=1; j+=2) {
+			for (k=-1; k<=1; k+=2) {
+				MakeVertex(i*light->radius, j*light->radius, k*light->radius, light->origin, dest);
+				Con_Printf("%f %f %f\n",dest[0],dest[1],dest[2]);
+				gluProject(dest[0], dest[1], dest[2], r_Dworld_matrix, r_Dproject_matrix,
+                           (GLint *) r_Iviewport, &px, &py, &pz);
+
+
+				if (px > maxx) maxx = px;
+				if (px < minx) minx = px;
+				if (py > maxy) maxy = py;
+				if (py < miny) miny = py;
+			}
+		}
+	}
+	*/
+	
+	/*
+	if (minx < (double)r_Iviewport[0]) minx = (double)r_Iviewport[0];
+	if (miny < (double)r_Iviewport[1]) miny = (double)r_Iviewport[1];
+	if (maxx > (double)r_Iviewport[0]+r_Iviewport[2]) maxx = (double)r_Iviewport[0]+r_Iviewport[2];
+	if (maxy > (double)r_Iviewport[1]+r_Iviewport[3]) maxy = (double)r_Iviewport[1]+r_Iviewport[3];
+	*/
+
+	rect[0] = (int)minx;
+	rect[1] = (int)miny;
+	rect[2] = (int)maxx;
+	rect[3] = (int)maxy;
+}
+
+/*
+=============
+
+HasSharedLeaves
+
+	Returns true if both vis arrays have shared leafs visible.
+	FIXME: compare bytes at a time (what does quake fill the unused bits with??)
+
+=============
+*/
+qboolean HasSharedLeafs(byte *v1, byte *v2) {
+
+	int i;
+	for (i=0 ; i<cl.worldmodel->numclusters; i++)
+	{
+		if (v1[i>>3] & (1<<(i&7)))
+		{
+			if (v2[i>>3] & (1<<(i&7)))
+				return true;
+
+		}
+	}
+	return false;
+}
+
+/*
+=============
+
+HasVisibleClusters
+
+	Returns true if the light has leaves shared with the clusters in v2.
+
+=============
+*/
+qboolean HasVisibleClusters(shadowlight_t *l, byte *v2) {
+
+	int i;
+	for (i=0 ; i<cl.worldmodel->numleafs; i++)
+	{
+		int cluster = cl.worldmodel->leafs[i].cluster;
+		//leaf is visible from the light?
+		if (l->leafvis[i>>3] & (1<<(i&7)))
+		{
+			//cluster is visible from the camera?
+			if (v2[cluster>>3] & (1<<(cluster&7)))
+				return true;
+
+		}
+	}
+	return false;
+}
+
+
+/**************************************************************
+
+
+	Code to determine what stuff is visible to the light.
+
+
+***************************************************************/
+
+
+/*
+=============
+
+CheckSurfInLight
+
+  Returns true if the surface is lit by the light. (Of course approximately)
+
+=============
+*/
+qboolean CheckSurfInLight(msurface_t *surf, shadowlight_t *light) 
 {
 	mplane_t	*plane;
 	float		dist;
 	glpoly_t	*poly;
 
-	//we don't cast shadows with water
-	if (( surf->flags & SURF_DRAWTURB ) || ( surf->flags & SURF_DRAWSKY )) {
-		return false;
-	}
-
+	//Doesn't recieve per pixel light or cast shadows...
 	if (!(surf->flags & SURF_PPLIGHT) && (surf->flags & SURF_NOSHADOW)) {
 		return false;
 	}
@@ -375,34 +650,114 @@ qboolean R_MarkShadowSurf(msurface_t *surf, shadowlight_t *light)
 	return true;
 }
 
-#define MAX_LEAF_LIST 32
-mleaf_t *leafList[MAX_LEAF_LIST];
-int numLeafList;
-extern vec3_t		r_emins, r_emaxs;	// <AWE> added "extern".
+/*
+=============
+
+R_MarkLightSurfaces
+
+	Fills the shadow chain with polygons we should consider.
+
+	Polygons that will be added are:
+	1. In the light volume. (sphere)
+	2. "Visible" to the light.
+
+	Visible is:
+	a. facing the light (dotprod > 0)
+	b. in a leaf that is visible from the light's leaf. (based on vis data)
+
+	This is crude for satic lights we use extra tricks (svbsp / revis) to
+	reduce the number of polyons.
+
+=============
+*/
+void R_MarkLightSurfaces (shadowlight_t *light, mnode_t *node)
+{
+	mplane_t	*plane;
+	float		dist;
+	msurface_t	**surf;
+	mleaf_t		*leaf;
+	int			c,leafindex;
+	mesh_t		*mesh;
+
+	//Not in the current light's bouding box
+	if (!intersectsMinsMaxs(&light->box,node->minmaxs,node->minmaxs+3))
+		return;
+
+	if (node->contents & CONTENTS_LEAF) {
+		//we are in a leaf
+		leaf = (mleaf_t *)node;
+		leafindex = leaf->cluster;
+
+		//is this leaf visible from the light
+		if (!(lightvis[leafindex>>3] & (1<<(leafindex&7)))) {
+			return;
+		}
+
+		c = leaf->nummarksurfaces;
+		surf = leaf->firstmarksurface;
+
+		for (c=0; c<leaf->nummarksurfaces; c++, surf++) {
+
+			if (CheckSurfInLight ((*surf), light)) {
+				(*surf)->shadowchain = shadowchain;
+				shadowchain = (*surf);				
+				//svBsp_NumKeptPolys++;
+			}
+		}
+
+
+		c = leaf->nummeshes;
+		for (c=0; c<leaf->nummeshes; c++) {
+			mesh = &cl.worldmodel->meshes[cl.worldmodel->leafmeshes[leaf->firstmesh+c]];
+			if (mesh->lightTimestamp == r_lightTimestamp) continue;
+			mesh->shadowchain = meshshadowchain;
+			meshshadowchain = mesh;
+			mesh->lightTimestamp = r_lightTimestamp;
+		}
+		return;
+	}
+/*
+	plane = node->plane;
+	dist = DotProduct (light->origin, plane->normal) - plane->dist;
+
+
+	if (dist > light->radius)
+	{
+		R_MarkShadowCasting (light, node->children[0]);
+		return;
+	}
+	if (dist < -light->radius)
+	{
+		R_MarkShadowCasting (light, node->children[1]);
+		return;
+	}
+*/
+	R_MarkLightSurfaces (light, node->children[0]);
+	R_MarkLightSurfaces (light, node->children[1]);
+}
 
 /*
 =============
 
-InShadowEntity
+ CheckEntityInLight
 
-Some efrag based sceme may cut even more ents!
+	Checks if Entity is in the light's volume and visible to the light (using vis)
+
 =============
 */
 
-qboolean InShadowEntity(entity_t *ent) {
+qboolean CheckEntityInLight(entity_t *ent) {
 	
 	int i, leafindex;
 
 	model_t	*entmodel = ent->model;
 	mleaf_t *leaf;
-	vec3_t dst;
-	float radius, d;
+	vec3_t mins, maxs;
 
-	radius  = entmodel->radius;
-	VectorSubtract (currentshadowlight->origin, ent->origin, dst);
-	d = Length (dst);
+	VectorAdd(ent->origin, entmodel->mins, mins);
+	VectorAdd(ent->origin, entmodel->maxs, maxs);
 
-	if (d < (currentshadowlight->radius + radius)) {
+	if (intersectsMinsMaxs(&currentshadowlight->box,mins,maxs)) {
 		
 		if (sh_noefrags.value) return true;
 		
@@ -410,7 +765,7 @@ qboolean InShadowEntity(entity_t *ent) {
 			leafindex = ent->leafnums[i];
 			//leaf ent is in is visible from light
 			leaf = cl.worldmodel->leafs+leafindex;
-			if (currentshadowlight->entvis[leaf->cluster>>3] & (1<<(leaf->cluster&7)))
+			if (currentshadowlight->entclustervis[leaf->cluster>>3] & (1<<(leaf->cluster&7)))
 			{
 				return true;
 			}
@@ -427,12 +782,13 @@ qboolean InShadowEntity(entity_t *ent) {
 /*
 =============
 
-R_VisibleEntity
+R_MarkLightEntities
 
-Adds shadow casting ents to the list
+	Adds shadow casting ents to the list
+
 =============
 */
-void MarkShadowEntities() {
+void R_MarkLightEntities() {
 
 	int		i;
 	vec3_t	mins, maxs;
@@ -466,7 +822,7 @@ void MarkShadowEntities() {
 		//FIXME: Model is not lit by its own light.
 		if (currententity != currentshadowlight->owner)
 		{
-			if (InShadowEntity(currententity)) {
+			if (CheckEntityInLight(currententity)) {
 				currententity->lightTimestamp = r_lightTimestamp;
 				cl_lightvisedicts[cl_numlightvisedicts] = currententity;
 				cl_numlightvisedicts++;
@@ -477,202 +833,21 @@ void MarkShadowEntities() {
 
 /*
 =============
-R_ProjectSphere
-
-Returns the rectangle the sphere will be in when it is drawn.
-FIXME: This is crappy code we draw a "sprite" and project those points
-it should be possible to analytically derive a eq.
-
-=============
-*/
-void R_ProjectSphere (shadowlight_t *light, int *rect)
-{
-	int		i, j;
-	float	a;
-	vec3_t	v, vp2;
-	float	rad;
-	double minx, maxx, miny, maxy;
-	double px, py, pz;
-
-	rad = light->radius;
-	/*
-	rect[0] = 100;
-	rect[1] = 100;
-	rect[2] = 300;
-	rect[3] = 300;
-
-	return;
-	*/
-	VectorSubtract (light->origin, r_origin, v);
-
-	//dave - slight fix
-	VectorSubtract (light->origin, r_origin, vp2);
-	VectorNormalize(vp2);
-
-	minx = 1000000;
-	miny = 1000000;
-	maxx = -1000000;
-	maxy = -1000000;
-
-	for (i=16 ; i>=0 ; i--)
-	{
-		a = i/16.0 * M_PI*2;
-		for (j=0 ; j<3 ; j++)
-			v[j] = light->origin[j] + vright[j]*cos(a)*rad + vup[j]*sin(a)*rad;
-
-		gluProject(v[0], v[1], v[2], r_Dworld_matrix, r_Dproject_matrix,
-                           (GLint *) r_Iviewport, &px, &py, &pz);			// <AWE> added cast.
-
-		if (px > maxx) maxx = px;
-		if (px < minx) minx = px;
-		if (py > maxy) maxy = py;
-		if (py < miny) miny = py;
-
-	}
-
-	rect[0] = (int)minx;
-	rect[1] = (int)miny;
-	rect[2] = (int)maxx;
-	rect[3] = (int)maxy;	
-}
-
-/**************************************************************
-
-	World model shadow volumes
-
-***************************************************************/
-
-
-/*
-=============
-
-HasSharedLeaves
-
-Returns true if both vis arrays have shared leafs visible.
-FIXME: compare bytes at a time (what does quake fill the unused bits with??)
-=============
-*/
-qboolean HasSharedLeafs(byte *v1, byte *v2) {
-
-	int i;
-
-	for (i=0 ; i<cl.worldmodel->numclusters; i++)
-	{
-		if (v1[i>>3] & (1<<(i&7)))
-		{
-			if (v2[i>>3] & (1<<(i&7))) 
-				return true;
-		}
-	}
-	return false;
-}
-
-/*
-=============
-
-R_MarkShadowCasting
-
-Fills the shadow chain with polygons we should consider.
-
-Polygons that will be added are:
-1. In the light volume. (sphere)
-2. "Visible" to the light.
-
-Visible is:
-a. facing the light (dotprod > 0)
-b. in a leaf that is visible from the light's leaf. (based on vis data)
-
-This is crude for satic lights we use extra tricks (svbsp / revis) to
-reduce the number of polyons.
-=============
-*/
-void R_MarkShadowCasting (shadowlight_t *light, mnode_t *node)
-{
-	mplane_t	*plane;
-	float		dist;
-	msurface_t	**surf;
-	mleaf_t		*leaf;
-	int			c,leafindex;
-	mesh_t		*mesh;
-
-	if (node->contents & CONTENTS_LEAF) {
-		//we are in a leaf
-		leaf = (mleaf_t *)node;
-		leafindex = leaf->cluster;
-
-		//is this leaf visible from the light
-		if (!(lightvis[leafindex>>3] & (1<<(leafindex&7)))) {
-			return;
-		}
-
-		c = leaf->nummarksurfaces;
-		surf = leaf->firstmarksurface;
-
-		for (c=0; c<leaf->nummarksurfaces; c++, surf++) {
-
-			if (R_MarkShadowSurf ((*surf), light)) {
-				(*surf)->shadowchain = shadowchain;
-				shadowchain = (*surf);				
-				//svBsp_NumKeptPolys++;
-			}
-		}
-
-
-		c = leaf->nummeshes;
-		for (c=0; c<leaf->nummeshes; c++) {
-			mesh = &cl.worldmodel->meshes[cl.worldmodel->leafmeshes[leaf->firstmesh+c]];
-			if (mesh->lightTimestamp == r_lightTimestamp) continue;
-			mesh->shadowchain = meshshadowchain;
-			meshshadowchain = mesh;
-			mesh->lightTimestamp = r_lightTimestamp;
-		}
-		return;
-	}
-
-	plane = node->plane;
-	dist = DotProduct (light->origin, plane->normal) - plane->dist;
-	
-	if (dist > light->radius)
-	{
-		R_MarkShadowCasting (light, node->children[0]);
-		return;
-	}
-	if (dist < -light->radius)
-	{
-		R_MarkShadowCasting (light, node->children[1]);
-		return;
-	}
-
-	R_MarkShadowCasting (light, node->children[0]);
-	R_MarkShadowCasting (light, node->children[1]);
-}
-
-float SphereInFrustum( vec3_t o, float radius )
-{
-   int p;
-   float d;
-
-   for( p = 0; p < 6; p++ )
-   {
-      d = frustumPlanes[p][0] * o[0] + frustumPlanes[p][1] * o[1] + frustumPlanes[p][2] * o[2] + frustumPlanes[p][3];
-      if( d <= -radius )
-         return 0;
-   }
-   return d + radius;
-}
-
-/*
-=============
 R_ContributeFrame
 
-Returns true if the light should be rendered.
+	Returns true if the light should be rendered.
+	We try to throw away as much ligts as possible here.  Most of the lights are culled here
+	but some are culled further down the pipeline (but rarely).
 
 =============
 */
+void boxScreenSpaceRect(aabox_t *b, int *rect);
+
 qboolean R_ContributeFrame (shadowlight_t *light)
 {
 	mleaf_t *lightleaf;
 	float dist;
+	aabox_t lightbox;
 
 	float b = d_lightstylevalue[light->style]/255.0;
 
@@ -681,26 +856,45 @@ qboolean R_ContributeFrame (shadowlight_t *light)
 	light->color[2] = light->baseColor[2] * b;
 
 	//verry soft light, don't bother.
-	if (b < 0.1) return false;
+	if (b < 0.1) {
+		//Con_Printf("Culled: Weak light\n");
+		return false;
+	}
 
 	//frustum scissor testing
+	/*
 	dist = SphereInFrustum(light->origin, light->radius);
 	if (dist == 0)  {
 		//whole sphere is out ouf frustum so cut it.
 		return false;
 	}
+	*/
+
+	if (R_CullBox(light->box.mins, light->box.maxs)) {
+		//Con_Printf("Culled: Box outside frustum\n");
+		return false;
+	}
+
+	lightbox.mins[0] = light->origin[0] - light->radius;
+	lightbox.mins[1] = light->origin[1] - light->radius;
+	lightbox.mins[2] = light->origin[2] - light->radius;
+
+	lightbox.maxs[0] = light->origin[0] + light->radius;
+	lightbox.maxs[1] = light->origin[1] + light->radius;
+	lightbox.maxs[2] = light->origin[2] + light->radius;
 
 	//fully/partially in frustum
 	
 	if (!sh_noscissor.value) {
-		vec3_t dst;
-		float d;
-		VectorSubtract (light->origin, r_refdef.vieworg, dst);
-		d = Length (dst);
+		//vec3_t dst;
+		//float d;
+		//VectorSubtract (light->origin, r_refdef.vieworg, dst);
+		//d = Length (dst);
 		
-		if (d > light->radius) {
+		if (/*d > light->radius*/!intersectsBoxPoint(&light->box, r_refdef.vieworg)) {
 			
-			R_ProjectSphere (light, light->scizz.coords);
+			//R_ProjectBoundingBox (light, light->scizz.coords);
+			boxScreenSpaceRect(&light->box, light->scizz.coords);
 			//glScissor(light->scizz.coords[0], light->scizz.coords[1],
 			//		light->scizz.coords[2]-light->scizz.coords[0],  light->scizz.coords[3]-light->scizz.coords[1]);
 		} else {
@@ -718,20 +912,39 @@ qboolean R_ContributeFrame (shadowlight_t *light)
 	shadowchain = NULL;
 	meshshadowchain = NULL;
 	if (light->isStatic) {
-		lightvis = &light->vis[0];
+		lightvis = &light->leafvis[0];
 	} else {
 		lightleaf = Mod_PointInLeaf (light->origin, cl.worldmodel);
 		lightvis = Mod_LeafPVS (lightleaf, cl.worldmodel);
-		Q_memcpy(&light->vis,lightvis,MAX_MAP_LEAFS/8);
-		Q_memcpy(&light->entvis, lightvis, MAX_MAP_LEAFS/8);
+		Q_memcpy(&light->leafvis,lightvis,MAX_MAP_LEAFS/8);
+		Q_memcpy(&light->entclustervis, lightvis, MAX_MAP_LEAFS/8);
 		light->area = lightleaf->area;
 	}
 
 	//not in a visible area => skip it
 	if (!(r_refdef.areabits[light->area>>3] & (1<<(light->area&7)))) {
+		//Con_Printf("Culled: Not in same area\n");
 		return false;
 	}
 
+	/*
+	if (!intersectsBox(&worldbox, &lightbox)) {
+		Con_Printf("Culled: Box outside the visible world\n");
+		return false;
+	}
+	*/
+
+	if (light->isStatic) {
+		qboolean b = HasVisibleClusters(light,&worldvis[0]);
+		//if (!b) Con_Printf("Culled: No visible clusters\n");
+		return b;		
+	} else {
+		qboolean b = HasSharedLeafs(lightvis,&worldvis[0]);
+		//if (!b) Con_Printf("Culled: No shared leafs\n");
+		return b;	
+	}
+
+/*
 	if (HasSharedLeafs(lightvis,&worldvis[0])) {
 
 		//light->visible = true;
@@ -749,21 +962,23 @@ qboolean R_ContributeFrame (shadowlight_t *light)
 		//return (shadowchain) ? true : false;
 		return true;
 	} else {
+		Con_Printf("No shared leafs\n");
 		return false;
 	}
 
-
+*/
 }
 
 /*
 =============
-R_FillShadowChain 
+R_FillLightChains 
 
-Returns true if the light should be rendered.
+	Returns true if the light should be rendered.
+	It's here lights are seldomly removed further down the pipeline.
 
 =============
 */
-qboolean R_FillShadowChain (shadowlight_t *light)
+qboolean R_FillLightChains (shadowlight_t *light)
 {
 
 	r_lightTimestamp++;
@@ -771,15 +986,15 @@ qboolean R_FillShadowChain (shadowlight_t *light)
 	shadowchain = NULL;
 	meshshadowchain = NULL;
 
-	lightvis = &light->vis[0];
+	//lightvis = &light->vis[0];
 	//numUsedShadowLights++;
 	
 	//mark shadow casting ents
-	MarkShadowEntities();
+	R_MarkLightEntities();
 	
 	//mark shadow casting polygons
 	if (!light->isStatic) {
-	       R_MarkShadowCasting ( light, cl.worldmodel->nodes);
+	       R_MarkLightSurfaces ( light, cl.worldmodel->nodes);
 	} else {
 	       return true;
 	}
@@ -787,7 +1002,16 @@ qboolean R_FillShadowChain (shadowlight_t *light)
 	return (shadowchain || meshshadowchain) ? true : false;
 }
 
+/**************************************************************
+
+
+	Shadow volume calculations / drawing
+
+
+***************************************************************/
+
 void *VolumeVertsPointer;
+
 /*
 =============
 R_ConstructShadowVolume
@@ -830,7 +1054,15 @@ for dynamics this is the R_ConstructShadowVolume one.
 void R_DrawShadowVolume(shadowlight_t *light) {
 
 
+	GL_SelectTexture(GL_TEXTURE0_ARB);
 	glDisable(GL_TEXTURE_2D);
+	GL_SelectTexture(GL_TEXTURE1_ARB);
+	glDisable(GL_TEXTURE_2D);
+	GL_SelectTexture(GL_TEXTURE2_ARB);
+	glDisable(GL_TEXTURE_2D);
+	GL_SelectTexture(GL_TEXTURE3_ARB);
+	glDisable(GL_TEXTURE_2D);
+
 	
 /*	if (!light->isStatic) {
 		glColor3f(0,1,0);
@@ -842,6 +1074,7 @@ void R_DrawShadowVolume(shadowlight_t *light) {
 //	}
 
 	glColor3f(1,1,1);
+	GL_SelectTexture(GL_TEXTURE0_ARB);
 	glEnable(GL_TEXTURE_2D);
 }
 
@@ -925,7 +1158,7 @@ e->angles[0] = -e->angles[0];	// stupid quake bug
 
 	for (i=0 ; i<clmodel->nummodelsurfaces ; i++, psurf++)
 	{
-		R_MarkShadowSurf(psurf, currentshadowlight);
+		CheckSurfInLight(psurf, currentshadowlight);
 	}
 
 	VectorCopy(oldlightorigin,currentshadowlight->origin);
@@ -1269,11 +1502,13 @@ void PrecalcVolumesForLight(model_t *model) {
 
 		poly = surf->polys;
 
+		/*
 		if (( surf->flags & SURF_DRAWTURB ) || ( surf->flags & SURF_DRAWSKY )) {
 			surf = surf->shadowchain;
 			Con_Printf ("Water/Sky in shadow chain!!");
 			continue;
 		}
+		*/
 	
 		if (surf->shader->shader->flags & SURF_NOSHADOW)
 			goto noshadow;
@@ -1580,6 +1815,14 @@ void DrawVolumeFromCmds(int *volumeCmds, lightcmd_t *lightCmds, float *volumeVer
 	
 }
 
+/**************************************************************
+
+
+	Mesh shadow volume code (Curves/Inlines)
+
+
+***************************************************************/
+
 
 int		extrudeTimeStamp = 0;
 vec3_t	extrudedVerts[MAXALIASVERTS];	//PENTA: Temp buffer for extruded vertices
@@ -1730,6 +1973,16 @@ void StencilMeshVolumes() {
 	}
 
 }
+
+
+/**************************************************************
+
+
+	Stuff that should be elsewhere
+
+
+***************************************************************/
+
 
 /*
 =============
@@ -1889,14 +2142,23 @@ void CutLeafs(byte *vis) {
 	mleaf_t *leaf;
 	qboolean found;
 	int removed = 0;
+	aabox_t leafbox;
+	aabox_t visbox = emptyBox();
 
 	if (sh_norevis.value) return;
+	
+	Q_memset(currentshadowlight->leafvis,0,MAX_MAP_LEAFS/8);
 
 	for (i=0 ; i<cl.worldmodel->numleafs ; i++)//overloop alle leafs
 	{
 		leaf = &cl.worldmodel->leafs[i];
 		if (vis[leaf->cluster>>3] & (1<<(leaf->cluster&7)))
 		{
+			leafbox = constructBox(leaf->minmaxs,leaf->minmaxs+3);
+			if (!intersectsBox(&currentshadowlight->box,&leafbox)) continue;
+			
+			visbox = addBoxes(&visbox,&leafbox);	
+
 			//this leaf is visible from the leaf the current light (in a brute force way)
 			//now check if we entirely cut this leaf by means of the svbsp
 			c = leaf->nummarksurfaces;
@@ -1910,6 +2172,11 @@ void CutLeafs(byte *vis) {
 					break;
 				}
 			}
+
+			if (found) {
+				currentshadowlight->leafvis[i>>3] |= (1<<(i&7));
+				removed++;
+			}
 /*
 			if (!found) {
 				//set vis bit on false
@@ -1919,7 +2186,8 @@ void CutLeafs(byte *vis) {
 */
 		}
 	}
-
+	leafbox = intersectBoxes(&currentshadowlight->box,&visbox);
+	currentshadowlight->box = leafbox;
 	//Con_Printf("  Removed leafs: %i\n", removed);
 }
 
@@ -2116,7 +2384,7 @@ void ShadowVolumeBsp() {
 
 	currentlightroot = R_CreateEmptyTree();
 	R_MarkLightLeaves();
-	R_MarkShadowCasting (currentshadowlight,cl.worldmodel->nodes);
+	R_MarkLightSurfaces (currentshadowlight,cl.worldmodel->nodes);
 
 	//PENTA: Q3 hack until svbsp's are fixed again
 	svBsp_NumKeptPolys = 0;
@@ -2155,17 +2423,13 @@ void R_CalcSvBsp(entity_t *ent) {
 		return;
 	}
 
-	if (!strcmp (ent->model->name, "progs/flame2.mdl")
-		|| !strcmp (ent->model->name, "progs/flame.mdl")
-		|| !strcmp (ent->model->name, "progs/s_light.spr")
-		|| !strcmp (ent->model->name, "progs/b_light.spr")
-		|| !strcmp (ent->model->name, "progs/w_light.spr"))
+	if (true)
 	{
 		shadowchain = NULL;
 		meshshadowchain = NULL;
 		done++;
 		
-		Con_Printf("->Light %i\n",done);
+		//Con_Printf("->Light %i\n",done);
 		
 
 		r_lightTimestamp++;
@@ -2177,6 +2441,7 @@ void R_CalcSvBsp(entity_t *ent) {
 
 		//Create a light and make it static
 		R_ShadowFromEntity(ent);
+	
 		numStaticShadowLights++;
 
 		if (numShadowLights >= MAXSHADOWLIGHTS)  {
@@ -2185,23 +2450,22 @@ void R_CalcSvBsp(entity_t *ent) {
 		}
 
 		currentshadowlight = &shadowlights[numShadowLights-1];
-
-		//Hack: support quake light_* entities
-		if (!strcmp (ent->model->name, "progs/flame2.mdl")) {
-			currentshadowlight->baseColor[0] = 1;
-			currentshadowlight->baseColor[1] = 0.9;
-			currentshadowlight->baseColor[2] = 0.75;	
-		} else if (!strcmp (ent->model->name, "progs/flame.mdl")) {
-			currentshadowlight->baseColor[0] = 1;
-			currentshadowlight->baseColor[1] = 0.9;
-			currentshadowlight->baseColor[2] = 0.75;
-		} else if (!strcmp (ent->model->name, "progs/s_light.spr")) {
-			currentshadowlight->baseColor[0] = 1;
-			currentshadowlight->baseColor[1] = 0.9;
-			currentshadowlight->baseColor[2] = 0.75;
-		}
-
 		currentshadowlight->isStatic = true;
+
+		//Get origin / box from the model
+
+		VectorAdd(ent->model->mins, ent->model-> maxs, currentshadowlight->origin);
+		VectorScale(currentshadowlight->origin, 0.5f, currentshadowlight->origin);
+		//Con_Printf("Calulated origin: %f %f %f\n",currentshadowlight->origin[0], currentshadowlight->origin[1], currentshadowlight->origin[2]);
+		//Con_Printf("Calulated mins: %f %f %f\n",ent->model->mins[0], ent->model->mins[1], ent->model->mins[2]);
+		//Con_Printf("Calulated maxs: %f %f %f\n",ent->model->maxs[0], ent->model->maxs[1], ent->model->maxs[2]);
+		VectorCopy(ent->model->mins, currentshadowlight->box.mins);
+		VectorCopy(ent->model->maxs, currentshadowlight->box.maxs);
+		VectorSubtract(ent->model->maxs,ent->model->mins,currentshadowlight->radiusv);
+		VectorScale(currentshadowlight->radiusv, 0.5f, currentshadowlight->radiusv);
+		//Con_Printf("Calulated radius: %f %f %f\n",currentshadowlight->radiusv[0], currentshadowlight->radiusv[1], currentshadowlight->radiusv[2]);
+		currentshadowlight->radius = max(Length(ent->model->mins),Length(ent->model->maxs));
+		//Con_Printf("Calulated radius: %f\n",currentshadowlight->radius);
 
 		//Calculate visible polygons
 		ShadowVolumeBsp();
@@ -2257,9 +2521,9 @@ void R_CalcSvBsp(entity_t *ent) {
 		currentshadowlight->leaf = Mod_PointInLeaf (currentshadowlight->origin, cl.worldmodel);
 		lightvis = Mod_LeafPVS (currentshadowlight->leaf, cl.worldmodel);
 		currentshadowlight->area = currentshadowlight->leaf->area;
-		Q_memcpy(&currentshadowlight->vis[0], lightvis, MAX_MAP_LEAFS/8);
-		Q_memcpy(&currentshadowlight->entvis[0], lightvis, MAX_MAP_LEAFS/8);
-		CutLeafs(currentshadowlight->vis);
+		//Q_memcpy(&currentshadowlight->vis[0], lightvis, MAX_MAP_LEAFS/8);
+		Q_memcpy(&currentshadowlight->entclustervis[0], lightvis, MAX_MAP_LEAFS/8);
+		CutLeafs(lightvis);
 
 		//Precalculate the shadow volume / glow-texcoords
 		PrecalcVolumesForLight(cl.worldmodel);
@@ -2284,6 +2548,14 @@ void R_CalcSvBsp(entity_t *ent) {
 	}
 
 }
+
+/**************************************************************
+
+
+	Client side light entity loading code
+
+
+***************************************************************/
 
 #define surfaceLightRadius 350.0
 
@@ -2354,14 +2626,10 @@ Hacked entitiy loading code, this parses the entities client side to find lights
 
 **/
 
-void LightFromFile(vec3_t orig, vec3_t color, float light_lev) {
+void LightFromFile(entity_t *fakeEnt) {
 	int i;
 	shadowlight_t *light;
 	qboolean	tooClose;
-	entity_t	fakeEnt;
-
-
-
 
 	//not to close to other lights then add it
 
@@ -2370,23 +2638,19 @@ void LightFromFile(vec3_t orig, vec3_t color, float light_lev) {
 		vec3_t dist;
 		float length;
 		light = &shadowlights[i];
-		VectorSubtract(orig,light->origin,dist);
+		VectorSubtract(fakeEnt->origin,light->origin,dist);
 		length = Length(dist);
 
-		if (length < (light_lev*sh_radiusscale.value + light->radius*sh_radiusscale.value)) {
+		if (length < (fakeEnt->light_lev*sh_radiusscale.value + light->radius*sh_radiusscale.value)) {
 			tooClose = true;
 		}
 	}
 
 
 	if (!tooClose) {
-		Q_memset(&fakeEnt,0,sizeof(entity_t));
-		fakeEnt.light_lev = light_lev;
-		VectorCopy(orig,fakeEnt.origin);
-		VectorCopy(color,fakeEnt.color);
-		fakeEnt.model = Mod_ForName("progs/w_light.spr",true);
-		R_CalcSvBsp(&fakeEnt);
-		Con_Printf("Added file light");
+		R_CalcSvBsp(fakeEnt);
+		//Con_Printf("Client light: org(%f %f %f) level(%i)\n",
+		//			fakeEnt->origin[0],fakeEnt->origin[1],fakeEnt->origin[2],fakeEnt->light_lev);
 	}
 
 
@@ -2414,7 +2678,7 @@ void ParseVector (char *s, float *d)
 
 
 
-char *ParseEnt (char *data, qboolean *isLight, vec3_t origin, vec3_t color, float *light)
+char *ParseEnt (char *data, qboolean *isLight, entity_t *ent)
 {
 	qboolean	init;
 	char		keyname[256];
@@ -2445,17 +2709,21 @@ char *ParseEnt (char *data, qboolean *isLight, vec3_t origin, vec3_t color, floa
 
 
 		if (!strcmp(keyname, "classname")) {
-			if (!strcmp(com_token, "light")) {
+			if (!strcmp(com_token, "rt_light")) {
 				*isLight = true;
 			} else {
 				*isLight = false;
 			}
 		} else if (!strcmp(keyname, "_color"))  {
-			ParseVector(com_token, color);	
+			ParseVector(com_token, ent->color);	
 		} else if (!strcmp(keyname, "origin"))  {
-			ParseVector(com_token, origin);	
+			ParseVector(com_token, ent->origin);	
 		} else if (!strcmp(keyname, "light"))  {
-			*light = atof(com_token);	
+			ent->light_lev = atof(com_token);
+		} else if (!strcmp(keyname, "model"))  {
+			ent->model = Mod_ForName(com_token, true);
+		} else if (!strcmp(keyname, "skin"))  {
+			ent->skinnum = atoi(com_token);
 		} else if (!strcmp(keyname, "_noautolight")) {
 			Con_Printf("Automatic light gen disabled\n");//XYW \n
 			foundworld = true;
@@ -2467,10 +2735,11 @@ char *ParseEnt (char *data, qboolean *isLight, vec3_t origin, vec3_t color, floa
 			Cvar_Set("sh_lightmapbright",com_token);
 			Con_Printf("Lightmap brightness set to %f\n",sh_lightmapbright.value);
 		} else if (!strcmp(keyname, "_fog_color")) {
-			ParseVector(com_token, origin);	
-			Cvar_SetValue("fog_r",origin[0]);
-			Cvar_SetValue("fog_g",origin[1]);
-			Cvar_SetValue("fog_b",origin[2]);
+			vec3_t temp;
+			ParseVector(com_token, temp);	
+			Cvar_SetValue("fog_r",temp[0]);
+			Cvar_SetValue("fog_g",temp[1]);
+			Cvar_SetValue("fog_b",temp[2]);
 		} else if (!strcmp(keyname, "_fog_start")) {
 			Cvar_Set("fog_start",com_token);
 		} else if (!strcmp(keyname, "_fog_end")) {
@@ -2489,16 +2758,11 @@ char *ParseEnt (char *data, qboolean *isLight, vec3_t origin, vec3_t color, floa
 void LoadLightsFromFile (char *data)
 {	
 	qboolean	isLight;
-	vec3_t		origin, color;
-	float		light;
+	entity_t	fakeEnt;
 
 	Cvar_SetValue ("fog_start",0.0);
 	Cvar_SetValue ("fog_end",0.0);
 
-	color[0] = 1;
-	color[1] = 1;
-	color[2] = 1;
-	light	= 300;
 // parse ents
 	while (1)
 	{
@@ -2510,9 +2774,10 @@ void LoadLightsFromFile (char *data)
 			Sys_Error ("ED_LoadFromFile: found %s when expecting {",com_token);
 
 		isLight = false;
-		data = ParseEnt (data, &isLight, origin, color, &light);
+		Q_memset(&fakeEnt,0,sizeof(entity_t));
+		data = ParseEnt (data, &isLight, &fakeEnt);
 		if (isLight) {
-			LightFromFile(origin, color, light);
+			LightFromFile(&fakeEnt);
 			//Con_Printf("found light in file");
 		}
 	}
