@@ -355,7 +355,7 @@ qboolean VID_SetFullDIBMode (int modenum)
 }
 
 
-int VID_SetMode (int modenum, unsigned char *palette)
+int VID_SetMode (int modenum)
 {
 	int				original_mode, temp;
 	qboolean		stat;
@@ -425,7 +425,6 @@ int VID_SetMode (int modenum, unsigned char *palette)
 // ourselves at the top of the z order, then grab the foreground again,
 // Who knows if it helps, but it probably doesn't hurt
 	SetForegroundWindow (mainwindow);
-	VID_SetPalette (palette);
 	vid_modenum = modenum;
 	Cvar_SetValue ("vid_mode", (float)vid_modenum);
 
@@ -449,7 +448,6 @@ int VID_SetMode (int modenum, unsigned char *palette)
 	if (!msg_suppress_1)
 		Con_SafePrintf ("Video mode %s initialized.\n", VID_GetModeDescription (vid_modenum));
 
-	VID_SetPalette (palette);
 
 	vid.recalc_refdef = 1;
 
@@ -522,8 +520,8 @@ void GL_EndRendering (void)
 			}
 		}
 	}*/
-	if (fullsbardraw)
-		Sbar_Changed();
+//	if (fullsbardraw)
+//		Sbar_Changed();
 }
 
 void VID_SetDefaultMode (void)
@@ -1297,7 +1295,7 @@ static void Check_Gamma (unsigned char *pal)
 VID_Init
 ===================
 */
-void	VID_Init (unsigned char *palette)
+void	VID_Init (void)
 {
 	int		i, existingmode;
 	int		basenummodes, width, height, bpp, findbpp, done;
@@ -1527,15 +1525,10 @@ void	VID_Init (unsigned char *palette)
 
 	vid.maxwarpwidth = WARP_WIDTH;
 	vid.maxwarpheight = WARP_HEIGHT;
-	vid.colormap = host_colormap;
-	vid.fullbright = 256 - LittleLong (*((int *)vid.colormap + 2048));
 
 	DestroyWindow (hwnd_dialog);
 
-	Check_Gamma(palette);
-	VID_SetPalette (palette);
-
-	VID_SetMode (vid_default, palette);
+	VID_SetMode (vid_default);
 
     maindc = GetDC(mainwindow);
 	bSetupPixelFormat(maindc);
@@ -1553,14 +1546,14 @@ void	VID_Init (unsigned char *palette)
 
 	vid_realmode = vid_modenum;
 
-	vid_menudrawfn = VID_MenuDraw;
-	vid_menukeyfn = VID_MenuKey;
+//	vid_menudrawfn = VID_MenuDraw;
+//	vid_menukeyfn = VID_MenuKey;
 
 	strcpy (badmode.modedesc, "Bad mode");
 	vid_canalttab = true;
 
-	if (COM_CheckParm("-fullsbar"))
-		fullsbardraw = true;
+//	if (COM_CheckParm("-fullsbar"))
+//		fullsbardraw = true;
 }
 
 
