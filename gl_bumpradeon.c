@@ -101,7 +101,7 @@ static unsigned int fragment_shaders;
 static unsigned int vertex_shaders;
 static GLuint lightPos, eyePos; // vertex shader constants
 
-#define RADEONDEBUG
+//#define RADEONDEBUG
 
 #ifdef RADEONDEBUG
 void Radeon_checkerror()
