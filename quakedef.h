@@ -353,11 +353,12 @@ extern qboolean		isDedicated;
 
 extern int			minimum_memory;
 
+
 extern qboolean fullsbardraw;
 //
 // chase
 //
-extern	cvar_t	cg_thridperson;
+extern	cvar_t	cg_thirdperson;
 
 void Chase_Init (void);
 void Chase_Reset (void);

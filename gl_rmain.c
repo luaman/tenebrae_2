@@ -1326,7 +1326,7 @@ void R_DrawEntitiesShadowVolumes (int type)
              if ((currententity->model->type == type) 
                  && (type == mod_alias)
                  && (sh_playershadow.value) 
-                 && (!cg_thridperson.value)) { //Fix for two player shadows in chase cam - Eradicator
+                 && (!cg_thirdperson.value)) { //Fix for two player shadows in chase cam - Eradicator
 			//for lights cast by the player don't add the player's shadow
 			if (currentshadowlight->owner != currententity) {
 				//HACK: only horizontal angle this looks better
@@ -1473,7 +1473,7 @@ void R_DrawViewModel (void)
 	if (!cg_showviewmodel.value)
 		return;
 
-	if (cg_thridperson.value)
+	if (cg_thirdperson.value)
 		return;
 
 	if (envmap)
@@ -1523,7 +1523,7 @@ void R_DrawViewModelLight (void)
 	if (!cg_showviewmodel.value)
 		return;
 	
-	if (cg_thridperson.value)
+	if (cg_thirdperson.value)
 		return;
 	
 	if (envmap)
@@ -1566,7 +1566,7 @@ qboolean R_ShouldDrawViewModel (void)
 	if (!cg_showviewmodel.value)
 		return false;
 	
-	if (cg_thridperson.value)
+	if (cg_thirdperson.value)
 		return false;
 	
 	if (envmap)

@@ -743,7 +743,7 @@ void CL_RelinkEntities (void)
 
 		ent->forcelink = false;
 
-		if (i == cl.viewentity && !cg_thridperson.value)
+		if (i == cl.viewentity && !cg_thirdperson.value)
 			continue;
 
 #ifdef QUAKE2

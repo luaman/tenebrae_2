@@ -1258,7 +1258,7 @@ void M_AdjustSliders (int dir)
 		Cvar_SetValue ("cg_showfps", !cg_showfps.value);
 		break;
 	case 15:
-		Cvar_SetValue ("cg_thridperson", !cg_thridperson.value);
+		Cvar_SetValue ("cg_thirdperson", !cg_thirdperson.value);
 		break;
 	case 16:
 		Cvar_SetValue ("sh_glares", !sh_glares.value);
@@ -1368,7 +1368,7 @@ void M_Options_Draw (void)
 	M_DrawCheckbox (220, 144, cg_showfps.value);
 
 	M_Print (16, 152,"		     Third Person");
-	M_DrawCheckbox (220, 152, cg_thridperson.value);
+	M_DrawCheckbox (220, 152, cg_thirdperson.value);
 
 	M_Print (16, 160,"		           Glares");
 	M_DrawCheckbox (220, 160, sh_glares.value);

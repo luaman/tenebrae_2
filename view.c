@@ -984,7 +984,7 @@ if (cl.onground && ent->origin[2] - oldz > 0)
 else
 	oldz = ent->origin[2];
 
-	if (cg_thridperson.value)
+	if (cg_thirdperson.value)
 		Chase_Update ();
 }
 
