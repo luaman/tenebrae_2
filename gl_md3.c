@@ -303,8 +303,7 @@ void Mod_LoadMd3Model (model_t *mod, void *buffer)
 	byte				fake[16];
 	char				shadername[MAX_QPATH];
         alias3data_t			*palias3;
-        int				surfcount;
-    int					unexpindecies[MAXALIASTRIS*3];    
+        int				surfcount;   
 	
 	start = Hunk_LowMark ();
 
@@ -613,17 +612,11 @@ for (surfcount = 0; surfcount < pinmodel->numSurfaces; ++surfcount) {
 		for (j=0; j<pheader->numtris; j++) {
 			vec3_t tangent;
 			vec3_t binormal;
-			vec3_t tangent_vert;
-			vec3_t binormal_vert;
 			vec3_t normal;
 			TangentForTrimd3(&indecies[j*3],&verts[i*pheader->poseverts],texcoords,tangent,binormal);
 			//for all vertices in the tri
 			for (k=0; k<3; k++) {
 				l = indecies[j*3+k];
-				DecodeNormal(verts[i*pheader->poseverts+l].lightnormalindex, normal);
-
-				Orthogonalize(normal, tangent, tangent_vert);
-				Orthogonalize(normal, binormal, binormal_vert);
 
 				VectorAdd(tangents[i*pheader->poseverts+l],tangent,
 							tangents[i*pheader->poseverts+l]); 
@@ -648,6 +641,12 @@ for (surfcount = 0; surfcount < pinmodel->numSurfaces; ++surfcount) {
 
 			VectorNormalize(tangents[i*pheader->poseverts+j]);
 			VectorNormalize(binormals[i*pheader->poseverts+j]);
+			
+			DecodeNormal(verts[i*pheader->poseverts+j].lightnormalindex, normal);
+
+			Orthogonalize(normal, tangents[i*pheader->poseverts+j], tangents[i*pheader->poseverts+j]);
+			Orthogonalize(normal, binormals[i*pheader->poseverts+j], binormals[i*pheader->poseverts+j]);
+			
 		}
 
 	}
