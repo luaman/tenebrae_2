@@ -1,0 +1,480 @@
+#
+# Quake Makefile for Linux 2.0
+#
+# Aug '98 by Zoid <zoid@idsoftware.com>
+# modified for tenebrae by fabe <der.fabe@gmx.net>
+# more modification by the tenebrae team
+#
+# ELF only
+#
+
+BASEVERSION=1.09
+VERSION=$(BASEVERSION)$(GLIBC)
+
+GLIBC=.glibc
+
+ARCH=i386
+NOARCH=noarch
+
+MOUNT_DIR     = ../
+
+MASTER_DIR    = /hd2/quake1/
+
+BUILD_DEBUG_DIR = debug$(ARCH)$(GLIBC)
+BUILD_RELEASE_DIR = release$(ARCH)$(GLIBC)
+
+LEX           = flex -i -Cfr
+CC            = gcc
+
+X11_LIBS      = -L/usr/X11R6/lib  -lX11 -lXext -lXxf86dga -lXxf86vm
+
+XML_CFLAGS    = -I/usr/include/libxml2 -I/usr/local/include/SDL11 -I/usr/X11R6/include/ -I/usr/local/include/ -I/usr/local/include/libxml2
+XML_LIBS      = -lxml2 -L/usr/local/lib -Wl,-rpath,/usr/local/lib -lSDL-1.1 -lc_r
+
+# to enable OpenGL code in source 
+OPENGL_CFLAGS = -D__glx__ -DGLQUAKE -DSDL
+OPENGL_LIBS   = -lGL -lGLU
+
+PNG_LIBS      = -L/usr/local/lib/ -lz -lpng
+
+#OPENAL_LIBS   = -lopenal 
+#OPENAL_CFLAGS = -DOPENAL -I/usr/local/include/AL
+
+BASE_CFLAGS   = -DBASEDIR="$(MASTER_DIR)" -DUSERPREF_DIR $(OPENGL_CFLAGS) $(OPENAL_CFLAGS) -I$(MOUNT_DIR) $(XML_CFLAGS) -DUSE_ASM
+RELEASE_CFLAGS = $(BASE_CFLAGS) #-march=athlon-xp -mcpu=athlon-xp -O3  -ffast-math -funroll-loops \
+	#-fomit-frame-pointer -fexpensive-optimizations 
+DEBUG_CFLAGS  = $(BASE_CFLAGS) -g 
+LDFLAGS       = -lm  $(X11_LIBS) $(OPENGL_LIBS) $(PNG_LIBS) $(OPENAL_LIBS) $(XML_LIBS)
+
+DO_GL_CC      = $(CC) $(CFLAGS) -o $@ -c $<
+DO_GL_AS      = $(CC) $(CFLAGS) -DELF -x assembler-with-cpp -o $@ -c $<
+DO_LEX        = $(LEX) -o$@ $< 
+
+#############################################################################
+# SETUP AND BUILD
+#############################################################################
+
+TARGETS=$(BUILDDIR)/bin/tenebrae.run
+
+build_debug:
+	@-mkdir -p $(BUILD_DEBUG_DIR) \
+		$(BUILD_DEBUG_DIR)/bin \
+		$(BUILD_DEBUG_DIR)/glquake
+	$(MAKE) targets BUILDDIR=$(BUILD_DEBUG_DIR) CFLAGS="$(DEBUG_CFLAGS)"
+
+build_release:
+	@-mkdir -p $(BUILD_RELEASE_DIR) \
+		$(BUILD_RELEASE_DIR)/bin \
+		$(BUILD_RELEASE_DIR)/glquake
+	$(MAKE) targets BUILDDIR=$(BUILD_RELEASE_DIR) CFLAGS="$(RELEASE_CFLAGS)"
+
+all: build_debug build_release
+
+targets: $(TARGETS)
+
+#############################################################################
+# GLQuake
+#############################################################################
+
+GLQUAKE_OBJS= \
+	$(BUILDDIR)/glquake/cl_demo.o \
+	$(BUILDDIR)/glquake/cl_input.o \
+	$(BUILDDIR)/glquake/cl_main.o \
+	$(BUILDDIR)/glquake/cl_parse.o \
+	$(BUILDDIR)/glquake/cl_tent.o \
+	$(BUILDDIR)/glquake/chase.o \
+	$(BUILDDIR)/glquake/cmd.o \
+	$(BUILDDIR)/glquake/common.o \
+	$(BUILDDIR)/glquake/console.o \
+	$(BUILDDIR)/glquake/crc.o \
+	$(BUILDDIR)/glquake/cvar.o \
+	\
+	$(BUILDDIR)/glquake/gl_aliasinstant.o \
+	$(BUILDDIR)/glquake/gl_brushinstant.o \
+	$(BUILDDIR)/glquake/gl_bumpdriver.o \
+	$(BUILDDIR)/glquake/gl_bumpgf.o \
+	$(BUILDDIR)/glquake/gl_bumparb.o \
+	$(BUILDDIR)/glquake/gl_bumpgl2.o \
+	$(BUILDDIR)/glquake/gl_bumpmap.o \
+	$(BUILDDIR)/glquake/gl_bumpparhelia.o \
+	$(BUILDDIR)/glquake/gl_bumpradeon.o \
+	$(BUILDDIR)/glquake/gl_bumpnv3x.o \
+	$(BUILDDIR)/glquake/gl_bumpgeneric.o \
+	$(BUILDDIR)/glquake/gl_common.o \
+	$(BUILDDIR)/glquake/gl_curves.o \
+	$(BUILDDIR)/glquake/gl_bumpstat.o \
+	$(BUILDDIR)/glquake/gl_draw.o \
+	$(BUILDDIR)/glquake/gl_decals.o \
+	$(BUILDDIR)/glquake/gl_glare.o \
+	$(BUILDDIR)/glquake/gl_md3.o \
+	$(BUILDDIR)/glquake/gl_mesh.o \
+	$(BUILDDIR)/glquake/gl_model.o \
+	$(BUILDDIR)/glquake/gl_q3bsp.o \
+	$(BUILDDIR)/glquake/gl_refrag.o \
+	$(BUILDDIR)/glquake/gl_rlight.o \
+	$(BUILDDIR)/glquake/gl_rmain.o \
+	$(BUILDDIR)/glquake/gl_rmisc.o \
+	$(BUILDDIR)/glquake/gl_rsurf.o \
+	$(BUILDDIR)/glquake/gl_screen.o \
+	$(BUILDDIR)/glquake/gl_screenrect.o \
+	$(BUILDDIR)/glquake/gl_shadow.o \
+	$(BUILDDIR)/glquake/gl_svbsp.o \
+	$(BUILDDIR)/glquake/gl_test.o \
+	$(BUILDDIR)/glquake/gl_warp.o \
+	$(BUILDDIR)/glquake/shaders.o \
+	$(BUILDDIR)/glquake/textures.o \
+	$(BUILDDIR)/glquake/textures_vid.o \
+	\
+	$(BUILDDIR)/glquake/host.o \
+	$(BUILDDIR)/glquake/host_cmd.o \
+	$(BUILDDIR)/glquake/keys.o \
+	$(BUILDDIR)/glquake/mathlib.o \
+	$(BUILDDIR)/glquake/xmlmenu.o \
+	$(BUILDDIR)/glquake/net_dgrm.o \
+	$(BUILDDIR)/glquake/net_loop.o \
+	$(BUILDDIR)/glquake/net_main.o \
+	$(BUILDDIR)/glquake/net_vcr.o \
+	$(BUILDDIR)/glquake/net_udp.o \
+	$(BUILDDIR)/glquake/net_bsd.o \
+	$(BUILDDIR)/glquake/pr_cmds.o \
+	$(BUILDDIR)/glquake/pr_edict.o \
+	$(BUILDDIR)/glquake/pr_exec.o \
+	$(BUILDDIR)/glquake/r_part.o \
+	$(BUILDDIR)/glquake/sv_main.o \
+	$(BUILDDIR)/glquake/sv_phys.o \
+	$(BUILDDIR)/glquake/sv_move.o \
+	$(BUILDDIR)/glquake/sv_q3support.o \
+	$(BUILDDIR)/glquake/sv_user.o \
+	$(BUILDDIR)/glquake/zone.o	\
+	$(BUILDDIR)/glquake/view.o	\
+	$(BUILDDIR)/glquake/wad.o \
+	$(BUILDDIR)/glquake/world.o \
+	$(BUILDDIR)/glquake/cd_sdl.o \
+	$(BUILDDIR)/glquake/sys_uxfindfirst.o \
+	$(BUILDDIR)/glquake/sys_linux.o \
+	$(BUILDDIR)/glquake/snd_dma.o \
+	$(BUILDDIR)/glquake/snd_mem.o \
+	$(BUILDDIR)/glquake/snd_mix.o \
+	$(BUILDDIR)/glquake/snd_sdl.o \
+	$(BUILDDIR)/glquake/gl_vidlinux.o \
+	$(BUILDDIR)/glquake/math.o \
+	$(BUILDDIR)/glquake/snd_mixa.o \
+	$(BUILDDIR)/glquake/sys_dosa.o \
+	\
+	$(BUILDDIR)/glquake/nvparse.o \
+	$(BUILDDIR)/glquake/nvparse_errors.o \
+	$(BUILDDIR)/glquake/rc1.0_general.o \
+	$(BUILDDIR)/glquake/rc1.0_combiners.o \
+	$(BUILDDIR)/glquake/rc1.0_final.o \
+	$(BUILDDIR)/glquake/_rc1.0_lexer.o \
+	$(BUILDDIR)/glquake/_rc1.0_parser.o \
+	\
+	$(BUILDDIR)/glquake/roq_read.o \
+	\
+	$(BUILDDIR)/glquake/lex.yy.o \
+	$(BUILDDIR)/glquake/te_scripts.o 
+
+
+$(BUILDDIR)/bin/tenebrae.run : $(GLQUAKE_OBJS)
+	$(CC) $(CFLAGS) -o $@ $(GLQUAKE_OBJS) $(LDFLAGS)
+
+$(BUILDDIR)/glquake/cl_demo.o :      $(MOUNT_DIR)/cl_demo.c
+	$(DO_GL_CC)
+
+$(BUILDDIR)/glquake/cl_input.o :     $(MOUNT_DIR)/cl_input.c
+	$(DO_GL_CC)
+
+$(BUILDDIR)/glquake/cl_main.o :      $(MOUNT_DIR)/cl_main.c
+	$(DO_GL_CC)
+
+$(BUILDDIR)/glquake/cl_parse.o :     $(MOUNT_DIR)/cl_parse.c
+	$(DO_GL_CC)
+
+$(BUILDDIR)/glquake/cl_tent.o :      $(MOUNT_DIR)/cl_tent.c
+	$(DO_GL_CC)
+
+$(BUILDDIR)/glquake/chase.o :        $(MOUNT_DIR)/chase.c
+	$(DO_GL_CC)
+
+$(BUILDDIR)/glquake/cmd.o :          $(MOUNT_DIR)/cmd.c
+	$(DO_GL_CC)
+
+$(BUILDDIR)/glquake/common.o :       $(MOUNT_DIR)/common.c
+	$(DO_GL_CC)
+
+$(BUILDDIR)/glquake/conproc.o :      $(MOUNT_DIR)/conproc.c
+	$(DO_GL_CC)
+
+$(BUILDDIR)/glquake/console.o :      $(MOUNT_DIR)/console.c
+	$(DO_GL_CC)
+
+$(BUILDDIR)/glquake/crc.o :          $(MOUNT_DIR)/crc.c
+	$(DO_GL_CC)
+
+$(BUILDDIR)/glquake/cvar.o :         $(MOUNT_DIR)/cvar.c
+	$(DO_GL_CC)
+
+$(BUILDDIR)/glquake/gl_aliasinstant.o :      $(MOUNT_DIR)/gl_aliasinstant.c
+	$(DO_GL_CC)
+
+$(BUILDDIR)/glquake/gl_bumpstat.o :      $(MOUNT_DIR)/gl_bumpstat.c
+	$(DO_GL_CC)
+
+$(BUILDDIR)/glquake/gl_draw.o :      $(MOUNT_DIR)/gl_draw.c
+	$(DO_GL_CC)
+
+$(BUILDDIR)/glquake/gl_brushinstant.o :      $(MOUNT_DIR)/gl_brushinstant.c
+	$(DO_GL_CC)
+
+$(BUILDDIR)/glquake/gl_bumpdriver.o :      $(MOUNT_DIR)/gl_bumpdriver.c
+	$(DO_GL_CC)
+
+$(BUILDDIR)/glquake/gl_bumpgf.o :      $(MOUNT_DIR)/gl_bumpgf.c
+	$(DO_GL_CC)
+
+$(BUILDDIR)/glquake/gl_bumparb.o :      $(MOUNT_DIR)/gl_bumparb.c
+	$(DO_GL_CC)
+
+$(BUILDDIR)/glquake/gl_bumpgl2.o :      $(MOUNT_DIR)/gl_bumpgl2.c
+	$(DO_GL_CC)
+
+$(BUILDDIR)/glquake/gl_bumpmap.o :      $(MOUNT_DIR)/gl_bumpmap.c
+	$(DO_GL_CC)
+
+$(BUILDDIR)/glquake/gl_bumpparhelia.o :      $(MOUNT_DIR)/gl_bumpparhelia.c
+	$(DO_GL_CC)
+
+$(BUILDDIR)/glquake/gl_bumpradeon.o :      $(MOUNT_DIR)/gl_bumpradeon.c
+	$(DO_GL_CC)
+
+$(BUILDDIR)/glquake/gl_bumpnv3x.o :      $(MOUNT_DIR)/gl_bumpnv3x.c
+	$(DO_GL_CC)
+
+$(BUILDDIR)/glquake/gl_bumpgeneric.o :      $(MOUNT_DIR)/gl_bumpgeneric.c
+	$(DO_GL_CC)
+
+$(BUILDDIR)/glquake/gl_common.o :      $(MOUNT_DIR)/gl_common.c
+	$(DO_GL_CC)
+
+$(BUILDDIR)/glquake/gl_curves.o :      $(MOUNT_DIR)/gl_curves.c
+	$(DO_GL_CC)
+
+$(BUILDDIR)/glquake/gl_decals.o :      $(MOUNT_DIR)/gl_decals.c
+	$(DO_GL_CC)
+
+$(BUILDDIR)/glquake/gl_glare.o :      $(MOUNT_DIR)/gl_glare.c
+	$(DO_GL_CC)
+
+$(BUILDDIR)/glquake/gl_mesh.o :      $(MOUNT_DIR)/gl_mesh.c
+	$(DO_GL_CC)
+
+$(BUILDDIR)/glquake/gl_md3.o :      $(MOUNT_DIR)/gl_md3.c
+	$(DO_GL_CC)
+
+$(BUILDDIR)/glquake/gl_model.o :     $(MOUNT_DIR)/gl_model.c
+	$(DO_GL_CC)
+
+$(BUILDDIR)/glquake/gl_q3bsp.o :    $(MOUNT_DIR)/gl_q3bsp.c
+	$(DO_GL_CC)
+
+$(BUILDDIR)/glquake/gl_refrag.o :    $(MOUNT_DIR)/gl_refrag.c
+	$(DO_GL_CC)
+
+$(BUILDDIR)/glquake/gl_rlight.o :    $(MOUNT_DIR)/gl_rlight.c
+	$(DO_GL_CC)
+
+$(BUILDDIR)/glquake/gl_rmain.o :     $(MOUNT_DIR)/gl_rmain.c
+	$(DO_GL_CC)
+
+$(BUILDDIR)/glquake/gl_rmisc.o :     $(MOUNT_DIR)/gl_rmisc.c
+	$(DO_GL_CC)
+
+$(BUILDDIR)/glquake/gl_rsurf.o :     $(MOUNT_DIR)/gl_rsurf.c
+	$(DO_GL_CC)
+
+$(BUILDDIR)/glquake/gl_screen.o :    $(MOUNT_DIR)/gl_screen.c
+	$(DO_GL_CC)
+
+$(BUILDDIR)/glquake/gl_screenrect.o :    $(MOUNT_DIR)/gl_screenrect.c
+	$(DO_GL_CC)
+
+$(BUILDDIR)/glquake/gl_shadow.o :    $(MOUNT_DIR)/gl_shadow.c
+	$(DO_GL_CC)
+
+$(BUILDDIR)/glquake/gl_svbsp.o :    $(MOUNT_DIR)/gl_svbsp.c
+	$(DO_GL_CC)
+
+$(BUILDDIR)/glquake/gl_test.o :      $(MOUNT_DIR)/gl_test.c
+	$(DO_GL_CC)
+
+$(BUILDDIR)/glquake/gl_vidlinux.o :  $(MOUNT_DIR)/gl_vidsdl.c
+	$(DO_GL_CC)
+
+$(BUILDDIR)/glquake/gl_warp.o :      $(MOUNT_DIR)/gl_warp.c
+	$(DO_GL_CC)
+
+$(BUILDDIR)/glquake/shaders.o :      $(MOUNT_DIR)/shaders.c
+	$(DO_GL_CC)
+
+$(BUILDDIR)/glquake/textures.o :      $(MOUNT_DIR)/textures.c
+	$(DO_GL_CC)
+
+$(BUILDDIR)/glquake/textures_vid.o :  $(MOUNT_DIR)/textures_vid.c
+	$(DO_GL_CC)
+
+$(BUILDDIR)/glquake/host.o :         $(MOUNT_DIR)/host.c
+	$(DO_GL_CC)
+
+$(BUILDDIR)/glquake/host_cmd.o :     $(MOUNT_DIR)/host_cmd.c
+	$(DO_GL_CC)
+
+$(BUILDDIR)/glquake/keys.o :         $(MOUNT_DIR)/keys.c
+	$(DO_GL_CC)
+
+$(BUILDDIR)/glquake/xmlmenu.o :      $(MOUNT_DIR)/xmlmenu.c
+	$(DO_GL_CC)
+
+$(BUILDDIR)/glquake/mathlib.o :      $(MOUNT_DIR)/mathlib.c
+	$(DO_GL_CC)
+
+$(BUILDDIR)/glquake/net_dgrm.o :     $(MOUNT_DIR)/net_dgrm.c
+	$(DO_GL_CC)
+
+$(BUILDDIR)/glquake/net_loop.o :     $(MOUNT_DIR)/net_loop.c
+	$(DO_GL_CC)
+
+$(BUILDDIR)/glquake/net_main.o :     $(MOUNT_DIR)/net_main.c
+	$(DO_GL_CC)
+
+$(BUILDDIR)/glquake/net_vcr.o :      $(MOUNT_DIR)/net_vcr.c
+	$(DO_GL_CC)
+
+$(BUILDDIR)/glquake/net_udp.o :      $(MOUNT_DIR)/net_udp.c
+	$(DO_GL_CC)
+
+$(BUILDDIR)/glquake/net_bsd.o :      $(MOUNT_DIR)/net_bsd.c
+	$(DO_GL_CC)
+
+$(BUILDDIR)/glquake/pr_cmds.o :      $(MOUNT_DIR)/pr_cmds.c
+	$(DO_GL_CC)
+
+$(BUILDDIR)/glquake/pr_edict.o :     $(MOUNT_DIR)/pr_edict.c
+	$(DO_GL_CC)
+
+$(BUILDDIR)/glquake/pr_exec.o :      $(MOUNT_DIR)/pr_exec.c
+	$(DO_GL_CC)
+
+$(BUILDDIR)/glquake/r_part.o :       $(MOUNT_DIR)/r_part.c
+	$(DO_GL_CC)
+
+$(BUILDDIR)/glquake/sv_main.o :      $(MOUNT_DIR)/sv_main.c
+	$(DO_GL_CC)
+
+$(BUILDDIR)/glquake/sv_phys.o :      $(MOUNT_DIR)/sv_phys.c
+	$(DO_GL_CC)
+
+$(BUILDDIR)/glquake/sv_move.o :      $(MOUNT_DIR)/sv_move.c
+	$(DO_GL_CC)
+
+$(BUILDDIR)/glquake/sv_q3support.o :      $(MOUNT_DIR)/sv_q3support.c
+	$(DO_GL_CC)
+
+$(BUILDDIR)/glquake/sv_user.o :      $(MOUNT_DIR)/sv_user.c
+	$(DO_GL_CC)
+
+$(BUILDDIR)/glquake/zone.o	:        $(MOUNT_DIR)/zone.c
+	$(DO_GL_CC)
+
+$(BUILDDIR)/glquake/view.o	:        $(MOUNT_DIR)/view.c
+	$(DO_GL_CC)
+
+$(BUILDDIR)/glquake/wad.o :          $(MOUNT_DIR)/wad.c
+	$(DO_GL_CC)
+
+$(BUILDDIR)/glquake/world.o :        $(MOUNT_DIR)/world.c
+	$(DO_GL_CC)
+
+$(BUILDDIR)/glquake/cd_sdl.o :     $(MOUNT_DIR)/cd_sdl.c
+	$(DO_GL_CC)
+
+$(BUILDDIR)/glquake/sys_uxfindfirst.o :    $(MOUNT_DIR)/sys_uxfindfirst.c
+	$(DO_GL_CC)
+
+$(BUILDDIR)/glquake/sys_linux.o :    $(MOUNT_DIR)/sys_sdl.c
+	$(DO_GL_CC)
+
+$(BUILDDIR)/glquake/snd_dma.o :      $(MOUNT_DIR)/snd_dma.c
+	$(DO_GL_CC)
+
+$(BUILDDIR)/glquake/snd_mem.o :      $(MOUNT_DIR)/snd_mem.c
+	$(DO_GL_CC)
+
+$(BUILDDIR)/glquake/snd_mix.o :      $(MOUNT_DIR)/snd_mix.c
+	$(DO_GL_CC)
+
+$(BUILDDIR)/glquake/snd_sdl.o :    $(MOUNT_DIR)/snd_sdl.c
+	$(DO_GL_CC)
+
+$(BUILDDIR)/glquake/math.o :         $(MOUNT_DIR)/math.s
+	$(DO_GL_AS)
+
+$(BUILDDIR)/glquake/worlda.o :       $(MOUNT_DIR)/worlda.s
+	$(DO_GL_AS)
+
+$(BUILDDIR)/glquake/snd_mixa.o :     $(MOUNT_DIR)/snd_mixa.s
+	$(DO_GL_AS)
+
+$(BUILDDIR)/glquake/sys_dosa.o :     $(MOUNT_DIR)/sys_dosa.s
+	$(DO_GL_AS)
+
+$(BUILDDIR)/glquake/roq_read.o : $(MOUNT_DIR)/roq/roq_read.c
+	$(DO_GL_CC)
+
+$(MOUNT_DIR)/lex.yy.c :     $(MOUNT_DIR)/lex_part.l
+	$(DO_LEX)
+
+$(BUILDDIR)/glquake/lex.yy.o : $(MOUNT_DIR)/lex.yy.c
+	$(DO_GL_CC)
+
+$(BUILDDIR)/glquake/te_scripts.o :  $(MOUNT_DIR)/te_scripts.c $(MOUNT_DIR)/te_scripts.h 
+	$(DO_GL_CC)
+
+$(BUILDDIR)/glquake/nvparse.o : $(MOUNT_DIR)/nvparse/nvparse.cpp
+	$(DO_GL_CC)
+
+$(BUILDDIR)/glquake/nvparse_errors.o : $(MOUNT_DIR)/nvparse/nvparse_errors.cpp
+	$(DO_GL_CC)
+
+$(BUILDDIR)/glquake/rc1.0_general.o : $(MOUNT_DIR)/nvparse/rc1.0_general.cpp
+	$(DO_GL_CC)
+
+$(BUILDDIR)/glquake/rc1.0_combiners.o : $(MOUNT_DIR)/nvparse/rc1.0_combiners.cpp
+	$(DO_GL_CC)
+
+$(BUILDDIR)/glquake/rc1.0_final.o : $(MOUNT_DIR)/nvparse/rc1.0_final.cpp
+	$(DO_GL_CC)
+
+$(BUILDDIR)/glquake/_rc1.0_lexer.o : $(MOUNT_DIR)/nvparse/_rc1.0_lexer.cpp
+	$(DO_GL_CC)
+
+$(BUILDDIR)/glquake/_rc1.0_parser.o : $(MOUNT_DIR)/nvparse/_rc1.0_parser.cpp
+	$(DO_GL_CC)
+
+
+#############################################################################
+# MISC
+#############################################################################
+
+clean: clean-debug clean-release
+	rm -f glquake.spec
+
+clean-debug:
+	$(MAKE) clean2 BUILDDIR=$(BUILD_DEBUG_DIR) CFLAGS="$(DEBUG_CFLAGS)"
+
+clean-release:
+	$(MAKE) clean2 BUILDDIR=$(BUILD_RELEASE_DIR) CFLAGS="$(DEBUG_CFLAGS)"
+
+clean2:
+	-rm -f $(GLQUAKE_OBJS)
+
+
