@@ -421,14 +421,14 @@ static char bump_fragment_program[] =
 "TEMP diffdot, specdot, selfshadow, temp\n;"
 "TEX normalmap, tex0, texture[0], 2D;\n"
 "MAD normalmap.rgb, normalmap, scaler.b, scaler.a;\n"
-"DP3 temp.x, tex1, tex1;\n"
+"DP3 temp.x, tex1, tex1;\n"	//normalize to light ("real normalize" no cubemaps)
 "RSQ temp.x, temp.x;\n"
 "MUL lightvec, temp.x, tex1;\n"
-"DP3 temp.x, tex2, tex2;\n"
+"DP3 temp.x, tex2, tex2;\n" //normalize to light ("real normalize" no cubemaps)
 "RSQ temp.x, temp.x;\n"
 "MUL halfvec, temp.x, tex2;\n"
 "TEX colormap, tex0, texture[1], 2D;\n"
-"TEX atten, tex3, texture[2], 3D;\n"
+"TEX atten, tex3, texture[2], 3D;\n" //get attenuation factor
 "DP3_SAT diffdot, normalmap, lightvec;\n"
 "MUL_SAT selfshadow.r, lightvec.z, scaler.g;\n"
 "DP3_SAT specdot.a, normalmap, halfvec;\n"
@@ -1123,6 +1123,8 @@ void ARB_drawTriangleListBase (vertexdef_t *verts, int *indecies,
 	glDisable(GL_CULL_FACE); 
     } 
 
+	glColor3ub(255,255,255);
+
     for ( i = 0; i < shader->numstages; i++)
     {
 	ARB_SetupSimpleStage(&shader->stages[i]);
@@ -1356,6 +1358,14 @@ void ARB_drawTriangleListBase (vertexdef_t *verts, int *indecies,
 	{
 	    if (shader->flags & SURF_PPLIGHT)
 	    {
+
+		if (shader->colorstages[0].src_blend >= 0) {
+			glBlendFunc(shader->colorstages[0].src_blend, shader->colorstages[0].dst_blend);
+			glEnable(GL_BLEND);
+		} else {
+			glDisable(GL_BLEND);
+		}
+
 		glColor3f(0,0,0);
 		glDisable(GL_TEXTURE_2D);
 		glDrawElements(GL_TRIANGLES,numIndecies,GL_UNSIGNED_INT,indecies);

@@ -1270,6 +1270,8 @@ void Parhelia_drawTriangleListBase (vertexdef_t *verts, int *indecies,
 	glDisable(GL_CULL_FACE); 
     } 
 
+	glColor3ub(255,255,255);
+
     for ( i = 0; i < shader->numstages; i++)
     {
 	Parhelia_SetupSimpleStage(&shader->stages[i]);
@@ -1324,6 +1326,14 @@ void Parhelia_drawTriangleListBase (vertexdef_t *verts, int *indecies,
     else if (shader->flags & SURF_PPLIGHT)
     {
 	glColor3f(0,0,0);
+
+		if (shader->colorstages[0].src_blend >= 0) {
+			glBlendFunc(shader->colorstages[0].src_blend, shader->colorstages[0].dst_blend);
+			glEnable(GL_BLEND);
+		} else {
+			glDisable(GL_BLEND);
+		}
+
 	glDisable(GL_TEXTURE_2D);
 	glDrawElements(GL_TRIANGLES,numIndecies,GL_UNSIGNED_INT,indecies);
 	glEnable(GL_TEXTURE_2D);

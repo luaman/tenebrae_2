@@ -1119,6 +1119,7 @@ void Radeon_drawTriangleListBump (const vertexdef_t *verts, int *indecies,
 
 void Radeon_drawTriangleListBase (vertexdef_t *verts, int *indecies,
 				  int numIndecies, shader_t *shader,
+
                                   int lightMapIndex)
 {
     int i;
@@ -1134,6 +1135,10 @@ void Radeon_drawTriangleListBase (vertexdef_t *verts, int *indecies,
     { 
 	glDisable(GL_CULL_FACE); 
     } 
+
+
+	//PENTA: Added fix
+	glColor3ub(255,255,255);
 
     for ( i = 0; i < shader->numstages; i++)
     {
@@ -1188,6 +1193,15 @@ void Radeon_drawTriangleListBase (vertexdef_t *verts, int *indecies,
     }
     else if (shader->flags & SURF_PPLIGHT)
     {
+
+		//PENTA: added fix
+		if (shader->colorstages[0].src_blend >= 0) {
+			glBlendFunc(shader->colorstages[0].src_blend, shader->colorstages[0].dst_blend);
+			glEnable(GL_BLEND);
+		} else {
+			glDisable(GL_BLEND);
+		}
+
 	glColor3f(0,0,0);
 	glDisable(GL_TEXTURE_2D);
 	glDrawElements(GL_TRIANGLES,numIndecies,GL_UNSIGNED_INT,indecies);
