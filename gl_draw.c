@@ -27,73 +27,13 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define GL_COLOR_INDEX8_EXT     0x80E5
 
 extern unsigned char d_15to8table[65536];
-
-/*
-cvar_t		gl_nobind = {"gl_nobind", "0"};
-cvar_t		gl_max_size = {"gl_max_size", "1024"};
-cvar_t		gl_picmip = {"gl_picmip", "0"};
-cvar_t          gl_gloss = {"gl_gloss", "0.3"};
-cvar_t          gl_compress_textures = {"gl_compress_textures", "0"};
-cvar_t          willi_gray_colormaps = {"willi_gray_colormaps", "0"};
-*/
 cvar_t          cg_conclock = {"cg_conclock", "1", true};
 
-byte		*draw_chars;				// 8*8 graphic characters
-qpic_t		*draw_disc;
-qpic_t		*draw_backtile;
+shader_t	*draw_disc = NULL;		//Hard disc activity shader
+shader_t	*draw_backtile = NULL;	//Shader to tile when screen is sized down
+shader_t	*draw_conback = NULL;	//Console Backbround shader
+int			char_texture;			//the font (one of the only things left that doesn't have shaders)
 
-int			translate_texture;
-int			char_texture;
-/*
-int			glow_texture_object;	//PENTA: gl texture object of the glow texture
-int			normcube_texture_object; //PENTA: normalization cubemap
-int			atten1d_texture_object;
-int			atten2d_texture_object;
-int			atten3d_texture_object;
-int			halo_texture_object;
-*/
-
-typedef struct
-{
-	int		texnum;
-	float	sl, tl, sh, th;
-} glpic_t;
-
-byte		conback_buffer[sizeof(qpic_t) + sizeof(glpic_t)];
-qpic_t		*conback = (qpic_t *)&conback_buffer;
-/*
-int		gl_lightmap_format = 4;
-int		gl_solid_format = 3;
-int		gl_alpha_format = 4;
-
-int		gl_filter_min = GL_LINEAR_MIPMAP_NEAREST;
-int		gl_filter_max = GL_LINEAR;
-
-
-int		texels;
-
-typedef struct
-{
-	int		texnum;
-	char	identifier[64];
-	int		width, height;
-	qboolean	mipmap;
-	int		type; //gl texture type like GL_TEXTURE_2D etc...
-} gltexture_t;
-
-#define	MAX_GLTEXTURES	1024
-gltexture_t	gltextures[MAX_GLTEXTURES];
-int			numgltextures;
-
-qboolean is_overriden;
-
-// <AWE> added local prototypes.
-int		GL_Load2DAttenTexture (void);
-int		GL_Load3DAttenTexture (void);
-int		GL_LoadBumpTexture (void);
-int		GL_LoadNormalizationCubemap (void);
-int		GL_LoadPicTexture (qpic_t *pic);
-*/
 void GL_Bind (int texnum)
 {
 	if (currenttexture == texnum)
@@ -133,6 +73,7 @@ void GL_BindAdvanced(gltexture_t *tex) {
 =============================================================================
 */
 
+/*
 #define	MAX_SCRAPS		2
 #define	BLOCK_WIDTH		256
 #define	BLOCK_HEIGHT	256
@@ -198,143 +139,12 @@ void Scrap_Upload (void)
 	}
 	scrap_dirty = false;
 }
-
-//=============================================================================
-/* Support Routines */
-
-typedef struct cachepic_s
-{
-	char		name[MAX_QPATH];
-	qpic_t		pic;
-	byte		padding[32];	// for appended glpic
-} cachepic_t;
-
-#define	MAX_CACHED_PICS		128
-cachepic_t	menu_cachepics[MAX_CACHED_PICS];
-int			menu_numcachepics;
-
-byte		menuplyr_pixels[4096];
-
-int		pic_texels;
-int		pic_count;
-
-qpic_t *Draw_PicFromWad (char *name)
-{
-	qpic_t	*p;
-	glpic_t	*gl;
-
-	p = W_GetLumpName (name);
-	gl = (glpic_t *)p->data;
-
-	// load little ones into the scrap
-	if (p->width < 64 && p->height < 64)
-	{
-		int		x, y;
-		int		i, j, k;
-		int		texnum;
-
-		texnum = Scrap_AllocBlock (p->width, p->height, &x, &y);
-		scrap_dirty = true;
-		k = 0;
-		for (i=0 ; i<p->height ; i++)
-			for (j=0 ; j<p->width ; j++, k++)
-				scrap_texels[texnum][(y+i)*BLOCK_WIDTH + x + j] = p->data[k];
-		texnum += scrap_texnum;
-		gl->texnum = texnum;
-		gl->sl = (x+0.01)/(float)BLOCK_WIDTH;
-		gl->sh = (x+p->width-0.01)/(float)BLOCK_WIDTH;
-		gl->tl = (y+0.01)/(float)BLOCK_WIDTH;
-		gl->th = (y+p->height-0.01)/(float)BLOCK_WIDTH;
-
-		pic_count++;
-		pic_texels += p->width*p->height;
-	}
-	else
-	{
-		gl->texnum = GL_LoadPicTexture (p);
-		gl->sl = 0;
-		gl->sh = 1;
-		gl->tl = 0;
-		gl->th = 1;
-	}
-	return p;
-}
-
-
-/*
-================
-Draw_CachePic
-================
 */
-qpic_t	*Draw_CachePic (char *path)
-{
-	cachepic_t	*pic;
-	int			i;
-	qpic_t		*dat;
-	glpic_t		*gl;
-
-	for (pic=menu_cachepics, i=0 ; i<menu_numcachepics ; pic++, i++)
-		if (!strcmp (path, pic->name))
-			return &pic->pic;
-
-	if (menu_numcachepics == MAX_CACHED_PICS)
-		Sys_Error ("menu_numcachepics == MAX_CACHED_PICS");
-	menu_numcachepics++;
-	strncpy (pic->name, path,sizeof(pic->name));
-
-//
-// load the pic from disk
-//
-	dat = (qpic_t *)COM_LoadTempFile (path);	
-	if (!dat)
-		Sys_Error ("Draw_CachePic: failed to load %s", path);
-	SwapPic (dat);
-
-	// HACK HACK HACK --- we need to keep the bytes for
-	// the translatable player picture just for the menu
-	// configuration dialog
-	if (!strcmp (path, "gfx/menuplyr.lmp"))
-		memcpy (menuplyr_pixels, dat->data, dat->width*dat->height);
-
-	pic->pic.width = dat->width;
-	pic->pic.height = dat->height;
-
-	gl = (glpic_t *)pic->pic.data;
-	gl->texnum = GL_LoadPicTexture (dat);
-	gl->sl = 0;
-	gl->sh = 1;
-	gl->tl = 0;
-	gl->th = 1;
-
-	return &pic->pic;
-}
-
-
-void Draw_CharToConback (int num, byte *dest)
-{
-	int		row, col;
-	byte	*source;
-	int		drawline;
-	int		x;
-
-	row = num>>4;
-	col = num&15;
-	source = draw_chars + (row<<10) + (col<<3);
-
-	drawline = 8;
-
-	while (drawline--)
-	{
-		for (x=0 ; x<8 ; x++)
-			if (source[x] != 255)
-				dest[x] = 0x60 + source[x];
-		source += 128;
-		dest += 320;
-	}
-
-}
 
 void Print_Tex_Cache_f(void);
+void R_ReloadShaders_f(void);
+void ReloadTextures_f(void);
+
 /*
 ===============
 Draw_Init
@@ -343,11 +153,10 @@ Draw_Init
 void Draw_Init (void)
 {
 	int		i;
-	qpic_t	*cb;
+	shader_t *cb;
 	byte	*dest /*, *src*/;	// <AWE> unused because of "#if 0".
 	int		x, y;
 	char	ver[40];
-	glpic_t	*gl;
 	int		start;
 	byte	*ncdata;
 //	int		fstep;		// <AWE> unused because of "#if 0".
@@ -368,123 +177,16 @@ void Draw_Init (void)
 	Cmd_AddCommand ("gl_texturemode", &Draw_TextureMode_f);
 	Cmd_AddCommand ("roq_info", &Roq_Info_f);
 	Cmd_AddCommand ("gl_texcache",Print_Tex_Cache_f);
+	Cmd_AddCommand ("reloadTextures",ReloadTextures_f);
+	Cmd_AddCommand ("reloadShaders", R_ReloadShaders_f); 
 
-	// load the console background and the charset
-	// by hand, because we need to write the version
-	// string into the background before turning
-	// it into a texture
-	
-	/*
-	draw_chars = W_GetLumpName ("conchars");
-	for (i=0 ; i<256*64 ; i++)
-		if (draw_chars[i] == 0)
-			draw_chars[i] = 255;	// proper transparent color
-	*/
-	// now turn them into textures
-	char_texture = EasyTgaLoad("textures/system/charset.tga");//GL_LoadTexture ("charset", 128, 128, draw_chars, false, true, false);
+	// Load the console font
+	char_texture = EasyTgaLoad("textures/system/charset.tga");
 
-/*
-	start = Hunk_LowMark();
-
-	cb = (qpic_t *)COM_LoadTempFile ("gfx/conback.lmp");	
-	if (!cb)
-		Sys_Error ("Couldn't load gfx/conback.lmp");
-	SwapPic (cb);
-
-	// hack the version number directly into the pic
-#if defined(__linux__)
-	sprintf (ver, "(Linux %2.2f, gl %4.2f) %4.2f", (float)LINUX_VERSION, (float)GLQUAKE_VERSION, (float)VERSION);
-#elif defined (__APPLE__) || defined (MACOSX)
-	sprintf (ver, "(MACOS X %2.2f, gl %4.2f) %4.2f", (float)MACOSX_VERSION, (float)GLQUAKE_VERSION, (float)VERSION);
-#else
-	sprintf (ver, "(st %4.2f) %4.2f", (float)STQUAKE_VERSION, (float)VERSION);
-#endif
-	dest = cb->data + 320*186 + 320 - 11 - 8*strlen(ver);
-	y = strlen(ver);
-	for (x=0 ; x<y ; x++)
-		Draw_CharToConback (ver[x], dest+(x<<3));
-
-#if 0
-	conback->width = vid.conwidth;
-	conback->height = vid.conheight;
-
- 	// scale console to vid size
- 	dest = ncdata = Hunk_AllocName(vid.conwidth * vid.conheight, "conback");
- 
- 	for (y=0 ; y<vid.conheight ; y++, dest += vid.conwidth)
- 	{
- 		src = cb->data + cb->width * (y*cb->height/vid.conheight);
- 		if (vid.conwidth == cb->width)
- 			memcpy (dest, src, vid.conwidth);
- 		else
- 		{
- 			f = 0;
- 			fstep = cb->width*0x10000/vid.conwidth;
- 			for (x=0 ; x<vid.conwidth ; x+=4)
- 			{
- 				dest[x] = src[f>>16];
- 				f += fstep;
- 				dest[x+1] = src[f>>16];
- 				f += fstep;
- 				dest[x+2] = src[f>>16];
- 				f += fstep;
- 				dest[x+3] = src[f>>16];
- 				f += fstep;
- 			}
- 		}
- 	}
-#else
-	conback->width = cb->width;
-	conback->height = cb->height;
-	ncdata = cb->data;
-#endif
-
-	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-
-	gl = (glpic_t *)conback->data;
-	gl->texnum = GL_LoadTexture ("conback", conback->width, conback->height, ncdata, false, false, false);
-	gl->sl = 0;
-	gl->sh = 1;
-	gl->tl = 0;
-	gl->th = 1;
-	conback->width = vid.width;
-	conback->height = vid.height;
-
-	// free loaded console
-	Hunk_FreeToLowMark(start);
-*/
-	//Clean conback loading
-	conback->width = vid.conwidth;
-	conback->height = vid.conheight;
-	gl = (glpic_t *)conback->data;
-	gl->texnum = EasyTgaLoad("textures/system/conback.tga");
-	gl->sl = 0;
-	gl->sh = 1;
-	gl->tl = 0;
-	gl->th = 1;
-	
-
-	// save a texture slot for translated picture
-	translate_texture = texture_extension_number++;
-
-	// save slots for scraps
-	scrap_texnum = texture_extension_number;
-	texture_extension_number += MAX_SCRAPS;
-
-	//
-	// get the other pics we need
-	//
-	draw_disc = Draw_PicFromWad ("disc");
-	draw_backtile = Draw_PicFromWad ("backtile");
-
-	//PENTA: load fallof glow
+	//Global images
 	glow_texture_object = GL_Load2DAttenTexture();
 	atten3d_texture_object = GL_Load3DAttenTexture();
-
-	//Load nomalization cube map
 	normcube_texture_object = GL_LoadNormalizationCubemap();
-
 	halo_texture_object = EasyTgaLoad("penta/utflare5.tga");
 
 	for (i=0; i<8; i++) {
@@ -493,9 +195,7 @@ void Draw_Init (void)
 		caustics_textures[i] = EasyTgaLoad(name);
 	}
 
-	//Load water shader textures
-	//InitShaderTex();
-	//load mirror dummys
+	//Load mirror dummys
 	R_InitMirrorChains();
 
 	R_InitGlare();
@@ -517,15 +217,68 @@ void Draw_Character (int x, int y, int num)
 	int		row, col, nnum;
 	float		frow, fcol, size;
 
+	/* use shaders for fonts ?
+	float glyph_width, glyph_height;
+	shader_t *shader;
+
+	vec3_t vertices[4];
+	float texcoords[8];
+
+	int indecies[]={0,1,2,2,1,3};
+
+	vertexdef_t verts[]={
+		vertices,0,              // vertices
+		texcoords,0,             // texcoords
+		NULL,0,                  // lightmapcoords
+		NULL,0,                  // tangents
+		NULL,0,                  // binormals
+		NULL,0,                  // normals
+		NULL,0                   // colors
+	};
+
+	glyph_pix_width = 8;
+	glyph_pix_height = 16;
+
+
+	vertices[0][0] = x; 
+	vertices[0][1] = y;
+	vertices[0][3] = 0.0f;
+
+	texcoords[0] = fcol;
+	texcoords[1] = frow;
+  
+	vertices[1][0] = x + glyph_pix_width; 
+	vertices[1][1] = y ;
+	vertices[1][3] = 0.0f;  
+
+	texcoords[2] = fcol + glyph_width;
+	texcoords[3] = frow;
+
+	vertices[2][0] = x;
+	vertices[2][1] = y + glyph_pix_height;
+	vertices[2][3] = 0.0f;  
+
+	texcoords[4] = fcol;
+	texcoords[5] = frow + glyph_height;
+
+	vertices[3][0] = x + glyph_pix_width; 
+	vertices[3][1] = y + glyph_pix_height;
+	vertices[3][3] = 0.0f;  
+
+	texcoords[6] = fcol + glyph_width;
+	texcoords[7] = frow + glyph_height;
+	*/
+
+
 	if (num == 32)
 		return;		// space
 
 	if (num > 127) glColor3ub(255,50,10);
-		
+	else  glColor3ub(255,255,255);
+
 	nnum = num & 127;
-	//nnum = nnum
-	
-	if (y <= -8)
+
+	if (y <= 0)
 		return;			// totally off screen
 
 	row = nnum>>4;
@@ -534,6 +287,11 @@ void Draw_Character (int x, int y, int num)
 	frow = row*0.0625;
 	fcol = col*0.0625;
 	size = 0.0625;
+
+
+	glDisable(GL_ALPHA_TEST);
+	glEnable (GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
 	GL_Bind (char_texture);
 
@@ -548,8 +306,12 @@ void Draw_Character (int x, int y, int num)
 	glVertex2f (x, y+16);
 	glEnd ();
 
+	glEnable(GL_ALPHA_TEST);
+	glDisable (GL_BLEND);
+
 	if (num > 127) glColor3ub(255,255,255);
 }
+
 
 /*
 ================
@@ -567,176 +329,127 @@ void Draw_String (int x, int y, char *str)
 }
 
 /*
-================
-Draw_DebugChar
-
-Draws a single character directly to the upper right corner of the screen.
-This is for debugging lockups by drawing different chars in different parts
-of the code.
-================
+=============
+Draw_Pic
+=============
 */
-void Draw_DebugChar (char num)
+void Draw_Pic (int x1, int y1, int x2, int y2, shader_t *shader)
 {
+	vec3_t vertices[] = { 
+		{x1,y1,0.0f}, 
+		{x2,y1,0.0f}, 
+		{x1,y2,0.0f}, 
+		{x2,y2,0.0f} 
+	}; 
+	float texcoords[] = { 
+		0.0f,0.0f, 
+		1.0f,0.0f, 
+		0.0f,1.0f, 
+		1.0f,1.0f 
+	}; 
+
+	float *lighmapscoords = NULL; 
+	float *tangents = NULL; 
+	float *binormals = NULL; 
+	float *normals = NULL; 
+	unsigned char *colors = NULL; 
+    
+	int indecies[]={0,1,2,2,1,3}; 
+    
+	vertexdef_t verts[]={ 
+		vertices[0],0,           // vertices 
+		texcoords,0,             // texcoords 
+		lighmapscoords,0,        // lightmapcoords 
+		tangents,0,              // tangents 
+		binormals,0,             // binormals 
+		normals,0,               // normals 
+		colors,0                 // colors 
+	}; 
+    
+	gl_bumpdriver.drawTriangleListBase ( verts, indecies, 6, shader, -1); 
 }
 
-
-
-void Draw_GLPic (int x, int y, int xs, int ys, glpic_t *gl)
+/*
+=============
+Draw_Border
+	A border is 4 quads, they fit inside the given rectangle.
+=============
+*/
+void Draw_Border (int x1, int y1, int x2, int y2, int borderWidth, shader_t *shader)
 {
-	GL_Bind (gl->texnum);
-	glBegin (GL_QUADS);
-	glTexCoord2f (gl->sl, gl->tl);
-	glVertex2f (x, y);
-	glTexCoord2f (gl->sh, gl->tl);
-	glVertex2f (xs, y);
-	glTexCoord2f (gl->sh, gl->th);
-	glVertex2f (xs, ys);
-	glTexCoord2f (gl->sl, gl->th);
-	glVertex2f (x, ys);
-	glEnd ();
+	float texcoords[32];
+	int indecies[24];
+	int baseindecies[]={0,1,2,2,3,0};
+	float basetexcoords[] = {0.0f,0.0f, 1.0f,0.0f, 1.0f,1.0f, 0.0f,1.0f}; 
+	int i, j;
+
+	vec3_t vertices[] = { 
+		{x1,y1,0.0f}, 
+		{x2,y1,0.0f}, 
+		{x2-borderWidth,y1+borderWidth,0.0f},
+		{x1+borderWidth,y1+borderWidth,0.0f}, 
+		{x2,y1,0.0f}, 
+		{x2,y2,0.0f}, 
+		{x2-borderWidth,y2-borderWidth,0.0f}, 
+		{x2-borderWidth,y1+borderWidth,0.0f}, 
+		{x2,y2,0.0f},
+		{x1,y2,0.0f},
+		{x1+borderWidth,y2-borderWidth,0.0f},
+		{x2-borderWidth,y2-borderWidth,0.0f},
+		{x1,y2,0.0f},
+		{x1,y1,0.0f},
+		{x1+borderWidth,y1+borderWidth,0.0f},
+		{x1+borderWidth,y2-borderWidth,0.0f}
+	}; 
+
+	float *lighmapscoords = NULL; 
+	float *tangents = NULL; 
+	float *binormals = NULL; 
+	float *normals = NULL; 
+	unsigned char *colors = NULL; 
+        
+	vertexdef_t verts[]={ 
+		vertices[0],0,           // vertices 
+		texcoords,0,             // texcoords 
+		lighmapscoords,0,        // lightmapcoords 
+		tangents,0,              // tangents 
+		binormals,0,             // binormals 
+		normals,0,               // normals 
+		colors,0                 // colors 
+	}; 
+
+	//FIXME: Make some parts static so we don't have to redo for every border we draw
+	for (i=0; i<4; i++) {
+		for (j=0; j<6; j++) {
+			indecies[i*6+j] = baseindecies[j]+i*4;
+		}
+		for (j=0; j<4; j++) {
+			texcoords[i*8+j*2] = basetexcoords[j*2];
+			texcoords[i*8+j*2+1] = basetexcoords[j*2+1];
+		}
+
+	}
+    
+	gl_bumpdriver.drawTriangleListBase ( verts, indecies, 24, shader, -1); 
 }
+
 /*
 =============
 Draw_AlphaPic
 =============
 */
-void Draw_AlphaPic (int x, int y, qpic_t *pic, float alpha)
+void Draw_AlphaPic (int x1, int y1, int x2, int y2, shader_t *pic, float alpha)
 {
-	glpic_t			*gl;
-
-	if (scrap_dirty)
-		Scrap_Upload ();
-	gl = (glpic_t *)pic->data;
 	glDisable(GL_ALPHA_TEST);
 	glEnable (GL_BLEND);
 //	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 //	glCullFace(GL_FRONT);
 	glColor4f (1,1,1,alpha);
-	Draw_GLPic (x, y, x+pic->width, y+pic->height, gl);
+	Draw_Pic (x1, y1, x2, y2, pic);
 	glColor4f (1,1,1,1);
 	glEnable(GL_ALPHA_TEST);
 	glDisable (GL_BLEND);
 }
-
-
-/*
-=============
-Draw_Pic
-=============
-*/
-void Draw_Pic (int x, int y, qpic_t *pic)
-{
-	glpic_t			*gl;
-
-	if (scrap_dirty)
-		Scrap_Upload ();
-	gl = (glpic_t *)pic->data;
-	glColor4f (1,1,1,1);
-	Draw_GLPic (x, y, x+pic->width, y+pic->height, gl);
-}
-
-
-/*
-=============
-Draw_TransPic
-=============
-*/
-void Draw_TransPic (int x, int y, qpic_t *pic)
-{
-	if (x < 0 || (unsigned)(x + pic->width) > vid.width || y < 0 ||
-		 (unsigned)(y + pic->height) > vid.height)
-	{
-		Sys_Error ("Draw_TransPic: bad coordinates");
-	}
-		
-	Draw_Pic (x, y, pic);
-}
-
-
-/*
-==============
-Draw_PicFilled
-==============
-*/
-void Draw_PicFilled (int x, int y, int xs, int ys, qpic_t *pic)
-{
-        glpic_t                 *gl;
-                                                                                
-        if (scrap_dirty)
-                Scrap_Upload ();
-        gl = (glpic_t *)pic->data;
-        glColor4f (1,1,1,1);
-	Draw_GLPic (x, y, xs, ys, gl);
-}
-                                                                            
-/*
-===================
-Draw_TransPicFilled
-===================
-*/
-void Draw_TransPicFilled (int x, int y, int xs, int ys, qpic_t *pic)
-{
-	
-        if (x < 0 || (unsigned)(xs) > vid.width || y < 0 ||
-                 (unsigned)(ys) > vid.height)
-        {
-                Sys_Error ("Draw_TransPic: bad coordinates (%d ,%d )\n", x, y);
-        }
-
-        Draw_PicFilled (x, y, xs, ys, pic);
-}
-                                                                                
-                                                                            
-/*
-=============
-Draw_TransPicTranslate
-
-Only used for the player color selection menu
-=============
-*/
-void Draw_TransPicTranslate (int x, int y, qpic_t *pic, byte *translation)
-{
-	int				v, u, c;
-	unsigned		trans[64*64], *dest;
-	byte			*src;
-	int				p;
-
-	GL_Bind (translate_texture);
-
-	c = pic->width * pic->height;
-
-	dest = trans;
-	for (v=0 ; v<64 ; v++, dest += 64)
-	{
-		src = &menuplyr_pixels[ ((v*pic->height)>>6) *pic->width];
-		for (u=0 ; u<64 ; u++)
-		{
-			p = src[(u*pic->width)>>6];
-			if (p == 255)
-				dest[u] = p;
-			else
-				dest[u] =  d_8to24table[translation[p]];
-		}
-	}
-
-	glTexImage2D (GL_TEXTURE_2D, 0, gl_alpha_format, 64, 64, 0, GL_RGBA, GL_UNSIGNED_BYTE, trans);
-
-	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
-	glColor3f (1,1,1);
-	glBegin (GL_QUADS);
-	glTexCoord2f (0, 0);
-	glVertex2f (x, y);
-	glTexCoord2f (1, 0);
-	glVertex2f (x+pic->width, y);
-	glTexCoord2f (1, 1);
-	glVertex2f (x+pic->width, y+pic->height);
-	glTexCoord2f (0, 1);
-	glVertex2f (x, y+pic->height);
-	glEnd ();
-}
-
 
 /*
 ================
@@ -746,68 +459,12 @@ Draw_ConsoleBackground
 */
 void Draw_ConsoleBackground (int lines)
 {
-	int y = (vid.height * 3) >> 2;
-	int x, i; 
-
-	char tl[80]; //Console Clock - Eradicator
-	char timebuf[20];
-
-	if (lines > y)
-		Draw_Pic(0, lines - vid.height, conback);
-	else
-		Draw_AlphaPic (0, lines - vid.height, conback, (float)(1.2 * lines)/y);
-
-	if ( cg_conclock.value )
-	{
-                Sys_Strtime( timebuf );
-		y = lines-14; 
-		sprintf (tl, "Time: %s",timebuf); //Console Clock - Eradicator
-		x = vid.conwidth - (vid.conwidth*12/vid.width*12) + 30; 
-		for (i=0 ; i < strlen(tl) ; i++) 
-		   Draw_Character (x + i * 8, y, tl[i] | 0x80);
+	if (!draw_conback) {
+		Draw_FillRGB (0, lines - vid.height, vid.width, lines, 0.0f, 0.0f, 1.0f);
+	} else {
+		Draw_Pic (0, lines - vid.height, vid.width, lines, draw_conback);
 	}
 }
-
-void Draw_SpiralConsoleBackground (int lines) //Spiral Console - Eradicator
-{ 
-   int x, i; 
-   int y; 
-   static float xangle = 0, xfactor = .3f, xstep = .01f; 
-   
-   char tl[80]; //Console Clock - Eradicator
-   char timebuf[20];
-   Sys_Strtime( timebuf );
-
-
-   glPushMatrix(); 
-   glMatrixMode(GL_TEXTURE); 
-   glPushMatrix(); 
-   glLoadIdentity(); 
-   xangle += 1.0f; 
-   xfactor += xstep; 
-   if (xfactor > 8 || xfactor < .3f) 
-      xstep = -xstep; 
-   glRotatef(xangle, 0, 0, 1); 
-   glScalef(xfactor, xfactor, xfactor); 
-   y = (vid.height * 3) >> 2;  
-   if (lines > y) 
-      Draw_Pic(0, lines-vid.height, conback); 
-   else 
-      Draw_AlphaPic (0, lines - vid.height, conback, (float)(1.2 * lines)/y); 
-   glPopMatrix(); 
-   glMatrixMode(GL_MODELVIEW); 
-   glPopMatrix(); 
-
-   	if ( cg_conclock.value )
-	{
-		y = lines-14; 
-		sprintf (tl, "Time: %s",timebuf); //Console Clock - Eradicator
-		x = vid.conwidth - (vid.conwidth*12/vid.width*12) + 30; 
-		for (i=0 ; i < strlen(tl) ; i++) 
-			Draw_Character (x + i * 8, y, tl[i] | 0x80);
-	}
-}
-
 
 /*
 =============
@@ -819,8 +476,21 @@ refresh window.
 */
 void Draw_TileClear (int x, int y, int w, int h)
 {
+
+	if (!draw_backtile) {
+		Draw_FillRGB (x, y, w, h, 0.5f, 0.5f, 0.5f);
+		return;
+	}
+
+
+	if (!draw_backtile->numcolorstages) {
+		Draw_FillRGB (x, y, w, h, 0.5f, 0.5f, 0.5f);
+		return;
+	}
+
+	//FIXME: This is not really a shader
 	glColor3f (1,1,1);
-	GL_Bind (*(int *)draw_backtile->data);
+	GL_Bind (*(int *)draw_backtile->colorstages[0].texture[0]->texnum);
 	glBegin (GL_QUADS);
 	glTexCoord2f (x/64.0, y/64.0);
 	glVertex2f (x, y);
@@ -926,7 +596,7 @@ void Draw_BeginDisc (void)
 	if (!draw_disc)
 		return;
 	glDrawBuffer  (GL_FRONT);
-	Draw_Pic (vid.width - 24, 0, draw_disc);
+	Draw_Pic (vid.width - 24, 0, vid.width + 8, 32, draw_disc);
 	glDrawBuffer  (GL_BACK);
 }
 
