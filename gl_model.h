@@ -270,6 +270,11 @@ typedef struct
 	int			checkcount;		// to avoid repeated testings
 } mbrush_t;
 
+typedef struct
+{
+	int			numareaportals[MAX_MAP_AREAS];
+} marea_t;
+
 /*
 ==============================================================================
 
@@ -492,6 +497,9 @@ typedef struct model_s
 
 	int			numleafcurves;
 	int			*leafcurves;
+
+	int			numareas;
+	marea_t		*areas;
 
 	int			numcurves;
 	mcurve_t	*curves;
