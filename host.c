@@ -726,6 +726,7 @@ void _Host_Frame (float time)
 		S_Update (vec3_origin, vec3_origin, vec3_origin, vec3_origin);
 	
 	CDAudio_Update();
+//	SCR_RunCinematic ();
 
 	if (host_speeds.value)
 	{
@@ -877,7 +878,6 @@ void Host_Init (quakeparms_t *parms)
 	Host_InitVCR (parms);
 	COM_Init (parms->basedir);
 	Host_InitLocal ();
-	W_LoadWadFile ("gfx.wad");
 	Key_Init ();
 	Con_Init ();	
 	PR_Init ();
@@ -893,23 +893,28 @@ void Host_Init (quakeparms_t *parms)
  
 	if (cls.state != ca_dedicated)
 	{
+		host_basepal = Hunk_Alloc(512*3);
+		host_colormap = Hunk_Alloc(512*3); 
+		/*
 		host_basepal = (byte *)COM_LoadHunkFile ("gfx/palette.lmp");
 		if (!host_basepal)
 			Sys_Error ("Couldn't load gfx/palette.lmp");
 		host_colormap = (byte *)COM_LoadHunkFile ("gfx/colormap.lmp");
 		if (!host_colormap)
 			Sys_Error ("Couldn't load gfx/colormap.lmp");
+		*/
 
 #ifndef _WIN32 // on non win32, mouse comes before video for security reasons
 		IN_Init ();
 #endif
 		VID_Init (host_basepal);
-
-		M_Init ();
-
 		Draw_Init ();
-		SCR_Init ();
+		SCR_Init ();		
+		R_InitShaders();	//Needs screen to be init to print debug info
+		M_Init ();
+		SCR_FindShaders();	//Needs shader system to be initialized
 		R_Init ();
+
 #ifndef	_WIN32
 	// on Win32, sound initialization has to come before video initialization, so we
 	// can put up a popup if the sound hardware is in use
