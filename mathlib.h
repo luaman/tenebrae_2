@@ -49,6 +49,8 @@ extern	int nanmask;
 #define VectorClear(a) {a[0]=vec3_origin[0];a[1]=vec3_origin[1];a[2]=vec3_origin[2];}
 #define VectorNegate(a,b) {b[0]=-a[0];b[1]=-a[1];b[2]=-a[2];}
 
+void VectorConstruct(float v1, float v2, float v3, vec3_t v);
+
 void VectorMA (vec3_t veca, float scale, vec3_t vecb, vec3_t vecc);
 
 vec_t _DotProduct (vec3_t v1, vec3_t v2);
@@ -58,6 +60,8 @@ void _VectorCopy (vec3_t in, vec3_t out);
 
 int VectorCompare (vec3_t v1, vec3_t v2);
 vec_t Length (vec3_t v);
+vec_t Distance(vec3_t v, vec3_t v2);
+
 void CrossProduct (vec3_t v1, vec3_t v2, vec3_t cross);
 float VectorNormalize (vec3_t v);		// returns vector length
 void VectorInverse (vec3_t v);
@@ -77,6 +81,7 @@ int BoxOnPlaneSide (vec3_t emins, vec3_t emaxs, struct mplane_s *plane);
 float	anglemod(float a);
 void MatrixAffineInverse (matrix_4x4  m, matrix_4x4 result);		// <AWE> added prototype.
 void Mat_Mul_1x4_4x4 (matrix_1x4 a, matrix_4x4 b,matrix_1x4 result);	// <AWE> added prototype.
+void Mat_Mul_4x4_4x4(matrix_4x4 a, matrix_4x4 b, matrix_4x4 result);
 void RotatePointAroundVector (vec3_t dst, const vec3_t dir, const vec3_t point, float degrees); // <AWE> added prototype.
 
 //XYZ added

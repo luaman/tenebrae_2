@@ -397,6 +397,12 @@ void _VectorCopy (vec3_t in, vec3_t out)
 	out[2] = in[2];
 }
 
+void VectorConstruct(float v1, float v2, float v3, vec3_t v) {
+	v[0] = v1;
+	v[1] = v2;
+	v[2] = v3;
+}
+
 void CrossProduct (vec3_t v1, vec3_t v2, vec3_t cross)
 {
 	cross[0] = v1[1]*v2[2] - v1[2]*v2[1];
@@ -414,6 +420,20 @@ vec_t Length(vec3_t v)
 	length = 0;
 	for (i=0 ; i< 3 ; i++)
 		length += v[i]*v[i];
+	length = sqrt (length);		// FIXME
+
+	return length;
+}
+
+vec_t Distance(vec3_t v, vec3_t v2)
+{
+	int		i;
+	float	length, d;
+	
+	length = 0;
+	for (i=0 ; i< 3 ; i++)
+		d = v[i] - v2[i];
+		length += d*d;
 	length = sqrt (length);		// FIXME
 
 	return length;
@@ -652,6 +672,25 @@ for (index_j=0; index_j<4; index_j++)
     } // end for index_j
 
 } // end Mat_Mul_1x4_4x4
+
+/*
+	Penta: Quake doesn't have matrix muliplication!!
+	this function multiplies a 4x4 by a 4x4 and stores the result in a 4x4
+*/
+void Mat_Mul_4x4_4x4(matrix_4x4 a, matrix_4x4 b, matrix_4x4 result) {
+	int i, j, k;
+	float sum;
+
+	for (i=0; i<4; i++) {
+	    for (j=0; j<4; j++) {
+			sum=0;
+			for (k=0; k<4; k++)
+				sum+=a[i][k]*b[k][j];
+
+		    result[i][j] = sum;
+        } 
+    }
+}
 
 /*
 PENTA: Easy & fast matrix inversions with some quirks (just what Carmack likes ;) )
