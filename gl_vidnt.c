@@ -101,15 +101,7 @@ HWND WINAPI InitializeWindow (HINSTANCE hInstance, int nCmdShow);
 
 viddef_t	vid;				// global video state
 
-unsigned short	d_8to16table[256];
-unsigned	d_8to24table[256];
-unsigned char d_15to8table[65536];
-unsigned char d_8to8graytable[256];
-
 modestate_t	modestate = MS_UNINIT;
-
-void VID_MenuDraw (void);
-void VID_MenuKey (int key);
 
 LONG WINAPI MainWndProc (HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
 void AppActivate(BOOL fActive, BOOL minimize);
@@ -448,7 +440,6 @@ int VID_SetMode (int modenum)
 	if (!msg_suppress_1)
 		Con_SafePrintf ("Video mode %s initialized.\n", VID_GetModeDescription (vid_modenum));
 
-
 	vid.recalc_refdef = 1;
 
 	return true;
@@ -740,7 +731,7 @@ void AppActivate(BOOL fActive, BOOL minimize)
 				MoveWindow(mainwindow, 0, 0, gdevmode.dmPelsWidth, gdevmode.dmPelsHeight, false); //Alt Tab Fix - Eradicator
 			}
 		}
-		else if ((modestate == MS_WINDOWED) && m_windowed.value && key_dest == key_game)
+		else if ((modestate == MS_WINDOWED) && m_windowed.value)
 		{
 			IN_ActivateMouse ();
 			//IN_HideMouse ();
@@ -1256,38 +1247,6 @@ void VID_InitFullDIB (HINSTANCE hInstance)
 		Con_SafePrintf ("No fullscreen DIB modes found\n");
 }
 
-
-
-static void Check_Gamma (unsigned char *pal)
-{
-	float	f, inf;
-	unsigned char	palette[768];
-	int		i;
-
-	if ((i = COM_CheckParm("-gamma")) == 0) {
-		if ((gl_renderer && strstr(gl_renderer, "Voodoo")) ||
-			(gl_vendor && strstr(gl_vendor, "3Dfx")))
-			vid_gamma = 1;
-		else
-			vid_gamma = 0.6f; // default to 0.7 on non-3dfx hardware
-							 //PENTA: lowered to make things a little brighter
-	} else
-		vid_gamma = Q_atof(com_argv[i+1]);
-
-	for (i=0 ; i<768 ; i++)
-	{
-		f = pow ( (pal[i]+1)/256.0 , vid_gamma );
-		inf = f*255 + 0.5;
-		if (inf < 0)
-			inf = 0;
-		if (inf > 255)
-			inf = 255;
-		palette[i] = inf;
-	}
-
-	memcpy (pal, palette, sizeof(palette));
-}
-
 /*
 ===================
 VID_Init
@@ -1539,9 +1498,6 @@ void	VID_Init (void)
 
 	GL_Init ();
 
-	sprintf (gldir, "%s/glquake", com_gamedir);
-	Sys_mkdir (gldir);
-
 	vid_realmode = vid_modenum;
 
 	strcpy (badmode.modedesc, "Bad mode");
@@ -1574,94 +1530,3 @@ typedef struct
 #define MAX_MODEDESCS		(MAX_COLUMN_SIZE*3)
 
 static modedesc_t	modedescs[MAX_MODEDESCS];
-
-/*
-================
-VID_MenuDraw
-================
-*/
-void VID_MenuDraw (void)
-{
-/*	qpic_t		*p;
-	char		*ptr;
-	int			lnummodes, i, k, column, row;
-	vmode_t		*pv;
-
-	p = Draw_CachePic ("gfx/vidmodes.lmp");
-	M_DrawPic ( (320-p->width)/2, 4, p);
-
-	vid_wmodes = 0;
-	lnummodes = VID_NumModes ();
-	
-	for (i=1 ; (i<lnummodes) && (vid_wmodes < MAX_MODEDESCS) ; i++)
-	{
-		ptr = VID_GetModeDescription (i);
-		pv = VID_GetModePtr (i);
-
-		k = vid_wmodes;
-
-		modedescs[k].modenum = i;
-		modedescs[k].desc = ptr;
-		modedescs[k].iscur = 0;
-
-		if (i == vid_modenum)
-			modedescs[k].iscur = 1;
-
-		vid_wmodes++;
-
-	}
-
-	if (vid_wmodes > 0)
-	{
-		M_Print (2*8, 36+0*8, "Fullscreen Modes (WIDTHxHEIGHTxBPP)");
-
-		column = 8;
-		row = 36+2*8;
-
-		for (i=0 ; i<vid_wmodes ; i++)
-		{
-			if (modedescs[i].iscur)
-				M_PrintWhite (column, row, modedescs[i].desc);
-			else
-				M_Print (column, row, modedescs[i].desc);
-
-			column += 13*8;
-
-			if ((i % VID_ROW_SIZE) == (VID_ROW_SIZE - 1))
-			{
-				column = 8;
-				row += 8;
-			}
-		}
-	}
-
-	M_Print (3*8, 36 + MODE_AREA_HEIGHT * 8 + 8*2,
-			 "Video modes must be set from the");
-	M_Print (3*8, 36 + MODE_AREA_HEIGHT * 8 + 8*3,
-			 "command line with -width <width>");
-	M_Print (3*8, 36 + MODE_AREA_HEIGHT * 8 + 8*4,
-			 "and -bpp <bits-per-pixel>");
-	M_Print (3*8, 36 + MODE_AREA_HEIGHT * 8 + 8*6,
-			 "Select windowed mode with -window");
-*/
-}
-
-
-/*
-================
-VID_MenuKey
-================
-*/
-void VID_MenuKey (int key)
-{
-	switch (key)
-	{
-	case K_ESCAPE:
-		S_LocalSound ("misc/menu1.wav");
-		M_Menu_Options_f ();
-		break;
-
-	default:
-		break;
-	}
-}
