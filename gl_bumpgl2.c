@@ -640,7 +640,7 @@ void GL2_EnableBumpShader(const transform_t *tr, const lightobject_t *lo,
 
         if (currentshadowlight->shader->stages[0].texture[0]->gltype == GL_TEXTURE_CUBE_MAP_ARB)
         {
-            GL2_SetupTcMods(&currentshadowlight->shader->stages[0]);
+            SH_SetupTcMods(&currentshadowlight->shader->stages[0]);
             GL_SetupCubeMapMatrix(tr);
 
   	    glBindTexture(GL_TEXTURE_CUBE_MAP_ARB, currentshadowlight->shader->stages[0].texture[0]->texnum);
@@ -670,7 +670,7 @@ void GL2_EnableBumpShader(const transform_t *tr, const lightobject_t *lo,
 	    glScalef(1.0f/(currentshadowlight->radiusv[0]), 
 	  		   1.0f/(currentshadowlight->radiusv[1]),
 			   1.0f/(currentshadowlight->radiusv[2]));
-            GL2_SetupTcMods(&currentshadowlight->shader->stages[0]);
+            SH_SetupTcMods(&currentshadowlight->shader->stages[0]);
             GL_SetupCubeMapMatrix(tr);
 
             if ( shader->glossstages[0].type == STAGE_GLOSS )
@@ -743,77 +743,6 @@ void GL2_DisableDeluxShader(shader_t* shader)
     qglUseProgramObjectARB(0);
 }
 
-
-/************************
-
-Shader utility routines
-
-*************************/
-
-void GL2_SetupTcMod(tcmod_t *tc)
-{
-    switch (tc->type)
-    {
-    case TCMOD_ROTATE:
-	glTranslatef(0.5,0.5,0.0);
-	glRotatef(realtime * tc->params[0],0,0,1);
-	glTranslatef(-0.5, -0.5, 0.0);
-	break;
-    case TCMOD_SCROLL:
-	glTranslatef(realtime * tc->params[0], realtime * tc->params[1], 0.0);
-	break;
-    case TCMOD_SCALE:
-	glScalef(tc->params[0],tc->params[1],1.0);
-	break;
-    case TCMOD_STRETCH:
-	//PENTA: fixme
-	glScalef(1.0, 1.0, 1.0);
-	break;
-    }
-}
-
-void GL2_SetupTcMods(stage_t *s)
-{
-    int i;
-    for (i = 0; i < s->numtcmods; i++)
-    	GL2_SetupTcMod(&s->tcmods[i]);	
-}
-
-
-void GL2_SetupSimpleStage(stage_t *s)
-{
-    tcmod_t *tc;
-    int i;
-
-    if (s->type != STAGE_SIMPLE)
-    {
-	Con_Printf("Non simple stage, in simple stage list");
-	return;
-    }
-
-    glMatrixMode(GL_TEXTURE);
-    glPushMatrix();
-
-    for (i=0; i<s->numtcmods; i++)
-    {
-	GL2_SetupTcMod(&s->tcmods[i]);	
-    }
-
-    if (s->src_blend > -1)
-    {
-	glBlendFunc(s->src_blend, s->dst_blend);
-	glEnable(GL_BLEND);
-    }
-
-    if (s->alphatresh > 0)
-    {
-	glEnable(GL_ALPHA_TEST);
-	glAlphaFunc(GL_GREATER, s->alphatresh);
-    }
-
-    if ((s->numtextures > 0) && (s->texture[0]))
-	GL_BindAdvanced(s->texture[0]);
-}
 
 /************************
 
@@ -907,7 +836,7 @@ void GL2_drawTriangleListBase (vertexdef_t *verts, int *indecies,
 
     for ( i = 0; i < shader->numstages; i++)
     {
-	GL2_SetupSimpleStage(&shader->stages[i]);
+	SH_SetupSimpleStage(&shader->stages[i]);
 	glDrawElements(GL_TRIANGLES,numIndecies,GL_UNSIGNED_INT,indecies);
 	glPopMatrix();
     }
@@ -1254,7 +1183,7 @@ void GL2_drawSurfaceListBase (vertexdef_t* verts, msurface_t** surfs,
 
     for (i = 0; i < shader->numstages; i++)
     {
-	GL2_SetupSimpleStage(&shader->stages[i]);
+	SH_SetupSimpleStage(&shader->stages[i]);
 	GL2_sendSurfacesBase(surfs, numSurfaces, false);
 	glPopMatrix();
     }

@@ -764,7 +764,7 @@ void Radeon_DisableBumpShader(shader_t* shader)
 
 void Radeon_SetupTcMods(stage_t *s);
 
-void Radeon_EnableBumpShader(const transform_t *tr, vec3_t lightOrig,
+void Radeon_EnableBumpShader(const transform_t *tr, const lightobject_t* lightOrig,
                              qboolean alias, shader_t* shader)
 {
     GLfloat temp[4];
@@ -818,7 +818,7 @@ void Radeon_EnableBumpShader(const transform_t *tr, vec3_t lightOrig,
 	  		   1.0f/(currentshadowlight->radiusv[1]),
 			   1.0f/(currentshadowlight->radiusv[2]));
         }
-        Radeon_SetupTcMods(&currentshadowlight->shader->stages[0]);
+        SH_SetupTcMods(&currentshadowlight->shader->stages[0]);
         GL_SetupCubeMapMatrix(tr);
 
         GL_SelectTexture(GL_TEXTURE5_ARB);
@@ -907,76 +907,6 @@ void Radeon_DisableAttentShader() {
 }
 
 
-/************************
-
-Shader utility routines
-
-*************************/
-
-void Radeon_SetupTcMod(tcmod_t *tc)
-{
-    switch (tc->type)
-    {
-        case TCMOD_ROTATE:
-            glTranslatef(0.5,0.5,0.0);
-            glRotatef(realtime * tc->params[0],0,0,1);
-            glTranslatef(-0.5, -0.5, 0.0);
-            break;
-        case TCMOD_SCROLL:
-            glTranslatef(realtime * tc->params[0], realtime * tc->params[1], 0.0);
-            break;
-        case TCMOD_SCALE:
-            glScalef(tc->params[0],tc->params[1],1.0);
-            break;
-        case TCMOD_STRETCH:
-            //PENTA: fixme
-            glScalef(1.0, 1.0, 1.0);
-            break;
-    }
-}
-
-void Radeon_SetupTcMods(stage_t *s)
-{
-    int i;
-    for (i = 0; i < s->numtcmods; i++)
-    	Radeon_SetupTcMod(&s->tcmods[i]);	
-}
-
-
-void Radeon_SetupSimpleStage(stage_t *s)
-{
-    tcmod_t *tc;
-    int i;
-
-    if (s->type != STAGE_SIMPLE)
-    {
-	Con_Printf("Non simple stage, in simple stage list");
-	return;
-    }
-
-    glMatrixMode(GL_TEXTURE);
-    glPushMatrix();
-
-    for (i=0; i<s->numtcmods; i++)
-    {
-	Radeon_SetupTcMod(&s->tcmods[i]);	
-    }
-
-    if (s->src_blend > -1)
-    {
-	glBlendFunc(s->src_blend, s->dst_blend);
-	glEnable(GL_BLEND);
-    }
-
-    if (s->alphatresh > 0)
-    {
-	glEnable(GL_ALPHA_TEST);
-	glAlphaFunc(GL_GREATER, s->alphatresh);
-    }
-
-    if ((s->numtextures > 0) && (s->texture[0]))
-	GL_BindAdvanced(s->texture[0]);
-}
 
 /************************
 
@@ -1068,7 +998,7 @@ void Radeon_drawTriangleListBump (const vertexdef_t *verts, int *indecies,
     }
     glColor3fv(&currentshadowlight->color[0]);
 
-    Radeon_EnableBumpShader(tr,currentshadowlight->origin, true, shader);
+    Radeon_EnableBumpShader(tr, lo, true, shader);
     //bind the correct texture
     GL_SelectTexture(GL_TEXTURE0_ARB);
     if (shader->numbumpstages > 0)
@@ -1083,7 +1013,6 @@ void Radeon_drawTriangleListBump (const vertexdef_t *verts, int *indecies,
 
 void Radeon_drawTriangleListBase (vertexdef_t *verts, int *indecies,
 				  int numIndecies, shader_t *shader,
-
                                   int lightMapIndex)
 {
     int i;
@@ -1101,12 +1030,12 @@ void Radeon_drawTriangleListBase (vertexdef_t *verts, int *indecies,
     } 
 
 
-	//PENTA: Added fix
-	glColor3ub(255,255,255);
+    //PENTA: Added fix
+    glColor3ub(255,255,255);
 
     for ( i = 0; i < shader->numstages; i++)
     {
-	Radeon_SetupSimpleStage(&shader->stages[i]);
+	SH_SetupSimpleStage(&shader->stages[i]);
 	glDrawElements(GL_TRIANGLES,numIndecies,GL_UNSIGNED_INT,indecies);
 	glPopMatrix();
     }
@@ -1235,7 +1164,7 @@ void Radeon_drawSurfaceListBase (vertexdef_t* verts, msurface_t** surfs,
 
     for (i = 0; i < shader->numstages; i++)
     {
-	Radeon_SetupSimpleStage(&shader->stages[i]);
+	SH_SetupSimpleStage(&shader->stages[i]);
 	Radeon_sendSurfacesBase(surfs, numSurfaces, false);
 	glPopMatrix();
     }

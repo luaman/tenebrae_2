@@ -90,7 +90,7 @@ void GL_EnableDiffuseShaderGF3(const transform_t *tr, const lightobject_t *lo, i
 					 1.0f/(currentshadowlight->radiusv[2]));
 
 		}	
-		GF3_SetupTcMods(&currentshadowlight->shader->stages[stageIndex]);
+		SH_SetupTcMods(&currentshadowlight->shader->stages[stageIndex]);
 		GL_SetupCubeMapMatrix(tr);
 	} else {
 		glEnable(GL_TEXTURE_3D);
@@ -254,7 +254,7 @@ void GL_EnableSpecularShaderGF3(const transform_t *tr, const lightobject_t *lo, 
 					 1.0f/(currentshadowlight->radiusv[1]),
 					 1.0f/(currentshadowlight->radiusv[2]));
 		}
-		GF3_SetupTcMods(&currentshadowlight->shader->stages[stageIndex]);
+		SH_SetupTcMods(&currentshadowlight->shader->stages[stageIndex]);
 		GL_SetupCubeMapMatrix(tr);
 	} else {
 		glEnable(GL_TEXTURE_3D);
@@ -450,60 +450,6 @@ Shader utitlity routines
 
 void FormatError(void); // in gl_bumparb.c
 
-void GF3_SetupTcMod(tcmod_t *tc) {
-
-	switch (tc->type) {
-	case TCMOD_ROTATE:
-		glTranslatef(0.5,0.5,0.0);
-		glRotatef(realtime * tc->params[0],0,0,1);
-		glTranslatef(-0.5, -0.5, 0.0);
-		break;
-	case TCMOD_SCROLL:
-		glTranslatef(realtime * tc->params[0], realtime * tc->params[1], 0.0);
-		break;
-	case TCMOD_SCALE:
-		glScalef(tc->params[0],tc->params[1],1.0);
-		break;
-	case TCMOD_STRETCH:
-		//PENTA: fixme
-		glScalef(1.0, 1.0, 1.0);
-		break;
-	}
-}
-
-void GF3_SetupTcMods(stage_t *s) {
-	int i;
-	for (i=0; i<s->numtcmods; i++) {
-		GF3_SetupTcMod(&s->tcmods[i]);	
-	}
-
-}
-
-void GF3_SetupSimpleStage(stage_t *s) {
-
-	if (s->type != STAGE_SIMPLE) {
-		Con_Printf("Non simple stage, in simple stage list");
-		return;
-	}
-
-	glMatrixMode(GL_TEXTURE);
-	glPushMatrix();
-
-	GF3_SetupTcMods(s);
-
-	if (s->src_blend > -1) {
-		glBlendFunc(s->src_blend, s->dst_blend);
-		glEnable(GL_BLEND);
-	}
-
-	if (s->alphatresh > 0) {
-		glEnable(GL_ALPHA_TEST);
-		glAlphaFunc(GL_GREATER, s->alphatresh);
-	}
-
-	if ((s->numtextures > 0) && (s->texture[0]))
-		GL_BindAdvanced(s->texture[0]);
-}
 
 /************************
 
@@ -642,7 +588,7 @@ void GF3_drawTriangleListBase (vertexdef_t *verts, int *indecies, int numIndecie
 	glColor3ub(255,255,255);
 	
 	for (i=0; i<shader->numstages; i++) {
-		GF3_SetupSimpleStage(&shader->stages[i]);
+		SH_SetupSimpleStage(&shader->stages[i]);
 		glDrawElements(GL_TRIANGLES,numIndecies,GL_UNSIGNED_INT,indecies);
 		glPopMatrix();
 	}
@@ -1073,7 +1019,7 @@ void GF3_drawSurfaceListBase (vertexdef_t *verts, msurface_t **surfs, int numSur
 	GL_SelectTexture(GL_TEXTURE0_ARB);
 
 	for (i=0; i<shader->numstages; i++) {
-		GF3_SetupSimpleStage(&shader->stages[i]);
+		SH_SetupSimpleStage(&shader->stages[i]);
 		GF3_sendSurfacesBase(surfs, numSurfaces, false);
 		glPopMatrix();
 	}
