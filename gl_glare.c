@@ -44,6 +44,9 @@ void R_InitGlare() {
 						GL_UNSIGNED_BYTE, glarepixels);
 	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
 	texture_extension_number++;
 }
 
@@ -180,6 +183,8 @@ void DoBoxBlur(bytecolor_t *src, int src_w, int src_h, bytecolor_t *dst, longcol
 void R_Glare ()
 {
 	int			ox, oy, ow, oh, ofovx, ofovy;
+	int oldDelux;
+	int oldRtLight;
 
 	if (!sh_glares.value || gl_wireframe.value) 
 		return;
@@ -207,18 +212,28 @@ void R_Glare ()
 	r_refdef.fov_y = CalcFov (r_refdef.fov_x, r_refdef.vrect.width, r_refdef.vrect.height);
 
 	//Con_Printf("render glaer\n");
+
+
+	oldDelux = sh_delux.value;
+	sh_delux.value = 0;
 	R_RenderScene ();
+	sh_delux.value = oldDelux;
 
-	glReadPixels (0, 0, GLARE_WIDTH, GLARE_WIDTH, GL_RGBA, GL_UNSIGNED_BYTE, glarepixels);
-	ProcessGlare();
-	DoPreComputation((bytecolor_t *)glarepixels, GLARE_WIDTH, GLARE_WIDTH, (longcolor_t *)glaresum);
-	DoBoxBlur((bytecolor_t *)glarepixels, GLARE_WIDTH, GLARE_WIDTH,
-			(bytecolor_t *)glareblurpixels, (longcolor_t *)glaresum, 5, 5);
+	if (gl_cardtype == ARB) {
+		GL_Bind(glare_object);
+		glCopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 0, 0, GLARE_WIDTH, GLARE_WIDTH);
+	} else {
+		glReadPixels (0, 0, GLARE_WIDTH, GLARE_WIDTH, GL_RGBA, GL_UNSIGNED_BYTE, glarepixels);
+		ProcessGlare();
+		DoPreComputation((bytecolor_t *)glarepixels, GLARE_WIDTH, GLARE_WIDTH, (longcolor_t *)glaresum);
+		DoBoxBlur((bytecolor_t *)glarepixels, GLARE_WIDTH, GLARE_WIDTH,
+				(bytecolor_t *)glareblurpixels, (longcolor_t *)glaresum, 5, 5);
 
 
-	GL_Bind(glare_object);
-	glTexImage2D (GL_TEXTURE_2D, 0, 4, GLARE_WIDTH, GLARE_WIDTH, 0, GL_RGBA,
-					GL_UNSIGNED_BYTE, glareblurpixels);
+		GL_Bind(glare_object);
+		glTexImage2D (GL_TEXTURE_2D, 0, 4, GLARE_WIDTH, GLARE_WIDTH, 0, GL_RGBA,
+						GL_UNSIGNED_BYTE, glareblurpixels);
+	}
 
 //	GL_Bind(glare_object);
 //	glCopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 0, 0, 128, 128);
@@ -242,13 +257,13 @@ void R_Glare ()
 void GlareQuad() {
 
 	glBegin (GL_QUADS);
-	glTexCoord2f(-1,1);
-	glVertex3f (0.1f, 1, 1);
 	glTexCoord2f(0,1);
+	glVertex3f (0.1f, 1, 1);
+	glTexCoord2f(1,1);
 	glVertex3f (0.1f, -1, 1);
-	glTexCoord2f(0,0);
+	glTexCoord2f(1,0);
 	glVertex3f (0.1f, -1, -1);
-	glTexCoord2f(-1,0);
+	glTexCoord2f(0,0);
 	glVertex3f (0.1f, 1, -1);
 	glEnd ();
 
@@ -261,12 +276,13 @@ void R_DrawGlare (void)
 	if (!sh_glares.value) return;	
 	
 	GL_DisableMultitexture();
-
 	glEnable (GL_BLEND);
 	glBlendFunc(GL_ONE, GL_ONE);
 	glDisable (GL_DEPTH_TEST);
+	
+	
 	GL_Bind(glare_object);
-glTexEnvf (GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+	glTexEnvf (GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
     glLoadIdentity ();
 
     glRotatef (-90,  1, 0, 0);	    // put Z going up
@@ -278,29 +294,57 @@ glTexEnvf (GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
     glLoadIdentity ();
 	glMatrixMode(GL_MODELVIEW);
 
-	glColor4f (0.2f,0.2f,0.2f,0.2f);
+	if (gl_cardtype == ARB) {
+		BindGlareShader();
+		
+		glPushMatrix();
+		glTranslatef(0,0,GLARE_OFS);
+		GlareQuad();
+		glPopMatrix();
 
-	glPushMatrix();
-	glTranslatef(0,0,GLARE_OFS);
-	GlareQuad();
-	glPopMatrix();
+		glPushMatrix();
+		glTranslatef(0,0,-GLARE_OFS);
+		GlareQuad();
+		glPopMatrix();
 
-	glPushMatrix();
-	glTranslatef(0,0,-GLARE_OFS);
-	GlareQuad();
-	glPopMatrix();
+		glPushMatrix();
+		glTranslatef(0,-GLARE_OFS,0);
+		GlareQuad();
+		glPopMatrix();
 
-	glPushMatrix();
-	glTranslatef(0,-GLARE_OFS,0);
-	GlareQuad();
-	glPopMatrix();
+		glPushMatrix();
+		glTranslatef(0,GLARE_OFS,0);
+		GlareQuad();
+		glPopMatrix();
 
-	glPushMatrix();
-	glTranslatef(0,GLARE_OFS,0);
-	GlareQuad();
-	glPopMatrix();
+		GlareQuad();
 
-	GlareQuad();
+		UnbindGlareShader();
+	} else {
+		glColor4f (0.2f,0.2f,0.2f,0.2f);
+
+		glPushMatrix();
+		glTranslatef(0,0,GLARE_OFS);
+		GlareQuad();
+		glPopMatrix();
+
+		glPushMatrix();
+		glTranslatef(0,0,-GLARE_OFS);
+		GlareQuad();
+		glPopMatrix();
+
+		glPushMatrix();
+		glTranslatef(0,-GLARE_OFS,0);
+		GlareQuad();
+		glPopMatrix();
+
+		glPushMatrix();
+		glTranslatef(0,GLARE_OFS,0);
+		GlareQuad();
+		glPopMatrix();
+
+		GlareQuad();
+	}
 
 	glMatrixMode(GL_PROJECTION);
 	glPopMatrix();
