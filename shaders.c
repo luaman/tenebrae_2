@@ -35,12 +35,17 @@ static shader_t *shaderList;
 
 void GL_ShaderLoadTextures(shader_t *shader);
 
-qboolean shader_haserrors;
+static qboolean shader_haserrors;
+static qboolean shaders_reloading = false;
+
 
 void ShaderError(void) {
 	shader_haserrors = true;
-	if ( !COM_CheckParm ("-forceshaders") )
-		Con_NotifyBox("Shader error\nSee above for details\n");
+
+	if ( COM_CheckParm ("-forceshaders") || shaders_reloading )
+		return;
+
+	Con_NotifyBox("Shader error\nSee above for details\n");
 }
 
 
@@ -118,22 +123,27 @@ shader_t *GL_ShaderForName(char *name) {
 	//Con_Printf("ShaderForName %s\n",name);
 	while(s) {
 		if (!strcmp(name,s->name)) {
-			GL_ShaderLoadTextures(s);
+			if (!s->texturesAreLoaded)
+				GL_ShaderLoadTextures(s);
+			s->texturesAreLoaded = true;
 			return s;
 		}
 		s = s->next;
 	}
 
+	//Shader not found: make a shader with the default filenames (_bump, _gloss, _normal)
 	s = malloc(sizeof(shader_t));
 	if (!s) {
 		Sys_Error("Malloc failed!");
 	}
 
-	//make a shader with the default filenames (_bump, _gloss, _normal)
-	initDefaultShader(name,s);
+	//initDefaultShader(name,s);
+	strncpy(s->name, name, SHADER_MAX_NAME);
+	initErrorShader(s);
 	s->next = shaderList;
 	shaderList = s;
 	GL_ShaderLoadTextures(s);
+	s->texturesAreLoaded = true;
 	return s;
 }
 
@@ -652,21 +662,35 @@ void LoadShadersFromString (char *data,const char *filename)
 		s = shaderList;
 		while(s) {
 			if (!strcmp(com_token,s->name)) {
-				Con_Printf("Shader error:\nShader '%s' was defined a second time in '%s'\n",com_token, filename);
-				Con_Printf("This may cause texture errors\n");
-				ShaderError();
+				if (!shaders_reloading) {
+					Con_Printf("Shader error:\nShader '%s' was defined a second time in '%s'\n",com_token, filename);
+					Con_Printf("This may cause texture errors\n");
+					ShaderError();
+				}
 				break;
 			}
 			s = s->next;
 		}
 
-		//make a new one
-		s = malloc(sizeof(shader_t));
-		if (!s) Sys_Error("Not enough mem");
-		memset(s,0,sizeof(shader_t));
-		s->next = shaderList;
-		shaderList = s;
-		strncpy(s->name,com_token,sizeof(s->name));
+		//If we are reloading make sure pointer says the same
+		if (!s) {
+			s = malloc(sizeof(shader_t));
+			if (!s) Sys_Error("Not enough mem");
+			memset(s,0,sizeof(shader_t));
+			s->next = shaderList;
+			shaderList = s;
+			strncpy(s->name,com_token,sizeof(s->name));
+		} else {
+			shader_t *oldNext = s->next;
+			qboolean t = s->texturesAreLoaded;
+
+			memset(s,0,sizeof(shader_t));
+
+			s->next = oldNext;
+			s->texturesAreLoaded = t;
+			strncpy(s->name,com_token,sizeof(s->name));
+		}
+
 		s->mipmap = true;
 		s->cull = true;
 
@@ -683,7 +707,6 @@ void LoadShadersFromString (char *data,const char *filename)
 		data = ParseShader (data, s);
 
 		if (shader_haserrors) {
-			Con_Printf("setuperror\n");
 			initErrorShader(s);
 		}
 	}
@@ -708,6 +731,37 @@ void R_InitShaders() {
 	Con_Printf("Shader_Init: Initializing shaders\n");
 	COM_FindAllExt("scripts","shader",AddShaderFile);
 	Con_Printf("=================================\n");
+}
+
+/**
+* This should be called once during engine startup.
+* 
+*/
+void R_ReloadShaders_f( void ) {
+
+	shader_t *s = shaderList;
+
+	shaders_reloading = true;
+	scr_disabled_for_loading = true;
+
+	//load all scripts
+	Con_Printf("=================================\n");
+	Con_Printf("Reloading shaders\n");
+	COM_FindAllExt("scripts","shader",AddShaderFile);
+
+	//If the shader's textures were loaded previously reload them now as draw code relies on
+	//them being loded.
+	while (s) {
+		if (s->texturesAreLoaded) {
+			GL_ShaderLoadTextures(s);
+		}
+		s = s->next;
+	}
+
+	Con_Printf("=================================\n");
+
+	scr_disabled_for_loading = false;
+	shaders_reloading = false;
 }
 
 #if !defined(_WIN32) && !defined(SDL) && !defined(__glx__)
