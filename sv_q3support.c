@@ -258,14 +258,45 @@ CM_PointContents
 */
 int CM_PointContents (vec3_t p, int headnode)
 {
-	int		l;
+	int		l, contents, i, j;
+	mleaf_t			*leaf;
+	mbrush_t		*brush;
+	mbrushside_t	*brushside;
 
 	if (!M->numnodes)	// map not loaded
 		return 0;
 
 	l = CM_PointLeafnum_r (p, 0 /*headnode*/);
 
-	return M->leafs[l].contents;
+	//PENTA: Based on qfusion contents soucre
+	leaf = &M->leafs[l];
+	if ( leaf->contents & CONTENTS_NODROP ) {
+		contents = CONTENTS_NODROP;
+	} else {
+		contents = 0;
+	}
+
+	for (i = 0; i < leaf->numbrushes; i++)
+	{
+		brush = &M->brushes[M->leafbrushes[leaf->firstbrush + i]];
+
+		// check if brush actually adds something to contents
+		if ( (contents & brush->contents) == brush->contents ) {
+			continue;
+		}
+		
+		brushside = &M->brushsides[brush->firstbrushside];
+		for ( j = 0; j < brush->numsides; j++, brushside++ )
+		{
+			if ((DotProduct(p, brushside->plane->normal) -brushside->plane->dist) > 0)
+				break;
+		}
+
+		if (j == brush->numsides) 
+			contents |= brush->contents;
+	}
+
+	return contents;
 }
 
 /*
@@ -534,8 +565,9 @@ void CM_TraceToLeaf (int leafnum)
 			continue;	// already checked this brush in another leaf
 		b->checkcount = checkcount;
 
-		//if ( !(b->contents & trace_contents))
-		//	continue;
+		if ( !(b->contents & trace_contents))
+			continue;
+
 		CM_ClipBoxToBrush (trace_mins, trace_maxs, trace_start, trace_end, &trace_trace, b);
 		if (!trace_trace.fraction)
 			return;
@@ -570,8 +602,8 @@ void CM_TraceToBrushModel (int firstbrush, int numbrushes, vec3_t mins, vec3_t m
 		//brushnum = M->leafbrushes[firstbrush+i];
 		b = &M->brushes[firstbrush+i];
 
-		//if ( !(b->contents & trace_contents))
-		//	continue;
+		if ( !(b->contents & trace_contents))
+			continue;
 
 		CM_ClipBoxToBrush (mins, maxs, start, end, trace, b);
 		if (!trace->fraction)
@@ -614,8 +646,8 @@ void CM_TestInLeaf (int leafnum)
 			continue;	// already checked this brush in another leaf
 		b->checkcount = checkcount;
 
-		//if ( !(b->contents & trace_contents))
-		//	continue;
+		if ( !(b->contents & trace_contents))
+			continue;
 		CM_TestBoxInBrush (trace_mins, trace_maxs, trace_start, &trace_trace, b);
 		if (!trace_trace.fraction)
 			return;
@@ -1003,32 +1035,11 @@ byte	*CM_ClusterPHS (int cluster)
 
 AREAPORTALS
 
+PENTA: Areaportals seem to have changed somewhat from quake2
+this is based on the qfusion source who supports quake3 style areaportals
 ===============================================================================
 */
-/*
 
-void FloodArea_r (carea_t *area, int floodnum)
-{
-	int		i;
-	dareaportal_t	*p;
-
-	if (area->floodvalid == floodvalid)
-	{
-		if (area->floodnum == floodnum)
-			return;
-		Com_Error (ERR_DROP, "FloodArea_r: reflooded");
-	}
-
-	area->floodnum = floodnum;
-	area->floodvalid = floodvalid;
-	p = &map_areaportals[area->firstareaportal];
-	for (i=0 ; i<area->numareaportals ; i++, p++)
-	{
-		if (portalopen[p->portalnum])
-			FloodArea_r (&map_areas[p->otherarea], floodnum);
-	}
-}
-*/
 /*
 ====================
 FloodAreaConnections
@@ -1036,51 +1047,68 @@ FloodAreaConnections
 
 ====================
 */
-/*
 void	FloodAreaConnections (void)
 {
-	int		i;
-	carea_t	*area;
-	int		floodnum;
-
-	// all current floods are now invalid
-	floodvalid++;
-	floodnum = 0;
+	int		i, j;
 
 	// area 0 is not used
-	for (i=1 ; i<numareas ; i++)
+	for (i=1 ; i<M->numareas ; i++)
 	{
-		area = &map_areas[i];
-		if (area->floodvalid == floodvalid)
-			continue;		// already flooded into
-		floodnum++;
-		FloodArea_r (area, floodnum);
+		for (  j = 1; j < M->numareas; j++ ) {
+			M->areas[i].numareaportals[j] = ( j == i );
+		}
 	}
-
 }
 
-void	CM_SetAreaPortalState (int portalnum, qboolean open)
+void	CM_SetAreaPortalState (int area1, int area2, qboolean open)
 {
-	if (portalnum > numareaportals)
-		Com_Error (ERR_DROP, "areaportal > numareaportals");
+	if (area1 > M->numareas || area2 > M->numareas) {
+		Con_Printf ("CM_SetAreaPortalState: area > M->numareas\n");
+		return;
+	}
+	if ( open ) {
+		M->areas[area1].numareaportals[area2]++;
+		M->areas[area2].numareaportals[area1]++;
+		Con_Printf("Open portal between %i and %i\n", area1, area2);
+	} else {
+		M->areas[area1].numareaportals[area2]--;
+		//shouln't really happen
+		if (M->areas[area1].numareaportals[area2] < 0)
+			M->areas[area1].numareaportals[area2] = 0;
 
-	portalopen[portalnum] = open;
-	FloodAreaConnections ();
+		M->areas[area2].numareaportals[area1]--;
+		//shouln't really happen
+		if (M->areas[area2].numareaportals[area1] < 0)
+			M->areas[area2].numareaportals[area1] = 0;
+
+		Con_Printf("Close portal between %i and %i\n", area1, area2);
+	}
 }
 
 qboolean	CM_AreasConnected (int area1, int area2)
 {
-	if (map_noareas->value)
+	int		i;
+/*
+	if (cm_noAreas->value)
+		return true;
+*/
+	if (area1 > M->numareas || area2 > M->numareas)
+		Sys_Error ("CM_AreasConnected: area > numareas");
+
+	if ( M->areas[area1].numareaportals[area2] )
 		return true;
 
-	if (area1 > numareas || area2 > numareas)
-		Com_Error (ERR_DROP, "area > numareas");
+	// area 0 is not used
+	for (i=1 ; i<M->numareas ; i++)
+	{
+		if ( M->areas[i].numareaportals[area1] &&
+			M->areas[i].numareaportals[area2] )
+			return true;
+	}
 
-	if (map_areas[area1].floodnum == map_areas[area2].floodnum)
-		return true;
 	return false;
 }
-*/
+
 
 /*
 =================
@@ -1092,34 +1120,49 @@ that area in the same flood as the area parameter
 This is used by the client refreshes to cull visibility
 =================
 */
-/*
 int CM_WriteAreaBits (byte *buffer, int area)
 {
 	int		i;
-	int		floodnum;
 	int		bytes;
 
-	bytes = (numareas+7)>>3;
-
-	if (map_noareas->value)
+	bytes = (M->numareas+7)>>3;
+/*
+	if (cm_noAreas->value)
 	{	// for debugging, send everything
 		memset (buffer, 255, bytes);
 	}
 	else
+*/
 	{
 		memset (buffer, 0, bytes);
 
-		floodnum = map_areas[area].floodnum;
-		for (i=0 ; i<numareas ; i++)
+		for (i=1 ; i<M->numareas ; i++)
 		{
-			if (map_areas[i].floodnum == floodnum || !area)
+			if (!area || CM_AreasConnected ( i, area ) || i == area)
 				buffer[i>>3] |= 1<<(i&7);
 		}
 	}
 
+	buffer[area>>3] |= 1<<(area&7);
+
 	return bytes;
 }
+
+/*
+=================
+CM_MergeAreaBits
+=================
 */
+void CM_MergeAreaBits (byte *buffer, int area)
+{
+	int		i;
+
+	for (i=1 ; i<M->numareas ; i++)
+	{
+		if ( CM_AreasConnected ( i, area ) || i == area)
+			buffer[i>>3] |= 1<<(i&7);
+	}
+}
 
 /*
 ===================
@@ -1128,12 +1171,10 @@ CM_WritePortalState
 Writes the portal state to a savegame file
 ===================
 */
-/*
 void	CM_WritePortalState (FILE *f)
 {
-	fwrite (portalopen, sizeof(portalopen), 1, f);
 }
-*/
+
 /*
 ===================
 CM_ReadPortalState
@@ -1142,13 +1183,10 @@ Reads the portal state from a savegame file
 and recalculates the area connections
 ===================
 */
-/*
 void	CM_ReadPortalState (FILE *f)
 {
-	FS_Read (portalopen, sizeof(portalopen), f);
-	FloodAreaConnections ();
 }
-*/
+
 /*
 =============
 CM_HeadnodeVisible
