@@ -347,7 +347,9 @@ extern  cvar_t	sh_visiblevolumes;
 extern  cvar_t  sh_entityshadows;
 extern  cvar_t  sh_meshshadows;
 extern  cvar_t  sh_worldshadows;
-extern  cvar_t  sh_showlightnum;
+extern  cvar_t  sh_showlightsciss;
+extern  cvar_t  sh_occlusiontest;
+extern  cvar_t  sh_showlightvolume;
 extern  cvar_t  sh_glows;
 extern	cvar_t  cg_showfps;	// set for running times - muff
 extern	cvar_t  sh_debuginfo;
@@ -459,6 +461,14 @@ extern PFNBLENDCOLORPROC qglBlendColor;
 
 // ARB_texture_compression defines
 #define GL_COMPRESSED_RGBA_ARB                0x84EE
+
+//HP_occlusion_test defines
+#define GL_OCCLUSION_TEST_HP              0x8165
+#define GL_OCCLUSION_TEST_RESULT_HP       0x8166
+extern qboolean gl_occlusiontest;
+extern int occlusion_cut_meshes;
+extern int occlusion_cut_entities;
+extern int occlusion_cut_lights;
 
 #define GL_STENCIL_BACK_FUNC_ATI                    0x8800
 #define GL_STENCIL_BACK_FAIL_ATI                    0x8801
@@ -1106,20 +1116,27 @@ typedef union lightcmd_u {
   void *asVoid;
 } lightcmd_t;
 
+typedef struct {
+	vec3_t mins, maxs;
+} aabox_t;
 
 typedef struct shadowlight_s {
 	vec3_t	origin;		//position of light source
 	vec3_t	baseColor, color;		//light color, animated color
 	float	radius;		//radius of light source (doesn't light anyting out of that circle)
 						//so we can "clip" our shadowvolumes against that circle
+	vec3_t	radiusv;		//the 3 radiusses of the elipse around the light
+	aabox_t box;		//bounding box of the light.  Thise boxes are not nececarry cubes
+						//and may be smaller than the corresponding radius 
 	float	brightness;
 	qboolean visible;	//light is "visible" this frame
+	qboolean shadowchainfilled;
 	qboolean isStatic;	//light is static and has a precalc volume
 	qboolean castShadow;//lights casts shadows
 	qboolean halo;		//light has a halo
 	mleaf_t	*leaf;		//leaf this light is in
-	byte vis[MAX_MAP_LEAFS/8];//redone pvs for light, only poly's in nodes
-	byte entvis[MAX_MAP_LEAFS/8];//original pvs a light origin
+	byte leafvis[MAX_MAP_LEAFS/8];//redone pvs for light, only poly's in nodes (leaf bits
+	byte entclustervis[MAX_MAP_LEAFS/8];//original pvs a light origin (cluster bits)
 	msurface_t	**visSurf; //the surfaces that should cast shadows for this light (only when static)
 	int		*volumeCmds;  //gl commands to draw the shadow volume
 	float	*volumeVerts;
@@ -1341,7 +1358,7 @@ void		R_DrawWorldBumpedRadeon (void);
 void		R_DrawWorldBumpedParhelia (void);
 void		R_DrawWorldBumpedARB (void);
 void		R_DrawWorldWV (lightcmd_t *lightCmds, qboolean specular);
-qboolean	R_FillShadowChain (shadowlight_t *light);
+qboolean	R_FillLightChains (shadowlight_t *light);
 mspriteframe_t *R_GetSpriteFrame (entity_t *currententity);
 void		R_Glare (void);
 void		R_InitDrawWorld (void);
@@ -1367,6 +1384,15 @@ void		R_StoreEfrags (efrag_t **ppefrag);
 void		R_FillEntityLeafs (entity_t *ent);
 void		R_WorldMultiplyTextures (void);
 void		R_WorldToObjectMatrix(entity_t *e, matrix_4x4 result);
+
+/**
+	Returns true if both boxes intersect
+*/
+aabox_t emptyBox (void);
+aabox_t constructBox (vec3_t mins, vec3_t maxs);
+qboolean intersectsBox(aabox_t *b1, aabox_t *b2);
+aabox_t intersectBoxes(aabox_t *b1, aabox_t *b2);
+aabox_t addBoxes(aabox_t *b1, aabox_t *b2);
 
 int		EasyTgaLoad (char *filename);
 void		EmitBothSkyLayers (msurface_t *fa);
@@ -1398,7 +1424,6 @@ void		GL_Set2D (void);
 void		GL_SetupCubeMapMatrix (const transform_t *tr);
 void		GL_SubdivideSurface (msurface_t *fa);
 void		GL_Upload8_EXT (byte *data, int width, int height,  qboolean mipmap, qboolean alpha);
-int		GL_LoadLuma(char *identifier, qboolean mipmap);
 void		R_DrawCaustics(void);
 int			CL_PointContents (vec3_t p);
 void		V_CalcBlend (void);
