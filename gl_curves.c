@@ -685,7 +685,7 @@ void MESH_CreateCurve(dq3face_t *in, mesh_t *mesh, mapshader_t *shader)
 
 	//setup rest of the mesh
 	mesh->shader = shader;
-	mesh->lightmapIndex = in->lightofs;
+	mesh->lightmapIndex = LittleLong(in->lightofs);
 
 	CreateCurveIndecies(&curve, mesh);
 	CreateTangentSpace(mesh);
