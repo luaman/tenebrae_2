@@ -304,11 +304,14 @@ void GL_SetupCubeMapMatrix(const transform_t *tr) {
 
 	//if (!world)
 	//	R_RotateForEntity(currententity);
-    glTranslatef (tr->origin[0],  tr->origin[1],  tr->origin[2]);
+	glTranslatef (tr->origin[0],  tr->origin[1],  tr->origin[2]);
 
     glRotatef (tr->angles[1],  0, 0, 1);
-    glRotatef (-tr->angles[0],  0, 1, 0);
+    glRotatef (-tr->angles[0], 0, 1, 0);
     glRotatef (tr->angles[2],  1, 0, 0);
+
+	//Con_Printf("Angles3: %f %f %f\n",tr->angles[0],tr->angles[1],tr->angles[2]);
+
 }
 /**************************************************************
 
@@ -1054,7 +1057,18 @@ void R_DrawAliasObjectLight(entity_t *e,void (*AliasGeoSender) (aliashdr_t *pali
 	glPopMatrix();
 }
 
+void SetColorForAtten(vec3_t point) {
+	vec3_t dist;
+	float colorscale;
 
+	VectorSubtract(point, currentshadowlight->origin, dist);
+	colorscale = 1 - (Length(dist) / currentshadowlight->radius);
+	
+	glColor3f(currentshadowlight->color[0]*colorscale,
+		currentshadowlight->color[1]*colorscale,
+		currentshadowlight->color[2]*colorscale);
+
+}
 /*
 =================
 R_DrawSpriteModelWV
@@ -1064,30 +1078,69 @@ tex1 is the sprites texture coordinates.
 
 =================
 */
-void R_DrawSpriteModelWV (entity_t *e)
+void R_DrawSpriteModelLight (entity_t *e)
 {
-	vec3_t	point;
 	mspriteframe_t	*frame;
-	float		*up, *right;
-	vec3_t		v_forward, v_right, v_up;
 	msprite_t		*psprite;
+	float		*up, *right;
+	vec3_t		point;
 
 	frame = R_GetSpriteFrame (e);
 	psprite = currententity->model->cache.data;
 
-	if (psprite->type == SPR_ORIENTED)
-	{	// bullet marks on walls PENTA: bulltet marks in quake 1? never seen one ;)
-		AngleVectors (currententity->angles, v_forward, v_right, v_up);
-		up = v_up;
-		right = v_right;
-	}
-	else
-	{	// normal sprite
-		up = vup;
-		right = vright;
-	}
+	up = vup;
+	right = vright;
 
-    GL_Bind(frame->gl_texturenum);
+	//We don't do full bumpapping on sprites only additive cube*attenuation*colormap
+	if (!frame->shader->numcolorstages) return;
+
+	GL_BindAdvanced(frame->shader->colorstages[0].texture[0]);
+
+	glBegin (GL_QUADS);
+
+	qglMultiTexCoord2fARB(GL_TEXTURE0_ARB, 0, 1);
+	VectorMA (e->origin, frame->down, up, point);
+	VectorMA (point, frame->left, right, point);
+	SetColorForAtten(point);
+	glVertex3fv (point);
+
+	qglMultiTexCoord2fARB(GL_TEXTURE0_ARB, 0, 0);
+	VectorMA (e->origin, frame->up, up, point);
+	VectorMA (point, frame->left, right, point);
+	SetColorForAtten(point);
+	glVertex3fv (point);
+
+	qglMultiTexCoord2fARB(GL_TEXTURE0_ARB, 1, 0);
+	VectorMA (e->origin, frame->up, up, point);
+	VectorMA (point, frame->right, right, point);
+	SetColorForAtten(point);
+	glVertex3fv (point);
+
+	qglMultiTexCoord2fARB(GL_TEXTURE0_ARB, 1, 1);
+	VectorMA (e->origin, frame->down, up, point);
+	VectorMA (point, frame->right, right, point);
+	SetColorForAtten(point);
+	glVertex3fv (point);
+	
+	glEnd ();
+}
+
+void R_DrawSpriteModelLightWV (entity_t *e)
+{
+	mspriteframe_t	*frame;
+	msprite_t		*psprite;
+	float		*up, *right;
+	vec3_t		point;
+
+	frame = R_GetSpriteFrame (e);
+	psprite = currententity->model->cache.data;
+
+	up = vup;
+	right = vright;
+
+	//We don't do full bumpapping on sprites only additive cube*attenuation*colormap
+	if (!frame->shader->numcolorstages) return;
+	GL_BindAdvanced(frame->shader->colorstages[0].texture[0]);
 
 	glBegin (GL_QUADS);
 
@@ -1101,22 +1154,24 @@ void R_DrawSpriteModelWV (entity_t *e)
 	VectorMA (e->origin, frame->up, up, point);
 	VectorMA (point, frame->left, right, point);
 	glTexCoord3fv(point);
+	SetColorForAtten(point);
 	glVertex3fv (point);
 
 	qglMultiTexCoord2fARB(GL_TEXTURE1_ARB, 1, 0);
 	VectorMA (e->origin, frame->up, up, point);
 	VectorMA (point, frame->right, right, point);
 	glTexCoord3fv(point);
+	SetColorForAtten(point);
 	glVertex3fv (point);
 
 	qglMultiTexCoord2fARB(GL_TEXTURE1_ARB, 1, 1);
 	VectorMA (e->origin, frame->down, up, point);
 	VectorMA (point, frame->right, right, point);
 	glTexCoord3fv(point);
+	SetColorForAtten(point);
 	glVertex3fv (point);
 	
 	glEnd ();
-
 }
 
 /**************************************************************
