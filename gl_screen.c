@@ -526,7 +526,7 @@ void SCR_DrawFPS (void)
 	{
 		sprintf(st, "FPS: %d NumLights: %d ClearsSaved %d\n", lastfps,numUsedShadowLights,numClearsSaved);
 		x = 16;
-		y = vid.height-64 ;
+		y = vid.height-80;
 		Draw_String(x, y, st);
 	}
 	else
@@ -554,6 +554,12 @@ void SCR_DrawFPS (void)
 	x = 16;
 	y = vid.height-48;
 	Draw_String(x, y, st);
+
+	sprintf(st, "Occlusion tests: %d lights cut, %d entities cut, %d meshes cut\n",	
+		occlusion_cut_lights, occlusion_cut_entities, occlusion_cut_meshes);
+	x = 16;
+	y = vid.height-64;
+	Draw_String(x, y, st);
 }
 
 /*
@@ -564,13 +570,36 @@ PENTA:
 */
 void SCR_DrawNumLights (void)
 {
-	char st[12];
+	char st[256];
+	int	modes[2];
+	int i,width,height;
+	if (!sh_showlightsciss.value) return;
 
-	if (sh_showlightnum.value) {
-		sprintf (st, "Lights: %i", numUsedShadowLights);
-		Draw_String (0, 0, st);
+	sprintf (st, "Lights: %i", numUsedShadowLights);
+	Draw_String (0, 0, st);
+
+	for (i=0; i<numUsedShadowLights; i++) {
+		shadowlight_t *l = usedshadowlights[i];
+		if (!l->shadowchainfilled) continue;
+		width = l->scizz.coords[2]-l->scizz.coords[0];
+		height = l->scizz.coords[3]-l->scizz.coords[1];
+		sprintf(st, "+ %f %f %f",l->origin[0],l->origin[1],l->origin[2]);
+		Draw_String(l->scizz.coords[0]+(width/2)-4,vid.height - l->scizz.coords[3]+(height/2)-8,st);
 	}
 
+	glGetIntegerv(GL_POLYGON_MODE,modes);
+	glPolygonMode(GL_FRONT_AND_BACK,GL_LINE);
+	//Draw scissor rectangles for all the active lights
+	for (i=0; i<numUsedShadowLights; i++) {
+		shadowlight_t *l = usedshadowlights[i];
+		if (!l->shadowchainfilled) continue;
+		width = l->scizz.coords[2]-l->scizz.coords[0];
+		height = l->scizz.coords[3]-l->scizz.coords[1];
+		Draw_FillRGB(l->scizz.coords[0],vid.height - l->scizz.coords[3],
+						width,height,1.0f,0.0f,0.0f);
+	}
+	glPolygonMode(GL_FRONT,modes[0]);
+	glPolygonMode(GL_BACK,modes[1]);
 }
 
 
@@ -1047,6 +1076,11 @@ void SCR_UpdateScreen (void)
 		Sbar_FinaleOverlay ();
 		SCR_CheckDrawCenterString ();
 	}
+/*	else if (cl.cinematictime > 0) {
+		SCR_DrawCinematic();
+		SCR_DrawConsole ();	
+		M_Draw ();		
+	}*/
 	else
 	{
 		if (crosshair.value)

@@ -220,7 +220,9 @@ void R_Init (void)
 	Cvar_RegisterVariable (&sh_entityshadows);
 	Cvar_RegisterVariable (&sh_meshshadows);
 	Cvar_RegisterVariable (&sh_worldshadows);
-	Cvar_RegisterVariable (&sh_showlightnum);
+	Cvar_RegisterVariable (&sh_showlightsciss);
+	Cvar_RegisterVariable (&sh_occlusiontest);
+	Cvar_RegisterVariable (&sh_showlightvolume);
 	Cvar_RegisterVariable (&sh_glows);
 	Cvar_RegisterVariable (&cg_showfps); // muff
 	Cvar_RegisterVariable (&sh_debuginfo);
