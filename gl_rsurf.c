@@ -403,7 +403,8 @@ PFNGLGETCOMBINEROUTPUTPARAMETERFVNVPROC qglGetCombinerOutputParameterfvNV = NULL
 PFNGLGETCOMBINEROUTPUTPARAMETERIVNVPROC qglGetCombinerOutputParameterivNV = NULL;
 PFNGLGETFINALCOMBINERINPUTPARAMETERFVNVPROC qglGetFinalCombinerInputParameterfvNV = NULL;
 PFNGLGETFINALCOMBINERINPUTPARAMETERIVNVPROC qglGetFinalCombinerInputParameterivNV = NULL;
-
+PFNGLCOMBINERSTAGEPARAMETERFVNVPROC qglCombinerStageParameterfvNV = NULL;
+PFNGLGETCOMBINERSTAGEPARAMETERFVNVPROC qglGetCombinerStageParameterfvNV = NULL;
 
 PFNGLTEXIMAGE3DEXT qglTexImage3DEXT = NULL;
 
@@ -1440,7 +1441,7 @@ void DrawTextureChains (void)
 			while (s) {
 				//R_RenderBrushPoly (s);
 				GL_Bind (lightmap_textures + s->lightmaptexturenum);
-				glDrawArrays(GL_TRIANGLE_FAN,s->polys->firstvertex,s->polys->numverts);
+				glDrawArrays(GL_POLYGON,s->polys->firstvertex,s->polys->numverts);
 				s=s->texturechain;
 				c_brush_polys ++;
 			}
@@ -1463,7 +1464,7 @@ void DrawTextureChains (void)
 
 				for ( ; s ; s=s->texturechain) {
 					//R_RenderBrushPolyLuma (s);
-					glDrawArrays(GL_TRIANGLE_FAN,s->polys->firstvertex,s->polys->numverts);
+					glDrawArrays(GL_POLYGON,s->polys->firstvertex,s->polys->numverts);
 				}
 
 				glColor3f(sh_lightmapbright.value,sh_lightmapbright.value,sh_lightmapbright.value);
@@ -1574,7 +1575,7 @@ void R_DrawCaustics(void) {
 			continue;
 
 		//quick hack! check if ent is below water
-		if ((CL_PointContents(mins) != CONTENTS_WATER) && (CL_PointContents(maxs) != CONTENTS_WATER))
+		if ((!(CL_PointContents(mins) & CONTENTS_WATER)) && (!(CL_PointContents(maxs) & CONTENTS_WATER)))
 			continue;
 
 		if (mirror) {
@@ -1994,7 +1995,7 @@ void R_RecursiveWorldNode (mnode_t *node)
 
 
 // if a leaf node, draw stuff
-	if (node->contents < 0)
+	if (node->contents & CONTENTS_LEAF)
 	{
 
 /*		
@@ -2324,6 +2325,11 @@ void R_MarkLeaves (void)
 		leaf = cl.worldmodel->leafs+i;
 		if (vis[leaf->cluster>>3] & (1<<(leaf->cluster&7))) // staat leaf i's vis bit op true ?
 		{
+			// check area portals
+			if (! (r_refdef.areabits[leaf->area>>3] & (1<<(leaf->area&7)) ) ) {
+				continue;		// not visible
+			}
+
 			node = (mnode_t *)leaf;
 			do
 			{
