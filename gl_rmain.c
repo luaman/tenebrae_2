@@ -161,7 +161,7 @@ cvar_t	gl_fog = {"gl_fog","1"};
 cvar_t  fog_waterfog = {"fog_waterfog","1"}; 
 float fog_color[4];
 cvar_t	r_tangentscale = {"r_tangentscale","1"}; 
-
+cvar_t	sh_delux = {"sh_delux","1"};
 
 mirrorplane_t mirrorplanes[NUM_MIRROR_PLANES];
 int mirror_contents;
@@ -2288,7 +2288,9 @@ void R_RenderScene (void)
 
 	glDepthFunc(GL_LEQUAL);
 
+	GL_SelectTexture(GL_TEXTURE1_ARB);
 	GL_DisableMultitexture();
+	GL_SelectTexture(GL_TEXTURE0_ARB);
 
 	glFogfv(GL_FOG_COLOR, color_black);
 
