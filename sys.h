@@ -69,3 +69,17 @@ void Sys_LowFPPrecision (void);
 void Sys_HighFPPrecision (void);
 void Sys_SetFPCW (void);
 
+/* -DC -
+ * directory entry parsing
+ */
+                                                                                 
+typedef struct
+{
+  char entry[MAX_OSPATH];         // current entry in the list
+  void *internal;      // system internal data
+} dirdata_t;
+                                                                               
+dirdata_t *Sys_Findfirst (char *dirname, char *filter, dirdata_t *dirdata);
+dirdata_t *Sys_Findnext (dirdata_t *dirdata);
+void Sys_Findclose (dirdata_t *dirdata);
+

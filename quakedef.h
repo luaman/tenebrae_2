@@ -311,19 +311,6 @@ typedef struct
 //=============================================================================
 
 
-/* -DC -
- * directory entry parsing
- */
-
-typedef struct 
-{
-  char entry[MAX_OSPATH];         // current entry in the list
-  void *internal;      // system internal data
-} dirdata_t;
-
-dirdata_t *Sys_Findfirst (char *dir, char *filter, dirdata_t *dirdata);
-dirdata_t *Sys_Findnext (dirdata_t *dirdata);
-
 extern qboolean noclip_anglehack;
 
 
