@@ -109,7 +109,8 @@ typedef struct
 	char	identifier[MAX_OSPATH*2+1];
 	int		width, height;
 	qboolean	mipmap;
-	int		type;
+	int		loadtype;
+	int		gltype;
 	void	*dynamic; //if this is set we have a texture with changing pixels (currently only roq's)
 } gltexture_t;
 
@@ -177,6 +178,7 @@ typedef struct shader_s {
 	struct shader_s	*next;	//in the shader linked list
 	qboolean	mipmap;
 	qboolean	cull;
+	qboolean	texturesAreLoaded;	//The textures of the different shader stages are loaded
 } shader_t;
 
 //2048 triangles for shader
