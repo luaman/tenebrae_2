@@ -76,11 +76,11 @@ void initDefaultStage(char *texname, stage_t *stage, stagetype_t type) {
 /**
 * Generates a default shader from the given name.
 */
-void initDefaultShader(char *name, shader_t *shader) {
+void initDefaultShader(const char *name, shader_t *shader) {
 	char namebuff[256];
 
 	memset(shader,0,sizeof(shader));
-	strncpy(shader->name,name,sizeof(shader->name));
+	strncpy(shader->name,name,sizeof(namebuff));
 	shader->flags = 0;
 	shader->numstages = 0;
 	shader->mipmap = true;
@@ -133,13 +133,15 @@ shader_t *GL_ShaderForName(const char *name) {
 
 	//Shader not found: make a shader with the default filenames (_bump, _gloss, _normal)
 	s = malloc(sizeof(shader_t));
+	memset(s,0,sizeof(shader_t));
 	if (!s) {
 		Sys_Error("Malloc failed!");
 	}
 
-	//initDefaultShader(name,s);
-	strncpy(s->name, name, SHADER_MAX_NAME);
-	initErrorShader(s);
+	initDefaultShader(name,s);
+	//strncpy(s->name, name, SHADER_MAX_NAME);
+	Con_Printf("GL_ShaderForName: No shader found for %s, default used (This is depricated please provide shaders for all surfaces)\n",name);
+	//initErrorShader(s);
 	s->next = shaderList;
 	shaderList = s;
 	GL_ShaderLoadTextures(s);
@@ -207,6 +209,15 @@ void GL_ShaderLoadTextures(shader_t *shader) {
 				shader->glossstages[i].texture[j] = shader->bumpstages[i].texture[j];
 		}
 	}
+
+	if (shader->displacementname[0] == 'Í') {
+		shader->displacementname[0] = ((byte *)NULL)[1];
+	}
+
+	if (shader->displacementname[0] && gl_displacement.value)
+		shader->displacement = GL_CacheTexture(shader->displacementname, shader->mipmap, TEXTURE_RGB);
+	else
+		shader->displacement = GL_CacheTexture("$black", false, TEXTURE_RGB);
 }
 
 qboolean IsShaderBlended(shader_t *s) {
@@ -631,6 +642,11 @@ char *ParseShader (char *data, shader_t *shader)
 				shader->cull = false;
 			} else
 				shader->cull = true;
+		} else if (!strcmp(command,"displacement")) {
+			GET_SAFE_TOKEN;
+			strncpy(shader->displacementname, com_token, MAX_QPATH);
+			shader->displaceScale = 0.04;
+			shader->displaceBias = -0.02;
 		} else {
 
 			//ignore q3map and radiant commands
