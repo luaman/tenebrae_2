@@ -65,6 +65,11 @@ typedef struct qwidget_s
 	void *data;
 } qwidget_t;
 
+
+void M_OpenWindow_f (void);
+void M_CloseWindow_f (void);
+void M_DrawVisibleWindow (void);
+
 void M_LoadXmlBox (qwidget_t *widget, xmlNodePtr node);
 void M_LoadXmlVBox (qwidget_t *widget, xmlNodePtr node);
 void M_LoadXmlLabel (qwidget_t *widget, xmlNodePtr node);

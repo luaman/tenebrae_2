@@ -36,12 +36,75 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define MAX_MLABEL 128
 
 
+// -------------------------------------------------------------------------------------
+
+// --X--X--X-- WARNING WARNING WARNING --X--X--X--
+
+// FIXME :
+// copy & pasted from gl_draw.c
+// update me accordingly or better, move me in glquake.h 
+// while I'm still supported
+
+typedef struct
+{
+	int		texnum;
+	float	sl, tl, sh, th;
+} glpic_t;
+
+// --X--X--X-- WARNING WARNING WARNING --X--X--X--
+
+void GL_LoadPic (char *src, glpic_t *target)
+{
+	typedef struct _TargaHeader
+	{
+		unsigned char 	id_length, colormap_type, image_type;
+		unsigned short	colormap_index, colormap_length;
+		unsigned char	colormap_size;
+		unsigned short	x_origin, y_origin, width, height;
+		unsigned char	pixel_size, attributes;
+	} TargaHeader;
+	
+	extern TargaHeader		targa_header;
+	extern byte			*targa_rgba;
+	qpic_t *pic;
+
+	int len = strlen(src);
+
+	if (strncmp(src+len-4,".lmp",4)){
+
+		// load file in memory
+		LoadTexture (src, 4);
+		// assign it to a texture object
+		target->texnum = GL_LoadTexture (src, targa_header.width, targa_header.height, targa_rgba, false, true, false);
+		free (targa_rgba);
+
+	}
+	else {  
+		// lump file
+		// FIXME : drop lump file support in the future 
+		pic = (qpic_t *) COM_LoadTempFile (src);		
+		if (!pic)
+			Sys_Error ("GL_LoadPic: failed to load %s", src);
+		SwapPic (pic);
+		target->texnum = GL_LoadTexture (src, pic->width, pic->height, pic->data, false, true, false);
+	}
+	target->sl = 0;
+	target->sh = 1;
+	target->tl = 0;
+	target->th = 1;
+}
+
+// -------------------------------------------------------------------------------------
+
 cvar_t  m_debug = {"m_debug","0"};
 
 
 typedef struct xmlimagedata_s
 {
-	char      src[MAX_OSPATH];
+	char       src[MAX_OSPATH];
+	glpic_t    pic;
+	int        width;
+	int        height;
 } xmlimagedata_t;
 
 
@@ -103,6 +166,7 @@ typedef struct xmlwindowdata_s
 typedef struct qwindow_s {
 	char       file[MAX_OSPATH];
 	qwidget_t *widget;
+	qwidget_t *focused;	
 	struct qwindow_s *stack;  // visible window stack
 	struct qwindow_s *next;   // available window list
 } qwindow_t;
@@ -555,9 +619,9 @@ qwindow_t *windows = NULL;
 
 
 qwindow_t *visible_window;
-qwidget_t *focused;
 
 
+glpic_t focus_pic;
 
 // -------------------------------------------------------------------------------------
 
@@ -613,6 +677,8 @@ void treeiterator_prev (qwiterator_t *self)
 
 // -------------------------------------------------------------------------------------
 
+#define	SLIDER_RANGE	10
+
 qboolean        m_entersound;           // play after drawing a frame, so caching
                                         // won't disrupt the sound
 qboolean        m_recursiveDraw;
@@ -655,9 +721,22 @@ void M_Quit_f (void)
 }
 
 
+void M_CloseWindow_f (void)
+{
+	qwindow_t *temp = visible_window;
+	if (visible_window != NULL){
+		visible_window = visible_window->stack;
+		temp->stack = NULL;
+	}
+	if (visible_window == NULL)
+		key_dest = key_game;
+}
+
+
 void M_OpenWindow_f (void)
 {
 	qwindow_t *w = windows;
+	qwindow_t *temp = visible_window;
 	char *name;
 	if (Cmd_Argc() != 2)
 	{
@@ -674,29 +753,29 @@ void M_OpenWindow_f (void)
 		Con_Printf ("openwindow : no such window '%s'\n", name);
 		return;
 	}
-	if (visible_window != w){
-		w->stack = visible_window;
-		visible_window = w;
-		focused = w->widget;
+
+	while (temp && (temp!=w))
+		temp = temp->stack;
+		
+	if (temp == w){
+		// which one ?
+		// - close all opened windows back to w
+		// - close all opened windows from w and stack up w
+		// * close all opened windows then stack up w
+		// - change the whole damn window code
+		while (visible_window)
+			M_CloseWindow_f ();
+	}
+	w->stack = visible_window;
+	visible_window = w;
+	if (w->focused == NULL) {
+		w->focused = w->widget;
 		M_CycleFocusNext ();
 	}
 	key_dest = key_menu;
 	m_state = m_menu;
 }
 
-void M_CloseWindow_f (void)
-{
-	if (visible_window != NULL){
-		visible_window = visible_window->stack;
-	}
-	if (visible_window == NULL)
-		key_dest = key_game;
-	else {
-		focused = visible_window->widget;
-		M_CycleFocusNext ();
-	}
-
-}
 
 void M_WindowList_f (void)
 {
@@ -719,22 +798,25 @@ void M_Init (void)
 	// let's load the whole stuff now
 	COM_FindAllExt ("menu", "xul", M_LoadXmlWindowFile);
 
+	GL_LoadPic ("menu/focus.png",&focus_pic);
 }
 
 /*
 ========
 M_Menu_Main_f
+M_Menu_Options_f
 M_Menu_Quit_f
 
-both functions are used in another part of the code (console.c) so I implemented them as stub to
+these functions are used in another part of the code (console.c, vid_glnt.c, vid_glsdl.c) so I implemented them as stub to
 the console commands they are bound to originally to concentrate the menus change in one file.
 So basically here we're just expecting that some other part of the game will have defined these commands/aliases/whatever
-(xmlmenu should make them as aliases : check out M_LoadXmlWindow).
+(the menus should create the corresponding windows).
 ========
 */
+
 void M_Menu_Main_f (void)
 {
-	Cbuf_AddText ("menu_main\n");
+	Cbuf_AddText ("openwindow main\n");
 }
 
 void M_Menu_Quit_f (void)
@@ -742,6 +824,13 @@ void M_Menu_Quit_f (void)
 	M_Quit_f ();
 }
 
+void M_Menu_Options_f (void)
+{
+	Cbuf_AddText ("openwindow help\n");
+}
+
+void (*vid_menudrawfn)(void);
+void (*vid_menukeyfn)(int key);
 
 /*
 ========
@@ -752,11 +841,11 @@ recursive function set : this one is at top level, and calls the focused widget 
 */
 void M_Keydown (int key)
 {
+	qwidget_t *focused = visible_window->focused;
 	if (focused && focused->HandleKey)
 		M_XmlElementKey (focused,key);
-	else
+	else 	// current window get the key
 		M_XmlElementKey (visible_window->widget, key);
-		// current window get the key
 }
 
 // -------------------------------------------------------------------------------------
@@ -780,6 +869,8 @@ void M_DrawPic (int x, int y, qpic_t *pic)
 {
 	Draw_Pic (x + ((vid.width - 320)>>1), y, pic);
 }
+
+
 
 byte identityTable[256];
 byte translationTable[256];
@@ -828,11 +919,11 @@ void M_DrawTextBox (int x, int y, int width, int lines)
 	p = Draw_CachePic ("gfx/box_ml.lmp");
 	for (n = 0; n < lines; n++)
 	{
-		cy += 8;
+		cy += 16;
 		M_DrawTransPic (cx, cy, p);
 	}
 	p = Draw_CachePic ("gfx/box_bl.lmp");
-	M_DrawTransPic (cx, cy+8, p);
+	M_DrawTransPic (cx, cy+16, p);
 
 	// draw middle
 	cx += 8;
@@ -844,13 +935,13 @@ void M_DrawTextBox (int x, int y, int width, int lines)
 		p = Draw_CachePic ("gfx/box_mm.lmp");
 		for (n = 0; n < lines; n++)
 		{
-			cy += 8;
+			cy += 16;
 			if (n == 1)
 				p = Draw_CachePic ("gfx/box_mm2.lmp");
 			M_DrawTransPic (cx, cy, p);
 		}
 		p = Draw_CachePic ("gfx/box_bm.lmp");
-		M_DrawTransPic (cx, cy+8, p);
+		M_DrawTransPic (cx, cy+16, p);
 		width -= 2;
 		cx += 16;
 	}
@@ -894,6 +985,7 @@ void M_ToggleMenu_f (void)
 	}
 }
 
+
 // -------------------------------------------------------------------------------------
 
 void M_XmlButtonCommand (qwidget_t *self)
@@ -934,11 +1026,11 @@ qwidget_t *M_PreviousXmlElement (qwidget_t *w)
 
 void M_CycleFocus (qwidget_t *(*next_f)(qwidget_t *))
 {
-	qwidget_t *w = focused;
+	qwidget_t *w = visible_window->focused;
 	do {
 		w = next_f (w);
-	} while ((w != focused) && !(w->focusable));
-	focused = w;
+	} while ((w != visible_window->focused) && !(w->focusable));
+	visible_window->focused = w;
 }
 
 // -------------------------------------------------------------------------------------
@@ -980,7 +1072,7 @@ qboolean M_XmlCheckBoxKey (qwidget_t *self, int k)
 		// (un)check the checkbox
 		S_LocalSound ("misc/menu2.wav");
 		data->checked = !data->checked;
-		Cvar_SetValue (self->name, data->checked);
+		Cvar_SetValue (self->id, data->checked);
 		break;
 	default:
 		return false;
@@ -1030,11 +1122,12 @@ qboolean M_XmlSliderKey (qwidget_t *self, int k)
 	case K_LEFTARROW:
 		// reduce cvar value
 		S_LocalSound ("misc/menu3.wav");
-		
+		data->range -= 1/SLIDER_RANGE;
 		break;
 	case K_RIGHTARROW:
 		// augment cvar value
 		S_LocalSound ("misc/menu3.wav");
+		data->range += 1/SLIDER_RANGE;
 		break;
 	default:
 		return false;
@@ -1054,9 +1147,10 @@ qboolean M_XmlMenuKey (qwidget_t *self, int k)
 
 qboolean M_XmlElementKey (qwidget_t *widget, int k)
 {
-	// start from the current focused widget 
+	// start from widget 
 	// and propagate the key up the parents tree 
-	// until it has been consumed
+	// until it has been consumed or it reaches the
+	// tree root
 	while (widget){ 
 		if (widget->HandleKey)
 			if (widget->HandleKey (widget, k))
@@ -1071,10 +1165,17 @@ qboolean M_XmlElementKey (qwidget_t *widget, int k)
 /*
 ================
 Draw_StringN
+
+draws the str string of length len in the (x1,y1,x2,y2) frame 
 ================
 */
-int Draw_StringN (int x, int y, char *str, int len)
+int Draw_StringN (int x1, int y1, int x2, int y2, char *str, int len)
 {
+	// calculate string width and height, center it
+	int w = len * 8;
+	int h = 16;
+	int x = x1 + (x2 - x1 - w)/2;
+	int y = y1 + (y2 - y1 - h)/2;
 	while (*str && len)
 	{
 		Draw_Character (x, y, (*str)+128);
@@ -1084,7 +1185,6 @@ int Draw_StringN (int x, int y, char *str, int len)
 	}
 	return x;
 }
-
 
 void M_Draw (void)
 {
@@ -1117,7 +1217,7 @@ void M_Draw (void)
 	}
 
 	// draw current window
-	M_DrawXmlNestedWidget (visible_window->widget, 0, 0);
+	M_DrawVisibleWindow ();
 
 	if (m_entersound)
 	{
@@ -1134,19 +1234,22 @@ void M_Draw (void)
 void M_DrawXmlButton (qwidget_t *self, int x, int y)
 {
 	xmlbuttondata_t *data = self->data;
-	Draw_StringN (x, y, data->label, sizeof(data->label));
+	Draw_StringN (x, y, x+self->width.absolute, y+self->height.absolute, data->label, sizeof(data->label));
 }
 
 void M_DrawXmlImage (qwidget_t *self, int x, int y)
 {
 	xmlimagedata_t *data = self->data;
-	Draw_TransPicFilled (x, y, x+self->width.absolute, y+self->height.absolute, Draw_CachePic (data->src));
+	if (data->pic.texnum == 0)
+		GL_LoadPic (data->src, &(data->pic));
+        glColor4f (1,1,1,1);
+	Draw_GLPic (x, y, x+self->width.absolute, y+self->height.absolute, &(data->pic));
 }
 
 void M_DrawXmlLabel (qwidget_t *self, int x, int y)
 {
 	xmllabeldata_t *data = self->data;
-	Draw_StringN (x, y, data->text, sizeof(data->text));
+	Draw_StringN (x, y, x+self->width.absolute, y+self->height.absolute, data->text, sizeof(data->text));
 }
 
 void M_DrawXmlBox (qwidget_t *self, int x, int y)
@@ -1159,7 +1262,7 @@ void M_DrawXmlRadio (qwidget_t *self, int x, int y)
 {
 	xmlradiodata_t *data = self->data;
 	qboolean on = data->selected;
-	Draw_StringN (x, y, data->label, sizeof(data->label));
+	Draw_StringN (x, y, x+self->width.absolute, y+self->height.absolute, data->label, sizeof(data->label));
 	if (on)
 		M_Print (x, y, "(o)");
 	else
@@ -1173,22 +1276,19 @@ void M_DrawXmlRadioGroup (qwidget_t *self, int x, int y)
 
 // almost pasted from menu.c  
 
-#define	SLIDER_RANGE	10
-
 void M_DrawXmlSlider (qwidget_t *self, int x, int y)
 {
 	int	i;
 	xmlsliderdata_t *data = self->data;
 	int range = data->range;
 
-	x += 8;
-	
 	if (range < 0)
 		range = 0;
 	if (range > 1)
 		range = 1;
 
-	Draw_Character (x-8, y, 128);
+	Draw_Character (x, y, 128);
+	x += 8;
 	for (i=0 ; i<SLIDER_RANGE ; i++)
 		Draw_Character (x + i*8, y, 129);
 	Draw_Character (x+i*8, y, 130);
@@ -1202,7 +1302,7 @@ void M_DrawXmlCheckBox (qwidget_t *self,int x, int y)
 	xmlcheckboxdata_t *data = self->data;
 	qboolean on = data->checked;
 
-	x = Draw_StringN (x, y, data->label, sizeof(data->label));
+	x = Draw_StringN (x, y, x+self->width.absolute, y+self->height.absolute, data->label, sizeof(data->label));
 
 	if (on)
 		M_Print (x, y, "[x]");
@@ -1216,6 +1316,24 @@ void M_DrawXmlWindow (qwidget_t *self,int x, int y)
 	// draw a border ?
 }
 
+
+void M_DrawFocus (qwidget_t *self, int x, int y){
+
+	int xs = x+self->width.absolute;
+	int ys = y+self->height.absolute;
+
+	if (focus_pic.texnum == 0)
+		GL_LoadPic ("menu/focus.png",&focus_pic);
+
+	glDisable (GL_ALPHA_TEST);
+	glEnable (GL_BLEND);
+	glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        glColor4f (0.5,0.5,0.5,0.5);
+	Draw_GLPic (x, y, xs, ys, &focus_pic);
+	glDisable (GL_BLEND);
+	glEnable (GL_ALPHA_TEST);
+}
+
 /* -DC-
    FIXME :  doesn't work at all
    So this function is a little hack to display widget outline
@@ -1224,19 +1342,14 @@ void M_DrawXmlWindow (qwidget_t *self,int x, int y)
       cause I don't know much about OpenGL (shame on me ^^;)
 */
 
-void M_DrawFocus (qwidget_t *self, int x, int y){
-	//Draw_TransPicFilled (x, y, x+self->width.absolute, y+self->height.absolute, Draw_CachePic ("menu/focus.png"));
-}
-
-
 void M_DrawOutlines (qwidget_t *self, int x, int y){
+
 	int xs = x + self->width.absolute;
 	int ys = x + self->height.absolute;
-	GLint color[4];
+	GLfloat color[4];
 	GLint shademodel;
-	GL_DisableMultitexture ();
-	glGetIntegerv(GL_CURRENT_COLOR, color);
-	glColor4b(1,1,1,1);
+	glGetFloatv(GL_CURRENT_COLOR, color);
+	glColor4f(1,1,1,1);
 	//glGetIntegerv(GL_SHADE_MODEL, &shademodel);
 	//glShadeModel (GL_FLAT);
 	glBegin (GL_LINE_STRIP);
@@ -1246,7 +1359,7 @@ void M_DrawOutlines (qwidget_t *self, int x, int y){
 		glVertex2f (x, ys);
 	glEnd ();
 	//glShadeModel (shademodel);
-	glColor4iv(color);
+	glColor4fv(color);
 	GL_EnableMultitexture ();
 }
 
@@ -1267,9 +1380,11 @@ void M_DrawXmlNestedWidget (qwidget_t *widget, int xpos, int ypos)
 	if (widget->Draw){
 		widget->Draw (widget, xpos, ypos);
 	}
-	if (widget == focused){
+
+	if (widget == visible_window->focused){
 		M_DrawFocus (widget, xpos, ypos);
 	}
+
 	if (m_debug.value) { 
 		// draw outlines
 		M_DrawOutlines (widget, xpos, ypos);
@@ -1331,6 +1446,13 @@ void M_DrawXmlNestedWidget (qwidget_t *widget, int xpos, int ypos)
 	}
 }
 
+
+void M_DrawVisibleWindow ()
+{
+	int w = vid.width - visible_window->widget->width.absolute;
+	int h = vid.height - visible_window->widget->height.absolute;
+	M_DrawXmlNestedWidget (visible_window->widget, w/2, h/2);
+}
 
 // -------------------------------------------------------------------------------------
 
@@ -1653,14 +1775,14 @@ void M_LoadXmlImage (qwidget_t *widget, xmlNodePtr node)
 	 
 	 * --- unsupported :
 	 
-	   onerror    =  callback
-	   onload     =  callback
+	   onerror    =  string
+	   onload     =  string
 	   validate   =  {always|never} : load image from cache
 
 	 */
 	xmlimagedata_t *data = widget->data;
-
-	M_ReadXmlPropAsString (node, "src", data->src, sizeof (data->src));	
+	M_ReadXmlPropAsString (node, "src", data->src, sizeof (data->src));
+	//GL_LoadPic (data->src,&(data->pic));
 }
 
 
@@ -1729,7 +1851,7 @@ void M_LoadXmlCheckBox (qwidget_t *widget, xmlNodePtr node)
 	temp = M_CompareXmlProp (node, "disabled", xmlbool, 2);
 	if (temp != -1)
 		data->disabled = temp;
-	
+	data->checked = Cvar_VariableValue (widget->id);	
 }
 
 void M_LoadXmlRadio (qwidget_t *widget, xmlNodePtr node)

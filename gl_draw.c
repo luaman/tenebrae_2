@@ -625,6 +625,22 @@ void Draw_DebugChar (char num)
 {
 }
 
+
+
+void Draw_GLPic (int x, int y, int xs, int ys, glpic_t *gl)
+{
+	GL_Bind (gl->texnum);
+	glBegin (GL_QUADS);
+	glTexCoord2f (gl->sl, gl->tl);
+	glVertex2f (x, y);
+	glTexCoord2f (gl->sh, gl->tl);
+	glVertex2f (xs, y);
+	glTexCoord2f (gl->sh, gl->th);
+	glVertex2f (xs, ys);
+	glTexCoord2f (gl->sl, gl->th);
+	glVertex2f (x, ys);
+	glEnd ();
+}
 /*
 =============
 Draw_AlphaPic
@@ -642,17 +658,7 @@ void Draw_AlphaPic (int x, int y, qpic_t *pic, float alpha)
 //	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 //	glCullFace(GL_FRONT);
 	glColor4f (1,1,1,alpha);
-	GL_Bind (gl->texnum);
-	glBegin (GL_QUADS);
-	glTexCoord2f (gl->sl, gl->tl);
-	glVertex2f (x, y);
-	glTexCoord2f (gl->sh, gl->tl);
-	glVertex2f (x+pic->width, y);
-	glTexCoord2f (gl->sh, gl->th);
-	glVertex2f (x+pic->width, y+pic->height);
-	glTexCoord2f (gl->sl, gl->th);
-	glVertex2f (x, y+pic->height);
-	glEnd ();
+	Draw_GLPic (x, y, x+pic->width, y+pic->height, gl);
 	glColor4f (1,1,1,1);
 	glEnable(GL_ALPHA_TEST);
 	glDisable (GL_BLEND);
@@ -672,17 +678,7 @@ void Draw_Pic (int x, int y, qpic_t *pic)
 		Scrap_Upload ();
 	gl = (glpic_t *)pic->data;
 	glColor4f (1,1,1,1);
-	GL_Bind (gl->texnum);
-	glBegin (GL_QUADS);
-	glTexCoord2f (gl->sl, gl->tl);
-	glVertex2f (x, y);
-	glTexCoord2f (gl->sh, gl->tl);
-	glVertex2f (x+pic->width, y);
-	glTexCoord2f (gl->sh, gl->th);
-	glVertex2f (x+pic->width, y+pic->height);
-	glTexCoord2f (gl->sl, gl->th);
-	glVertex2f (x, y+pic->height);
-	glEnd ();
+	Draw_GLPic (x, y, x+pic->width, y+pic->height, gl);
 }
 
 
@@ -716,19 +712,9 @@ void Draw_PicFilled (int x, int y, int xs, int ys, qpic_t *pic)
                 Scrap_Upload ();
         gl = (glpic_t *)pic->data;
         glColor4f (1,1,1,1);
-        GL_Bind (gl->texnum);
-        glBegin (GL_QUADS);
-        glTexCoord2f (gl->sl, gl->tl);
-        glVertex2f (x, y);
-        glTexCoord2f (gl->sh, gl->tl);
-        glVertex2f (xs, y);
-        glTexCoord2f (gl->sh, gl->th);
-        glVertex2f (xs, ys);
-        glTexCoord2f (gl->sl, gl->th);
-        glVertex2f (x, ys);
-        glEnd ();
+	Draw_GLPic (x, y, xs, ys, gl);
 }
-                                                                                
+                                                                            
 /*
 ===================
 Draw_TransPicFilled
@@ -736,17 +722,17 @@ Draw_TransPicFilled
 */
 void Draw_TransPicFilled (int x, int y, int xs, int ys, qpic_t *pic)
 {
+	
         if (x < 0 || (unsigned)(xs) > vid.width || y < 0 ||
                  (unsigned)(ys) > vid.height)
         {
                 Sys_Error ("Draw_TransPic: bad coordinates (%d ,%d )\n", x, y);
         }
-                                                                                
+
         Draw_PicFilled (x, y, xs, ys, pic);
 }
                                                                                 
-
-
+                                                                            
 /*
 =============
 Draw_TransPicTranslate
