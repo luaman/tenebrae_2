@@ -19,8 +19,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 PENTA: the whole file is freakin penta...
 
-Same as gl_bumpmap.c but Radeon 9700 / NV30 optimized 
-These routines require 6 texture units, vertex shader and pixel shader
+Same as gl_bumpmap.c but using the ARB vertex and fragment programs
+These routines require 6 texture units, ARB vertex shader and pixel shader extensions
 
 All lights require 1 pass:
 1 diffuse + specular with optional light filter
@@ -273,21 +273,17 @@ static char bump_vertex_program[] =
 "ATTRIB iTex1        = vertex.texcoord[1];\n"
 "ATTRIB iTex2        = vertex.texcoord[2];\n"
 "ATTRIB iTex3        = vertex.texcoord[3];\n"
-"PARAM  mvp[4]       = { state.matrix.mvp };\n"
-"PARAM  modelview[4] = { state.matrix.modelview[0] };\n"
 "PARAM  texMatrix[4] = { state.matrix.texture[2] };\n"
-"PARAM  fogparams    = state.fog.params;\n"
 "PARAM  lightPos     = program.env[0];\n"
 "PARAM  eyePos       = program.env[1];\n"
 "PARAM  half = { 0.5, 0.5, 0.5, 0.5 };\n"
-"TEMP   disttemp, lightVec, halfVec, temp;\n"
+"TEMP   lightVec, halfVec, temp;\n"
 "OUTPUT oColor       = result.color;\n"
 "OUTPUT oTex0        = result.texcoord[0];\n"
 "OUTPUT oTex1        = result.texcoord[1];\n"
 "OUTPUT oTex2        = result.texcoord[2];\n"
 "OUTPUT oTex3        = result.texcoord[3];\n"
 "OUTPUT oTex4        = result.texcoord[4];\n"
-"OUTPUT oFog         = result.fogcoord;\n"
 "DP4   oTex3.x, texMatrix[0], iPos;\n"
 "DP4   oTex3.y, texMatrix[1], iPos;\n"
 "DP4   oTex3.z, texMatrix[2], iPos;\n"
@@ -310,9 +306,6 @@ static char bump_vertex_program[] =
 "DP3   oTex2.y, halfVec, iTex2;\n"
 "DP3   oTex2.z, halfVec, iTex3;\n"
 "MOV   oColor, iColor;\n"
-"DP4   disttemp.x, modelview[2], iPos;\n"
-"SUB   disttemp.x, fogparams.z, disttemp.x;\n"
-"MUL   oFog.x, disttemp.x, fogparams.w;\n"
 "END";
 
 
@@ -326,15 +319,12 @@ static char bump_vertex_program2[] =
 "ATTRIB iTex1        = vertex.texcoord[1];\n"
 "ATTRIB iTex2        = vertex.texcoord[2];\n"
 "ATTRIB iTex3        = vertex.texcoord[3];\n"
-"PARAM  mvp[4]       = { state.matrix.mvp };\n"
-"PARAM  modelview[4] = { state.matrix.modelview[0] };\n"
 "PARAM  texMatrix[4] = { state.matrix.texture[2] };\n"
 "PARAM  texMatrix2[4]= { state.matrix.texture[3] };\n"
-"PARAM  fogparams    = state.fog.params;\n"
 "PARAM  lightPos     = program.env[0];\n"
 "PARAM  eyePos       = program.env[1];\n"
 "PARAM  half = { 0.5, 0.5, 0.5, 0.5 };\n"
-"TEMP   disttemp, lightVec, halfVec, temp;\n"
+"TEMP   lightVec, halfVec, temp;\n"
 "OUTPUT oColor       = result.color;\n"
 "OUTPUT oTex0        = result.texcoord[0];\n"
 "OUTPUT oTex1        = result.texcoord[1];\n"
@@ -368,9 +358,6 @@ static char bump_vertex_program2[] =
 "DP3   oTex2.y, halfVec, iTex2;\n"
 "DP3   oTex2.z, halfVec, iTex3;\n"
 "MOV   oColor, iColor;\n"
-"DP4   disttemp.x, modelview[2], iPos;\n"
-"SUB   disttemp.x, fogparams.z, disttemp.x;\n"
-"MUL   oFog.x, disttemp.x, fogparams.w;\n"
 "END";
 
 static char delux_vertex_program[] = 
@@ -384,10 +371,6 @@ static char delux_vertex_program[] =
 "ATTRIB iTex2        = vertex.texcoord[2];\n"
 "ATTRIB iTex3        = vertex.texcoord[3];\n"
 "ATTRIB iTex4        = vertex.texcoord[4];\n"
-"PARAM  mvp[4]       = { state.matrix.mvp };\n"
-"PARAM  modelview[4] = { state.matrix.modelview[0] };\n"
-"PARAM  fogparams    = state.fog.params;\n"
-"TEMP   disttemp;\n"
 "OUTPUT oColor       = result.color;\n"
 "OUTPUT oTex0        = result.texcoord[0];\n"
 "OUTPUT oTex1        = result.texcoord[1];\n"
@@ -395,16 +378,12 @@ static char delux_vertex_program[] =
 "OUTPUT oTex3        = result.texcoord[3];\n"
 "OUTPUT oTex4        = result.texcoord[4];\n"
 "OUTPUT oTex5        = result.texcoord[5];\n"
-"OUTPUT oFog         = result.fogcoord;\n"
 "MOV   oTex0, iTex0;\n"
 "MOV   oTex1, iTex1;\n"
 "MOV   oTex2, iTex2;\n"
 "MOV   oTex3, iTex3;\n"
 "MOV   oTex4, iTex4;\n"
 "MOV   oTex5, iPos;\n"
-"DP4   disttemp.x, modelview[2], iPos;\n"
-"SUB   disttemp.x, fogparams.z, disttemp.x;\n"
-"MUL   oFog.x, disttemp.x, fogparams.w;\n"
 "END";
 
 
@@ -421,20 +400,20 @@ static char bump_fragment_program[] =
 "TEMP diffdot, specdot, selfshadow, temp\n;"
 "TEX normalmap, tex0, texture[0], 2D;\n"
 "MAD normalmap.rgb, normalmap, scaler.b, scaler.a;\n"
-"DP3 temp.x, tex1, tex1;\n"	//normalize to light ("real normalize" no cubemaps)
-"RSQ temp.x, temp.x;\n"
-"MUL lightvec, temp.x, tex1;\n"
-"DP3 temp.x, tex2, tex2;\n" //normalize to light ("real normalize" no cubemaps)
-"RSQ temp.x, temp.x;\n"
-"MUL halfvec, temp.x, tex2;\n"
+"DP3 temp.w, tex1, tex1;\n"	//normalize to light ("real normalize" no cubemaps)
+"RSQ temp.w, temp.w;\n"
+"MUL lightvec.xyz, temp.w, tex1;\n"
+"DP3 temp.w, tex2, tex2;\n" //normalize to light ("real normalize" no cubemaps)
+"RSQ temp.w, temp.w;\n"
+"MUL halfvec.xyz, temp.w, tex2;\n"
 "TEX colormap, tex0, texture[1], 2D;\n"
 "TEX atten, tex3, texture[2], 3D;\n" //get attenuation factor
-"DP3_SAT diffdot, normalmap, lightvec;\n"
-"MUL_SAT selfshadow.r, lightvec.z, scaler.g;\n"
+"DP3_SAT diffdot.w, normalmap, lightvec;\n"
+"MUL_SAT selfshadow.a, lightvec.z, scaler.g;\n"
 "DP3_SAT specdot.a, normalmap, halfvec;\n"
-"MUL diffdot, diffdot, colormap;\n"
+"MUL diffdot, diffdot.w, colormap;\n"
 "POW specdot.a, specdot.a, scaler.r;\n"
-"MUL_SAT diffdot, diffdot, selfshadow.r;\n"
+"MUL_SAT diffdot, diffdot, selfshadow.a;\n"
 "MUL_SAT specdot.a, specdot.a, normalmap.a;\n"
 "MUL atten, col, atten;\n"
 "ADD diffdot, diffdot, specdot.a;\n"
@@ -454,21 +433,21 @@ static char bump_fragment_program_colored[] =
 "TEMP diffdot, specdot, selfshadow, temp, gloss\n;"
 "TEX normalmap, tex0, texture[0], 2D;\n"
 "MAD normalmap.rgb, normalmap, scaler.b, scaler.a;\n"
-"DP3 temp.x, tex1, tex1;\n"
-"RSQ temp.x, temp.x;\n"
-"MUL lightvec, temp.x, tex1;\n"
-"DP3 temp.x, tex2, tex2;\n"
-"RSQ temp.x, temp.x;\n"
-"MUL halfvec, temp.x, tex2;\n"
+"DP3 temp.w, tex1, tex1;\n"
+"RSQ temp.w, temp.x;\n"
+"MUL lightvec, temp.w, tex1;\n"
+"DP3 temp.w, tex2, tex2;\n"
+"RSQ temp.w, temp.w;\n"
+"MUL halfvec, temp.w, tex2;\n"
 "TEX colormap, tex0, texture[1], 2D;\n"
 "TEX atten, tex3, texture[2], 3D;\n"
 "DP3_SAT diffdot, normalmap, lightvec;\n"
-"MUL_SAT selfshadow.r, lightvec.z, scaler.g;\n"
+"MUL_SAT selfshadow.a, lightvec.z, scaler.g;\n"
 "DP3_SAT specdot.a, normalmap, halfvec;\n"
 "MUL diffdot, diffdot, colormap;\n"
 "TEX gloss, tex0, texture[3], 2D;\n"
 "POW specdot.a, specdot.a, scaler.r;\n"
-"MUL_SAT diffdot, diffdot, selfshadow.r;\n"
+"MUL_SAT diffdot, diffdot, selfshadow.a;\n"
 "MUL_SAT specdot, specdot.a, gloss;\n"
 "MUL atten, col, atten;\n"
 "ADD diffdot, diffdot, specdot;\n"
@@ -489,21 +468,21 @@ static char bump_fragment_program2[] =
 "TEMP diffdot, specdot, selfshadow, temp\n;"
 "TEX normalmap, tex0, texture[0], 2D;\n"
 "MAD normalmap.rgb, normalmap, scaler.b, scaler.a;\n"
-"DP3 temp.x, tex1, tex1;\n"
-"RSQ temp.x, temp.x;\n"
-"MUL lightvec, temp.x, tex1;\n"
-"DP3 temp.x, tex2, tex2;\n"
-"RSQ temp.x, temp.x;\n"
-"MUL halfvec, temp.x, tex2;\n"
+"DP3 temp.w, tex1, tex1;\n"
+"RSQ temp.w, temp.w;\n"
+"MUL lightvec, temp.w, tex1;\n"
+"DP3 temp.w, tex2, tex2;\n"
+"RSQ temp.w, temp.w;\n"
+"MUL halfvec, temp.w, tex2;\n"
 "TEX colormap, tex0, texture[1], 2D;\n"
 "TEX atten, tex3, texture[2], 3D;\n"
 "TEX filter, tex4, texture[3], CUBE;\n"
 "DP3_SAT diffdot, normalmap, lightvec;\n"
-"MUL_SAT selfshadow.r, lightvec.z, scaler.g;\n"
+"MUL_SAT selfshadow.a, lightvec.z, scaler.g;\n"
 "DP3_SAT specdot.a, normalmap, halfvec;\n"
 "MUL diffdot, diffdot, colormap;\n"
 "POW specdot.a, specdot.a, scaler.r;\n"
-"MUL_SAT diffdot, diffdot, selfshadow.r;\n"
+"MUL_SAT diffdot, diffdot, selfshadow.a;\n"
 "MUL_SAT specdot.a, specdot.a, normalmap.a;\n"
 "MUL atten, col, atten;\n"
 "ADD diffdot, diffdot, specdot.a;\n"
@@ -525,22 +504,22 @@ static char bump_fragment_program2_colored[] =
 "TEMP diffdot, specdot, selfshadow, temp, gloss\n;"
 "TEX normalmap, tex0, texture[0], 2D;\n"
 "MAD normalmap.rgb, normalmap, scaler.b, scaler.a;\n"
-"DP3 temp.x, tex1, tex1;\n"
-"RSQ temp.x, temp.x;\n"
-"MUL lightvec, temp.x, tex1;\n"
-"DP3 temp.x, tex2, tex2;\n"
-"RSQ temp.x, temp.x;\n"
-"MUL halfvec, temp.x, tex2;\n"
+"DP3 temp.w, tex1, tex1;\n"
+"RSQ temp.w, temp.w;\n"
+"MUL lightvec, temp.w, tex1;\n"
+"DP3 temp.w, tex2, tex2;\n"
+"RSQ temp.w, temp.w;\n"
+"MUL halfvec, temp.w, tex2;\n"
 "TEX colormap, tex0, texture[1], 2D;\n"
 "TEX atten, tex3, texture[2], 3D;\n"
 "TEX filter, tex4, texture[3], CUBE;\n"
 "TEX gloss, tex0, texture[4], 2D;\n"
 "DP3_SAT diffdot, normalmap, lightvec;\n"
-"MUL_SAT selfshadow.r, lightvec.z, scaler.g;\n"
+"MUL_SAT selfshadow.a, lightvec.z, scaler.g;\n"
 "DP3_SAT specdot.a, normalmap, halfvec;\n"
 "MUL diffdot, diffdot, colormap;\n"
 "POW specdot.a, specdot.a, scaler.r;\n"
-"MUL_SAT diffdot, diffdot, selfshadow.r;\n"
+"MUL_SAT diffdot, diffdot, selfshadow.a;\n"
 "MUL_SAT specdot, specdot.a, gloss;\n"
 "MUL atten, col, atten;\n"
 "ADD diffdot, diffdot, specdot;\n"
@@ -569,22 +548,22 @@ static char delux_fragment_program[] =
 "DP3 R2.z, R0, fragment.texcoord[4];\n"
 "DP3 R4.y, R3, fragment.texcoord[3];\n"
 "DP3 R4.z, R3, fragment.texcoord[4];\n"
-"DP3 R0.x, R2, R2;\n"
-"RSQ R0.x, R0.x;\n"
-"MUL R2.xyz, R0.x, R2;\n"
-"DP3 R0.x, R4, R4;\n"
-"RSQ R0.x, R0.x;\n"
-"MAD R4.xyz, R0.x, R4, R2;\n"
+"DP3 R0.w, R2, R2;\n"
+"RSQ R0.w, R0.w;\n"
+"MUL R2.xyz, R0.w, R2;\n"
+"DP3 R0.w, R4, R4;\n"
+"RSQ R0.w, R0.w;\n"
+"MAD R4.xyz, R0.w, R4, R2;\n"
 "MUL R4.xyz, R4, c2.x;\n"
 "MAD R1.xyz, c0.x, R1, c1.x;\n"
-"DP3_SAT R0.x, R4, R1;\n"
-"POW R0.x, R0.x, c0.w;\n"
+"DP3_SAT R0.w, R4, R1;\n"
+"POW R0.w, R0.w, c0.w;\n"
 "DP3_SAT R0.y, R2, R1;\n"
-"MUL R0.x, R0.x, R1.w;\n"
+"MUL R0.w, R0.w, R1.w;\n"
 "MAD R0.y, R0.y, c2.x, c2.x;\n"
 "TEX R1.xyz, fragment.texcoord[0], texture[3], 2D;\n"
 "TEX R2.xyz, fragment.texcoord[1], texture[0], 2D;\n"
-"MAD R0.xyz, R1, R0.y, R0.x;\n"
+"MAD R0.xyz, R1, R0.y, R0.w;\n"
 "MUL result.color, R0, R2;\n"
 "END";
 
@@ -610,25 +589,26 @@ static char delux_fragment_program_colored[] =
 "DP3 R2.z, R0, fragment.texcoord[4];\n"
 "DP3 R4.y, R3, fragment.texcoord[3];\n"
 "DP3 R4.z, R3, fragment.texcoord[4];\n"
-"DP3 R0.x, R2, R2;\n"
-"RSQ R0.x, R0.x;\n"
-"MUL R2.xyz, R0.x, R2;\n"
-"DP3 R0.x, R4, R4;\n"
-"RSQ R0.x, R0.x;\n"
-"MAD R4.xyz, R0.x, R4, R2;\n"
+"DP3 R0.w, R2, R2;\n"
+"RSQ R0.w, R0.w;\n"
+"MUL R2.xyz, R0.w, R2;\n"
+"DP3 R0.w, R4, R4;\n"
+"RSQ R0.w, R0.w;\n"
+"MAD R4.xyz, R0.w, R4, R2;\n"
 "MUL R4.xyz, R4, c2.x;\n"
 "MAD R1.xyz, c0.x, R1, c1.x;\n"
-"DP3_SAT R0.x, R4, R1;\n"
-"POW R0.x, R0.x, c0.w;\n"
+"DP3_SAT R0.w, R4, R1;\n"
+"POW R0.w, R0.w, c0.w;\n"
 "DP3_SAT R0.y, R2, R1;\n"
 "TEX gloss, fragment.texcoord[0], texture[4], 2D;\n"
-"MUL gloss, R0.x, gloss;\n"
+"MUL gloss, R0.w, gloss;\n"
 "TEX R1.xyz, fragment.texcoord[0], texture[3], 2D;\n"
 "MAD R0.y, R0.y, c2.x, c2.x;\n"
 "TEX R2.xyz, fragment.texcoord[1], texture[0], 2D;\n"
 "MAD R0.xyz, R1, R0.y, gloss;\n"
 "MUL result.color, R0, R2;\n"
 "END";
+
 
 typedef enum
 {
@@ -695,7 +675,6 @@ static void Arb_checkerror()
 
 void ARB_CreateShaders()
 {
-    float scaler[4] = {0.5f, 0.5f, 0.5f, 0.5f};
     int i;
 
 #if !defined(__APPLE__) && !defined (MACOSX)
@@ -821,31 +800,13 @@ void ARB_DisableBumpShader(shader_t* shader)
     glDisable(GL_FRAGMENT_PROGRAM_ARB);
     glDisable(GL_VERTEX_PROGRAM_ARB);
 
-    GL_SelectTexture(GL_TEXTURE1_ARB);
-    glDisable(GL_TEXTURE_2D);
-
     GL_SelectTexture(GL_TEXTURE2_ARB);
-    glDisable(GL_TEXTURE_3D);
     glPopMatrix();
 
     if (currentshadowlight->filtercube)
     {        
 	GL_SelectTexture(GL_TEXTURE3_ARB);
-	glDisable(GL_TEXTURE_CUBE_MAP_ARB);
 	glPopMatrix();
-        if ( shader->glossstages[0].type == STAGE_GLOSS )
-        {
-	    GL_SelectTexture(GL_TEXTURE4_ARB);
-            glDisable(GL_TEXTURE_2D);
-        }
-    }
-    else
-    {
-        if ( shader->glossstages[0].type == STAGE_GLOSS )
-        {
-	    GL_SelectTexture(GL_TEXTURE3_ARB);
-            glDisable(GL_TEXTURE_2D);
-        }
     }
     glMatrixMode(GL_MODELVIEW);
 
@@ -861,15 +822,11 @@ void ARB_EnableBumpShader(const transform_t *tr, const lightobject_t *lo,
     //tex 2 = attenuation
     //tex 3 = (optional light filter, depends on light settings)
     //tex 3/4 = colored gloss map if used
-    GL_SelectTexture(GL_TEXTURE1_ARB);
-    glEnable(GL_TEXTURE_2D);
-
     GL_SelectTexture(GL_TEXTURE2_ARB);
     glMatrixMode(GL_TEXTURE);
     glPushMatrix();
     glLoadIdentity();
 
-    glEnable(GL_TEXTURE_3D);
     glBindTexture(GL_TEXTURE_3D, atten3d_texture_object);
 
     glTranslatef(0.5,0.5,0.5);
@@ -891,10 +848,9 @@ void ARB_EnableBumpShader(const transform_t *tr, const lightobject_t *lo,
 	glMatrixMode(GL_TEXTURE);
 	glPushMatrix();
 	glLoadIdentity();
-
-        glEnable(GL_TEXTURE_CUBE_MAP_ARB);
-        glBindTexture(GL_TEXTURE_CUBE_MAP_ARB, currentshadowlight->filtercube);
         GL_SetupCubeMapMatrix(tr);
+
+        glBindTexture(GL_TEXTURE_CUBE_MAP_ARB, currentshadowlight->filtercube);
 
 	qglBindProgramARB( GL_VERTEX_PROGRAM_ARB, vertex_programs[V_BUMP_PROGRAM2] );
 	Arb_checkerror();
@@ -902,7 +858,6 @@ void ARB_EnableBumpShader(const transform_t *tr, const lightobject_t *lo,
         {
             qglBindProgramARB( GL_FRAGMENT_PROGRAM_ARB, fragment_programs[F_BUMP_PROGRAM2_COLOR] );
             GL_SelectTexture(GL_TEXTURE4_ARB);
-            glEnable(GL_TEXTURE_2D);
             GL_BindAdvanced(shader->glossstages[0].texture[0]);
         }
         else
@@ -919,7 +874,6 @@ void ARB_EnableBumpShader(const transform_t *tr, const lightobject_t *lo,
         {
 	    qglBindProgramARB( GL_FRAGMENT_PROGRAM_ARB, fragment_programs[F_BUMP_PROGRAM_COLOR] );
             GL_SelectTexture(GL_TEXTURE3_ARB);
-            glEnable(GL_TEXTURE_2D);
             GL_BindAdvanced(shader->glossstages[0].texture[0]);
         }
         else
@@ -951,7 +905,6 @@ void ARB_EnableDeluxShader(shader_t* shader)
     {
         qglBindProgramARB( GL_FRAGMENT_PROGRAM_ARB, fragment_programs[F_DELUX_PROGRAM_COLOR] );
         GL_SelectTexture(GL_TEXTURE4_ARB);
-        glEnable(GL_TEXTURE_2D);
         GL_BindAdvanced(shader->glossstages[0].texture[0]);
     }
     else
@@ -969,12 +922,8 @@ void ARB_DisableDeluxShader(shader_t* shader)
 {
     glDisable(GL_FRAGMENT_PROGRAM_ARB);
     glDisable(GL_VERTEX_PROGRAM_ARB);
-    if ( shader->glossstages[0].type == STAGE_GLOSS )
-    {
-        GL_SelectTexture(GL_TEXTURE4_ARB);
-        glDisable(GL_TEXTURE_2D);
-    }
 }
+
 
 /************************
 
@@ -1116,6 +1065,7 @@ void ARB_drawTriangleListBase (vertexdef_t *verts, int *indecies,
 {
     int i;
 
+    glGetError();
     glVertexPointer(3, GL_FLOAT, verts->vertexstride, verts->vertices);
     glEnableClientState(GL_VERTEX_ARRAY);
 
@@ -1187,7 +1137,6 @@ void ARB_drawTriangleListBase (vertexdef_t *verts, int *indecies,
 
 	    // Light map
             GL_SelectTexture(GL_TEXTURE0_ARB);
-	    glEnable(GL_TEXTURE_2D);
             qglClientActiveTextureARB(GL_TEXTURE0_ARB);
 	    glTexCoordPointer(2, GL_FLOAT, verts->texcoordstride, verts->texcoords);
 	    glEnableClientState(GL_TEXTURE_COORD_ARRAY);
@@ -1195,7 +1144,6 @@ void ARB_drawTriangleListBase (vertexdef_t *verts, int *indecies,
 
 	    // Delux map
             GL_SelectTexture(GL_TEXTURE1_ARB);
-	    glEnable(GL_TEXTURE_2D);
             qglClientActiveTextureARB(GL_TEXTURE1_ARB);
 	    glTexCoordPointer(2, GL_FLOAT, verts->lightmapstride,
 			      verts->lightmapcoords);
@@ -1204,7 +1152,6 @@ void ARB_drawTriangleListBase (vertexdef_t *verts, int *indecies,
 
 	    // Setup normal map
             GL_SelectTexture(GL_TEXTURE2_ARB);
-	    glEnable(GL_TEXTURE_2D);
 	    if (shader->numbumpstages)
 	    {
 		if (shader->bumpstages[0].numtextures)
@@ -1217,7 +1164,6 @@ void ARB_drawTriangleListBase (vertexdef_t *verts, int *indecies,
 
             // Setup base texture
             GL_SelectTexture(GL_TEXTURE3_ARB);
-	    glEnable(GL_TEXTURE_2D);
             qglClientActiveTextureARB(GL_TEXTURE3_ARB);
 	    glTexCoordPointer(3, GL_FLOAT, verts->binormalstride,
 			      verts->binormals);
@@ -1247,16 +1193,11 @@ void ARB_drawTriangleListBase (vertexdef_t *verts, int *indecies,
 
             qglClientActiveTextureARB(GL_TEXTURE4_ARB);
 	    glDisableClientState(GL_TEXTURE_COORD_ARRAY);
-            GL_SelectTexture(GL_TEXTURE3_ARB);
-	    glDisable(GL_TEXTURE_2D);
             qglClientActiveTextureARB(GL_TEXTURE3_ARB);
 	    glDisableClientState(GL_TEXTURE_COORD_ARRAY);
-            GL_SelectTexture(GL_TEXTURE2_ARB);
-	    glDisable(GL_TEXTURE_2D);
             qglClientActiveTextureARB(GL_TEXTURE2_ARB);
 	    glDisableClientState(GL_TEXTURE_COORD_ARRAY);
             GL_SelectTexture(GL_TEXTURE1_ARB);
-	    glDisable(GL_TEXTURE_2D);
             qglClientActiveTextureARB(GL_TEXTURE1_ARB);
 	    glDisableClientState(GL_TEXTURE_COORD_ARRAY);
 	    GL_DisableMultitexture();
@@ -1466,6 +1407,7 @@ void ARB_drawSurfaceListBase (vertexdef_t* verts, msurface_t** surfs,
     int i;
     int usedelux;
 
+        checkerror();
     glVertexPointer(3, GL_FLOAT, verts->vertexstride, verts->vertices);
     glEnableClientState(GL_VERTEX_ARRAY);
 
@@ -1488,7 +1430,6 @@ void ARB_drawSurfaceListBase (vertexdef_t* verts, msurface_t** surfs,
 	ARB_sendSurfacesBase(surfs, numSurfaces, false);
 	glPopMatrix();
     }
-
     if (verts->lightmapcoords && (shader->flags & SURF_PPLIGHT))
     {
 	GL_SelectTexture(GL_TEXTURE1_ARB);
@@ -1538,29 +1479,21 @@ void ARB_drawSurfaceListBase (vertexdef_t* verts, msurface_t** surfs,
 		glDisable(GL_BLEND);
 	    }
 
-            GL_SelectTexture(GL_TEXTURE0_ARB);
-	    glEnable(GL_TEXTURE_2D);
-    
-            GL_SelectTexture(GL_TEXTURE1_ARB);
-	    glEnable(GL_TEXTURE_2D);
-
 	    // Setup normal map
-            GL_SelectTexture(GL_TEXTURE2_ARB);
-	    glEnable(GL_TEXTURE_2D);
-	    if (shader->numbumpstages)
+	    if (shader->numbumpstages && shader->bumpstages[0].numtextures)
 	    {
-		if (shader->bumpstages[0].numtextures)
-		    GL_BindAdvanced(shader->bumpstages[0].texture[0]);
+                GL_SelectTexture(GL_TEXTURE2_ARB);
+		GL_BindAdvanced(shader->bumpstages[0].texture[0]);
 	    }
 
             // Setup base texture
-            GL_SelectTexture(GL_TEXTURE3_ARB);
-	    glEnable(GL_TEXTURE_2D);
 	    if (shader->numcolorstages)
 	    {
 		if (shader->colorstages[0].numtextures)
+                {
+                    GL_SelectTexture(GL_TEXTURE3_ARB);
 		    GL_BindAdvanced(shader->colorstages[0].texture[0]);
-
+                }
 		if (shader->colorstages[0].alphatresh > 0)
 		{
 		    glEnable(GL_ALPHA_TEST);
@@ -1572,12 +1505,6 @@ void ARB_drawSurfaceListBase (vertexdef_t* verts, msurface_t** surfs,
 	    ARB_sendSurfacesDeLux(surfs, numSurfaces, true);
 	    ARB_DisableDeluxShader(shader);
 
-            GL_SelectTexture(GL_TEXTURE3_ARB);
-	    glDisable(GL_TEXTURE_2D);
-            GL_SelectTexture(GL_TEXTURE2_ARB);
-	    glDisable(GL_TEXTURE_2D);
-            GL_SelectTexture(GL_TEXTURE1_ARB);
-	    glDisable(GL_TEXTURE_2D);
             qglClientActiveTextureARB(GL_TEXTURE1_ARB);
 	    glDisableClientState(GL_TEXTURE_COORD_ARRAY);
 	    GL_DisableMultitexture();
@@ -1631,7 +1558,6 @@ void ARB_drawSurfaceListBase (vertexdef_t* verts, msurface_t** surfs,
             GL_SelectTexture(GL_TEXTURE0_ARB);
         }
     }
-
     if (!shader->cull)
     {
 	glEnable(GL_CULL_FACE);
