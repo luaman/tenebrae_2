@@ -640,8 +640,8 @@ qboolean CheckSurfInLight(msurface_t *surf, shadowlight_t *light)
 		vec3_t maxs = {-10e10f,-10e10f,-10e10f};
 		int i;
 		for (i=0; i<poly->numindecies; i++) {
-			VectorMax(maxs,globalVertexTable[poly->indecies[i]].position,maxs);
-			VectorMin(mins,globalVertexTable[poly->indecies[i]].position,mins);
+			VectorMax(maxs,cl.worldmodel->userVerts[poly->indecies[i]],maxs);
+			VectorMin(mins,cl.worldmodel->userVerts[poly->indecies[i]],mins);
 		}
 
 		if (!intersectsMinsMaxs(&light->box, mins, maxs)) {
@@ -1059,12 +1059,6 @@ void R_ConstructShadowVolume(shadowlight_t *light) {
 
 	VolumeVertsPointer = light->volumeVerts;
 
-	if (gl_var) {
-		if (light->numVolumeVerts < AGP_BUFFER_SIZE/4) {
-			memcpy(AGP_Buffer,light->volumeVerts,light->numVolumeVerts*4);
-			VolumeVertsPointer = AGP_Buffer;
-		}
-	}
 }
 
 /*
@@ -1391,10 +1385,10 @@ void R_DrawBrushModelVolumes(entity_t *e) {
 					//we want polygon relative indecies.
 
 					//glVertex3fv(&poly->verts[j][0]);
-					glVertex3fv((float *)(&globalVertexTable[neigh->p1]));
+					glVertex3fv((float *)(&cl.worldmodel->userVerts[neigh->p1]));
 					glVertex3fv(&ins->extvertices[count+neigh->p1-poly->firstvertex][0]);
 					//glVertex3fv(&poly->verts[((j+1)% poly->numverts)][0]);
-					glVertex3fv((float *)(&globalVertexTable[neigh->p2]));
+					glVertex3fv((float *)(&cl.worldmodel->userVerts[neigh->p2]));
 					glVertex3fv(&ins->extvertices[count+neigh->p2-poly->firstvertex][0]);
 				glEnd();			
 			}
@@ -1413,7 +1407,7 @@ void R_DrawBrushModelVolumes(entity_t *e) {
 		glBegin(GL_TRIANGLES);
 		//v = surf->polys->verts[0];
 		for (j=0; j<surf->polys->numindecies; j++) {
-			v = (float *)(&globalVertexTable[surf->polys->indecies[j]]);
+			v = (float *)(&cl.worldmodel->userVerts[surf->polys->indecies[j]]);
 			glVertex3fv(&v[0]);
 		}
 		glEnd();
@@ -1548,7 +1542,7 @@ void PrecalcVolumesForLight(model_t *model) {
 		for (i=0 ; i<surf->numedges ; i++)
 		{
 			//v2 = (vec3_t *)&poly->verts[i];
-			v2 = (vec3_t *)(&globalVertexTable[surf->polys->firstvertex+i]);
+			v2 = (vec3_t *)(&cl.worldmodel->userVerts[surf->polys->firstvertex+i]);
 			VectorSubtract ( (*v2), currentshadowlight->origin, v1);
 
 			scale = Length (v1);
@@ -1578,7 +1572,7 @@ void PrecalcVolumesForLight(model_t *model) {
 		for (i=0 ; i<surf->numedges ; i++)
 		{
 			//v2 = (vec3_t *)&poly->verts[i];
-			v2 = (vec3_t *)(&globalVertexTable[surf->polys->firstvertex+i]);
+			v2 = (vec3_t *)(&cl.worldmodel->userVerts[surf->polys->firstvertex+i]);
 			/*(float)*/volumeVerts[vertPos++] = (*v2)[0];	// <AWE> lvalue cast. what da...?
 			/*(float)*/volumeVerts[vertPos++] = (*v2)[1];	// <AWE> a float is a float is a...
 			/*(float)*/volumeVerts[vertPos++] = (*v2)[2];
@@ -1795,7 +1789,7 @@ void DrawVolumeFromCmds(int *volumeCmds, lightcmd_t *lightCmds, float *volumeVer
 		glBegin(GL_TRIANGLES);
 		//v = surf->polys->verts[0];
 		for (i=0; i<surf->polys->numindecies; i++) {
-			v = (float *)(&globalVertexTable[surf->polys->indecies[i]]);
+			v = (float *)(&cl.worldmodel->userVerts[surf->polys->indecies[i]]);
 			glVertex3fv(&v[0]);
 		}
 		glEnd();
@@ -1871,7 +1865,7 @@ void SetupMeshToLightVisibility(shadowlight_t *light, mesh_t *mesh) {
 				extrudedTimestamp[index] = extrudeTimeStamp;
 
 				v1 = &extrudedVerts[index];
-				VectorCopy(globalVertexTable[mesh->firstvertex+index].position,v2);
+				VectorCopy(mesh->userVerts[index],v2);
 
 				VectorSubtract (v2, light->origin, (*v1));
 				scale = Length ((*v1));
@@ -1914,11 +1908,11 @@ void DrawMeshVolume(mesh_t *mesh) {
 				if (shadow) {
 					int index = mesh->indecies[i*3+j];
 					glBegin(GL_QUAD_STRIP);
-					glVertex3fv(&globalVertexTable[mesh->firstvertex+index].position[0]);
+					glVertex3fv(mesh->userVerts[index]);
 					glVertex3fv(&extrudedVerts[index][0]);
 
 					index = mesh->indecies[i*3+(j+1)%3];
-					glVertex3fv(&globalVertexTable[mesh->firstvertex+index].position[0]);
+					glVertex3fv(mesh->userVerts[index]);
 					glVertex3fv(&extrudedVerts[index][0]);
 					glEnd();
 				}
@@ -1934,7 +1928,7 @@ void DrawMeshVolume(mesh_t *mesh) {
 			glBegin(GL_TRIANGLES);
 			for (j=0; j<3; j++) {
 				int index = mesh->indecies[i*3+j];
-				glVertex3fv(&globalVertexTable[mesh->firstvertex+index].position[0]);
+				glVertex3fv(mesh->userVerts[index]);
 			}
 			glEnd();
 	
@@ -1951,7 +1945,6 @@ void DrawMeshVolume(mesh_t *mesh) {
 }
 
 void StencilMeshVolume(mesh_t *mesh) {
-
 	if (mesh->shader->shader->flags & SURF_NOSHADOW) return;
 
 	SetupMeshToLightVisibility(currentshadowlight, mesh);
@@ -1961,7 +1954,6 @@ void StencilMeshVolume(mesh_t *mesh) {
 	//
 	glCullFace(GL_BACK);
 	glStencilOp(GL_KEEP, GL_INCR, GL_KEEP);
-	//glCullFace(GL_FRONT);
 
 	DrawMeshVolume(mesh);
 
@@ -1970,7 +1962,6 @@ void StencilMeshVolume(mesh_t *mesh) {
 	//
 	glCullFace(GL_FRONT);
 	glStencilOp(GL_KEEP, GL_DECR, GL_KEEP);
-	//glCullFace(GL_BACK);
 	
 	DrawMeshVolume(mesh);
 	glCullFace(GL_BACK);
@@ -2266,7 +2257,7 @@ void AddToShadowBsp(msurface_t *surf) {
 	surf->visframe = 0;
 	//Make temp copy of suface polygon
 	numsurfvects = surf->numedges;
-	for (i=0, v=(float *)(&globalVertexTable[surf->polys->firstvertex]); i<numsurfvects; i++, v+=VERTEXSIZE) {
+	for (i=0, v=(float *)(&cl.worldmodel->userVerts[surf->polys->firstvertex]); i<numsurfvects; i++, v+=VERTEXSIZE) {
 		VectorCopy(v,surfvects[i]);
 	}
 
