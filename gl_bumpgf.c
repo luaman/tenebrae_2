@@ -75,7 +75,7 @@ void GL_EnableDiffuseShaderGF3(const transform_t *tr, const lightobject_t *lo, i
 	glPushMatrix();
 	glLoadIdentity();
 	if (currentshadowlight->shader->numstages) {
-		if (currentshadowlight->shader->stages[stageIndex].texture[0]->type == GL_TEXTURE_CUBE_MAP_ARB) {
+		if (currentshadowlight->shader->stages[stageIndex].texture[0]->gltype == GL_TEXTURE_CUBE_MAP_ARB) {
 			glEnable(GL_TEXTURE_CUBE_MAP_ARB);
 			glBindTexture(GL_TEXTURE_CUBE_MAP_ARB, currentshadowlight->shader->stages[stageIndex].texture[0]->texnum);
 		} else {
@@ -199,7 +199,7 @@ void GL_DisableDiffuseShaderGF3(int stageIndex) {
 
 	GL_SelectTexture(GL_TEXTURE3_ARB);
 	if (currentshadowlight->shader->numstages) {
-		if (currentshadowlight->shader->stages[stageIndex].texture[0]->type == GL_TEXTURE_CUBE_MAP_ARB)
+		if (currentshadowlight->shader->stages[stageIndex].texture[0]->gltype == GL_TEXTURE_CUBE_MAP_ARB)
 			glDisable(GL_TEXTURE_CUBE_MAP_ARB);
 		else
 			glDisable(GL_TEXTURE_2D);
@@ -240,7 +240,7 @@ void GL_EnableSpecularShaderGF3(const transform_t *tr, const lightobject_t *lo, 
 	glPushMatrix();
 	glLoadIdentity();
 	if (currentshadowlight->shader->numstages) {
-		if (currentshadowlight->shader->stages[stageIndex].texture[0]->type == GL_TEXTURE_CUBE_MAP_ARB) {
+		if (currentshadowlight->shader->stages[stageIndex].texture[0]->gltype == GL_TEXTURE_CUBE_MAP_ARB) {
 			glEnable(GL_TEXTURE_CUBE_MAP_ARB);
 			glBindTexture(GL_TEXTURE_CUBE_MAP_ARB, currentshadowlight->shader->stages[stageIndex].texture[0]->texnum);
 		} else {
@@ -453,11 +453,11 @@ void GF3_SetupTcMod(tcmod_t *tc) {
 	switch (tc->type) {
 	case TCMOD_ROTATE:
 		glTranslatef(0.5,0.5,0.0);
-		glRotatef(cl.time * tc->params[0],0,0,1);
+		glRotatef(realtime * tc->params[0],0,0,1);
 		glTranslatef(-0.5, -0.5, 0.0);
 		break;
 	case TCMOD_SCROLL:
-		glTranslatef(cl.time * tc->params[0], cl.time * tc->params[1], 0.0);
+		glTranslatef(realtime * tc->params[0], realtime * tc->params[1], 0.0);
 		break;
 	case TCMOD_SCALE:
 		glScalef(tc->params[0],tc->params[1],1.0);

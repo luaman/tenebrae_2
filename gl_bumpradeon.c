@@ -978,11 +978,11 @@ void Radeon_SetupTcMod(tcmod_t *tc)
     {
         case TCMOD_ROTATE:
             glTranslatef(0.5,0.5,0.0);
-            glRotatef(cl.time * tc->params[0],0,0,1);
+            glRotatef(realtime * tc->params[0],0,0,1);
             glTranslatef(-0.5, -0.5, 0.0);
             break;
         case TCMOD_SCROLL:
-            glTranslatef(cl.time * tc->params[0], cl.time * tc->params[1], 0.0);
+            glTranslatef(realtime * tc->params[0], realtime * tc->params[1], 0.0);
             break;
         case TCMOD_SCALE:
             glScalef(tc->params[0],tc->params[1],1.0);
