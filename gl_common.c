@@ -30,8 +30,9 @@ float           vid_gamma = 1.0;
 
 qboolean        gl_mtexable = false;
 qcardtype       gl_cardtype = GENERIC;
-qboolean        gl_var = false; //PENTA: vertex array range is available
+qboolean        gl_vbo = false; //PENTA: vertex buffer object is available
 qboolean        gl_texcomp = false; // JP: texture compression available
+qboolean		gl_mirroronce = false; //GL_ATI_texture_mirror_once extension is available
 
 
 //void (*qglColorTableEXT) (int, int, int, int, int, const void*);
@@ -229,37 +230,25 @@ void CheckGeforce3Extensions(void)
      }
 }
 
-
-//program wide pointer to the allocated agp mem block
-void *AGP_Buffer;
-
-
-void CheckVertexArrayRange(void)
+void CheckVertexBufferObject(void)
 {
-/*
-  if (strstr(gl_extensions, "GL_NV_vertex_array_range"))
-  {
-  //get VAR pointers
-  SAFE_GET_PROC (glFlushVertexArrayRangeNV, PFNGLFLUSHVERTEXARRAYRANGENVPROC, "glFlushVertexArrayRangeNV");
-  SAFE_GET_PROC (glVertexArrayRangeNV, PFNGLVERTEXARRAYRANGENVPROC, "glVertexArrayRangeNV");
-  SAFE_GET_PROC (wglAllocateMemoryNV, PFNWGLALLOCATEMEMORYNVPROC, "wglAllocateMemoryNV");
-  SAFE_GET_PROC (wglFreeMemoryNV, PFNWGLFREEMEMORYNVPROC, "wglFreeMemoryNV");
-
-  if (wglAllocateMemoryNV != NULL) {
-  AGP_Buffer = wglAllocateMemoryNV(AGP_BUFFER_SIZE, 0.0, 0.0, 0.85);
-  if (AGP_Buffer) {
-  Con_Printf("Using %ikb AGP mem.\n",AGP_BUFFER_SIZE/1024);
-  gl_var = true;
-  } else {
-  Con_Printf("Failed to allocate %ikb AGP mem.\n",AGP_BUFFER_SIZE/1024);
-  gl_var = false;
-  }
-  }
-  } else {
-*/
-     gl_var = false;
-//	}
-
+	if (strstr(gl_extensions, "GL_ARB_vertex_buffer_object") && (!COM_CheckParm ("-forcenovbo")) ) {
+		//get VBO pointers
+		SAFE_GET_PROC (qglBindBufferARB, PFNGLBINDBUFFERARBPROC, "glBindBufferARB");
+		SAFE_GET_PROC (qglDeleteBuffersARB, PFNGLDELETEBUFFERSARBPROC, "glDeleteBuffersARB");
+		SAFE_GET_PROC (qglGenBuffersARB, PFNGLGENBUFFERSARBPROC, "glGenBuffersARB");
+		SAFE_GET_PROC (qglIsBufferARB, PFNGLISBUFFERARBPROC, "glIsBufferARB");
+		SAFE_GET_PROC (qglBufferDataARB, PFNGLBUFFERDATAARBPROC, "glBufferDataARB");
+		SAFE_GET_PROC (qglBufferSubDataARB, PFNGLBUFFERSUBDATAARBPROC, "glBufferSubDataARB");
+		SAFE_GET_PROC (qglMapBufferARB, PFNGLMAPBUFFERARBPROC, "glMapBufferARB");
+		SAFE_GET_PROC (qglUnmapBufferARB, PFNGLUNMAPBUFFERARBPROC, "glUnmapBufferARB");
+		SAFE_GET_PROC (qglGetBufferParameterivARB, PFNGLGETBUFFERPARAMETERIVARBPROC, "glGetBufferParameterivARB");
+		SAFE_GET_PROC (qglGetBufferPointervARB, PFNGLGETBUFFERPOINTERVARBPROC, "glGetBufferPointervARB");	
+		Con_Printf("Vertex buffer object available\n");
+		gl_vbo = true;
+	} else {
+		gl_vbo = false;
+	}
 }
 
 
@@ -447,6 +436,19 @@ void CheckOcclusionTest(void)
           gl_occlusiontest = true;
      }
 }
+
+void CheckMirrorOnce(void)
+{
+	if (COM_CheckParm ("-nomirroronce")) return;
+
+	if (strstr(gl_extensions, "GL_ATI_texture_mirror_once") )
+	{
+		Con_Printf("Mirror once available\n");
+		gl_mirroronce = true;
+	}
+}
+
+static int supportedTmu;
 /*
   ===============
   GL_Init
@@ -454,7 +456,6 @@ void CheckOcclusionTest(void)
 */
 void GL_Init (void)
 {
-     int supportedTmu;
 
      gl_vendor = glGetString (GL_VENDOR);
      Con_Printf ("GL_VENDOR: %s\n", gl_vendor);
@@ -503,20 +504,22 @@ void GL_Init (void)
           CheckParheliaExtensions ();
      }
 
-     Con_Printf ("Checking VAR\n");
-     CheckVertexArrayRange ();
+     Con_Printf ("Checking VBO\n");
+     CheckVertexBufferObject();
      Con_Printf ("Checking AF\n");
      CheckAnisotropicExtension ();
      Con_Printf ("Checking TC\n");
      CheckTextureCompressionExtension ();
-     Con_Printf ("checking OT\n");
+     Con_Printf ("Checking OT\n");
      CheckOcclusionTest();
+     Con_Printf ("Checking MO\n");
+	 CheckMirrorOnce();
 
      //if something goes wrong here throw an sys_error as we don't want to end up
      //having invalid function pointers called...
      switch (gl_cardtype)
      {
-     case GENERIC:
+     /*case GENERIC:
           Con_Printf ("Using generic path.\n");
 //	  Sys_Error("No generic path yet\n");
           BUMP_InitGeneric();
@@ -532,26 +535,29 @@ void GL_Init (void)
           break;
      case RADEON:
           Con_Printf ("Using Radeon path.\n");
-	  BUMP_InitRadeon();
+		  BUMP_InitRadeon();
           break;
      case PARHELIA:
           Con_Printf ("Using Parhelia path.\n");
-	  BUMP_InitParhelia();
-          break;
+		  BUMP_InitParhelia();
+          break;*/
      case ARB:
           Con_Printf ("Using ARB_fragment_program path.\n");
           BUMP_InitARB();
           break;
-     case NV3x:
+     /*case NV3x:
           Con_Printf ("Using NV_fragment_program path.\n");
           BUMP_InitNV3x();
           break;
      case GL2:
           Con_Printf ("Using GL2 path.\n");
           BUMP_InitGL2();
-          break;
+          break;*/
      }
             
+	 GL_InitDriverMem();
+	 GL_InitVertexCache();
+
      glGetIntegerv (GL_MAX_ACTIVE_TEXTURES_ARB,&supportedTmu); 
      Con_Printf ("%i texture units\n",supportedTmu);
         
@@ -575,16 +581,49 @@ void GL_Init (void)
 
      glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-//	glTexEnvf (GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+	 //glTexEnvf (GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
      glTexEnvf (GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
-#if 0
-     CheckArrayExtensions ();
+}
 
-     glEnable (GL_VERTEX_ARRAY_EXT);
-     glEnable (GL_TEXTURE_COORD_ARRAY_EXT);
-     glVertexPointerEXT (3, GL_FLOAT, 0, 0, &glv.x);
-     glTexCoordPointerEXT (2, GL_FLOAT, 0, 0, &glv.s);
-     glColorPointerEXT (3, GL_FLOAT, 0, 0, &glv.r);
-#endif
+extern qboolean mtexenabled;
 
+/**
+	To get rid of state changes once and for all
+	Don't call this too often tough...
+*/
+void GL_SetupDefaultState(void) {
+	int i;
+
+	glMatrixMode(GL_TEXTURE);
+	for (i=1; i<supportedTmu; i++) {
+		glLoadIdentity();
+		GL_SelectTexture(GL_TEXTURE0_ARB+i);
+		glDisable(GL_TEXTURE_2D);
+
+		qglClientActiveTextureARB(GL_TEXTURE0_ARB+i);
+		glDisableClientState(GL_TEXTURE_COORD_ARRAY);
+	}
+
+	GL_SelectTexture(GL_TEXTURE0_ARB);
+	glLoadIdentity();
+	glEnable(GL_TEXTURE_2D);
+	mtexenabled = false;
+
+	qglClientActiveTextureARB(GL_TEXTURE0_ARB);
+	glDisableClientState(GL_TEXTURE_COORD_ARRAY);
+	glDisableClientState(GL_VERTEX_ARRAY);
+	glDisableClientState(GL_COLOR_ARRAY);
+	glDisableClientState(GL_NORMAL_ARRAY);
+
+	if (gl_cardtype == ARB) {
+		//glDisable(GL_FRAGMENT_PROGRAM_ARB);
+		//glDisable(GL_VERTEX_PROGRAM_ARB);
+	}
+
+	glEnable(GL_CULL_FACE);
+	glCullFace (GL_FRONT);
+	glDisable(GL_BLEND);
+	glDisable(GL_ALPHA_TEST);
+	glAlphaFunc (GL_GREATER, 0.666f);
+	glMatrixMode(GL_MODELVIEW);
 }
