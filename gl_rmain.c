@@ -1487,7 +1487,7 @@ void R_DrawViewModel (void)
 							  //but they don't poke into walls) - Eradicator
 		glDepthRange (gldepthmin, gldepthmin + 0.3*(gldepthmax-gldepthmin));
 
-	R_DrawAliasModel (0.1);
+	R_DrawAliasModel (0.1f);
 
 	if ( gl_calcdepth.value ) //Calc Depth - Eradicator
 		glDepthRange (gldepthmin, gldepthmax);
@@ -2744,8 +2744,8 @@ void R_RenderView (void)
 	fog_color[3] = 1.0;
 	if ((viewcont & CONTENTS_WATER) && (fog_waterfog.value)){
 		glFogi(GL_FOG_MODE, GL_LINEAR);
-		fog_color[0] = 64/255.0;
-		fog_color[1] = 48/255.0;
+		fog_color[0] = 64/255.0f;
+		fog_color[1] = 48/255.0f;
 		fog_color[2] = 0.0;
 		glFogfv(GL_FOG_COLOR, fog_color);
 		glFogf(GL_FOG_END, 512);
@@ -2756,8 +2756,8 @@ void R_RenderView (void)
 	} else 	if ((viewcont & CONTENTS_SLIME) && (fog_waterfog.value)){
 		glFogi(GL_FOG_MODE, GL_LINEAR);
 		fog_color[0] = 0.0;
-		fog_color[1] = 128/255.0;
-		fog_color[2] = 32/255.0;
+		fog_color[1] = 128/255.0f;
+		fog_color[2] = 32/255.0f;
 		glFogfv(GL_FOG_COLOR, fog_color);
 		glFogf(GL_FOG_END, 256);
 		glFogf(GL_FOG_START, 0);
@@ -2766,8 +2766,8 @@ void R_RenderView (void)
 		gl_fog.value = 1.0;
 	} else 	if ((viewcont & CONTENTS_LAVA) && (fog_waterfog.value)){
 		glFogi(GL_FOG_MODE, GL_LINEAR);
-		fog_color[0] = 255/255.0;
-		fog_color[1] = 64/255.0;
+		fog_color[0] = 255/255.0f;
+		fog_color[1] = 64/255.0f;
 		fog_color[2] = 0.0;
 		glFogfv(GL_FOG_COLOR, fog_color);
 		glFogf(GL_FOG_END, 256);
@@ -2778,9 +2778,9 @@ void R_RenderView (void)
 
 	} else {
 		glFogi(GL_FOG_MODE, GL_LINEAR);
-		fog_color[0] = fog_r.value/255.0;
-		fog_color[1] = fog_g.value/255.0;
-		fog_color[2] = fog_b.value/255.0;
+		fog_color[0] = fog_r.value/255.0f;
+		fog_color[1] = fog_g.value/255.0f;
+		fog_color[2] = fog_b.value/255.0f;
 		glFogfv(GL_FOG_COLOR, fog_color);
 		glFogf(GL_FOG_END, fog_end.value);
 		glFogf(GL_FOG_START, fog_start.value);
