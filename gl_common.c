@@ -30,7 +30,6 @@ qboolean fullsbardraw = false;
 
 float           vid_gamma = 1.0;
 
-qboolean        is8bit = false;
 qboolean        isPermedia = false;
 qboolean        gl_mtexable = false;
 qcardtype       gl_cardtype = GENERIC;
@@ -68,9 +67,6 @@ float		gldepthmin, gldepthmax;
 // <AWE> Two more extensions. Added already check for paletted texture to gl_vidnt.c.
 //	 However any code for anisotropic texture filtering has still to be added to gl_vidnt.c.
 
-// <AWE> true for "gl_EXT_paletted_texture" [GL_Upload8_EXT].
-qboolean 	gl_palettedtex = false; 
-
 // <AWE> true for "GL_EXT_texture_filter_anisotropic".
 qboolean	gl_texturefilteranisotropic = false;
 // <AWE> anistropic texture level [= 1.0f or max. value].//Penta?? Changed to 2.0 because 1.0 is just isotropic filtering 
@@ -91,9 +87,21 @@ unsigned char   d_8to8graytable[256];
 
 /*-----------------------------------------------------------------------*/
 
-/*
-<AWE> required for GL_Upload8_EXT ():
-*/
+void GL_checkerror(char *file, int line)
+{
+    GLuint error = glGetError();
+    while ( error != GL_NO_ERROR )
+    {
+        const char* err;
+		err = gluErrorString(error);
+#ifdef _WIN32
+		Con_Printf("Gl error: %s\n (Triggered at line %d in file %s\n)",err,line,file); //So it gets logged if condebug is used
+        //_asm { int 3 };
+#else
+		Sys_Error("Gl error: %s\n (Triggered at line %d in file %s\n)",err,line,file);
+#endif
+    }
+}
 
 int Q_strncasecmp (char *s1,char *s2,int count);
 
@@ -173,15 +181,6 @@ void	VID_ShiftPalette (unsigned char *palette)
 }
 
 
-
-void	CheckPalettedTexture (void)
-{
-     if (strstr (gl_extensions, "GL_EXT_paletted_texture"))
-     {
-          gl_palettedtex = true;
-          Con_Printf ("Found GL_EXT_paletted_texture...\n");
-     }
-}
 
 /*
   BINDTEXFUNCPTR bindTexFunc;
@@ -293,7 +292,6 @@ void CheckSpecularBumpMappingExtensions(void)
 	 if (strstr(gl_extensions, "GL_NV_register_combiners2")) {
           SAFE_GET_PROC (qglCombinerStageParameterfvNV,PFNGLCOMBINERSTAGEPARAMETERFVNVPROC,"glCombinerStageParameterfvNV"); 
           SAFE_GET_PROC (qglGetCombinerStageParameterfvNV,PFNGLGETCOMBINERSTAGEPARAMETERFVNVPROC,"glGetCombinerStageParameterfvNV"); 
-
 	 }
 }
 
@@ -526,9 +524,6 @@ void GL_Init (void)
      if (Q_strncasecmp ((char *)gl_renderer,"Permedia",8)==0)
           isPermedia = true;
 
-     Con_Printf ("Checking paletted texture\n");
-     CheckPalettedTexture ();
-
      Con_Printf ("Checking multitexture\n");
      CheckMultiTextureExtensions ();
 
@@ -624,67 +619,4 @@ void GL_Init (void)
      glColorPointerEXT (3, GL_FLOAT, 0, 0, &glv.r);
 #endif
 
-}
-
-qboolean VID_Is8bit() {
-     return is8bit;
-}
-
-#define GL_SHARED_TEXTURE_PALETTE_EXT 0x81FB
-
-void VID_Init8bitPalette(void) 
-{
-     // Check for 8bit Extensions and initialize them.
-     int i;
-     
-     if (COM_CheckParm ("-no8bit"))
-          return;
-     
-     
-
-     SAFE_GET_PROC (qglColorTableEXT,GLCOLORTABLEEXTPFN,"glColorTableEXT");
-
-
-     if (strstr (gl_extensions, "GL_EXT_shared_texture_palette") && qglColorTableEXT )
-
-     {
-
-          char thePalette[256*3];
-          char *oldPalette, *newPalette;
-          
-          Con_SafePrintf("8-bit GL extensions enabled.\n");
-          glEnable( GL_SHARED_TEXTURE_PALETTE_EXT );
-          oldPalette = (char *) d_8to24table; //d_8to24table3dfx;
-          newPalette = thePalette;
-          for (i=0;i<256;i++) {
-               *newPalette++ = *oldPalette++;
-               *newPalette++ = *oldPalette++;
-               *newPalette++ = *oldPalette++;
-               oldPalette++;
-          }
-          qglColorTableEXT(GL_SHARED_TEXTURE_PALETTE_EXT, GL_RGB, 256, GL_RGB, GL_UNSIGNED_BYTE, (void *) thePalette);
-          is8bit = true;
-
-     }
-     /*
-     // 3DFX stuff 
-     else if (strstr (gl_extensions, "3DFX_set_global_palette")
-              && (SAFE_GET_PROC (qgl3DfxSetPaletteEXT,GL3DFXSETPALETTEEXTPFN,"gl3DfxSetPaletteEXT")!= NULL)) {
-          GLubyte table[256][4];
-          char *oldpal;
-          
-          Con_SafePrintf ("8-bit GL extensions enabled.\n");
-          glEnable ( GL_SHARED_TEXTURE_PALETTE_EXT );
-          oldpal = (char *) d_8to24table; //d_8to24table3dfx;
-          for (i=0;i<256;i++) {
-               table[i][2] = *oldpal++;
-               table[i][1] = *oldpal++;
-               table[i][0] = *oldpal++;
-               table[i][3] = 255;
-               oldpal++;
-          }
-          qgl3DfxSetPaletteEXT ((GLuint *)table);
-          is8bit = true;
-     }
-     */
 }
