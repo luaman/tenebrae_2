@@ -1,0 +1,42 @@
+/**
+* Basic tenebrae vertex program.
+* This compiles under the arbvp and vp20 vertex program profiles.
+* compile with "-profile vp20 -posinv"
+*/
+struct appdata {
+    float4 position : POSITION;
+    float4 texcoord : TEXCOORD0;	//texture coords of color/bump map
+	float4 normal	: NORMAL;		//tangent space basis vectors
+	float4 tangent	: TEXCOORD1;
+	float4 binormal	: TEXCOORD2;
+};
+
+struct v2f {
+    float4 HPOS : POSITION;
+    float4 TEX0 : TEXCOORD0;		//color map texture coordinates
+	float4 TEX1 : TEXCOORD1;		//tangent space light vector unnormalized
+	float4 TEX2 : TEXCOORD2;		//bump map texture coordinates
+	float4 TEX3 : TEXCOORD3;		//world space vertex position (for attenuation)
+};
+
+v2f main(appdata I,uniform float4x4 objviewproj : _GL_MVP, uniform float4x4 texture_matrix : c0)
+{
+    v2f O;
+    // transform vertices into projection space using the pre-multiplied matrix
+    O.HPOS = mul(objviewproj, I.position);
+
+	//copy stuff to output
+    O.TEX0 = I.texcoord;
+	O.TEX2 = I.texcoord;
+
+	//transform into tangent space
+	O.TEX1.x = dot(I.position,I.tangent);
+	O.TEX1.y = dot(I.position,I.binormal);
+	O.TEX1.z = dot(I.position,I.normal);
+
+	//transform with texture matrix
+	O.TEX3 = mul(texture_matrix, I.position);
+
+    return O;
+} // main
+
