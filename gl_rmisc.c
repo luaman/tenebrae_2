@@ -257,6 +257,7 @@ void R_Init (void)
 	Cvar_RegisterVariable (&gl_truform);
 	Cvar_RegisterVariable (&gl_truform_tesselation);
 	Cvar_RegisterVariable (&r_tangentscale);
+	Cvar_RegisterVariable (&sh_delux);
 
 	R_InitParticleEffects();
 	R_InitShaders();
