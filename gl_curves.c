@@ -293,7 +293,7 @@ void SubdivideCurve(curve_t *in, mesh_t *out, mmvertex_t *verts, int amount) {
 	free(expand);
 }
 
-void CreateIndecies(curve_t *curve, mesh_t *mesh)
+void CreateCurveIndecies(curve_t *curve, mesh_t *mesh)
 {
 	int i,j, i1, i2, li1, li2;
 	int w,h, index;
@@ -384,16 +384,16 @@ Creates a curve from the given surface
 
 =================
 */
-void CS_Create(dq3face_t *in, mesh_t *mesh, mapshader_t *shader)
+void MESH_CreateCurve(dq3face_t *in, mesh_t *mesh, mapshader_t *shader)
 {
 	curve_t curve;
 
-	curve.controlwidth = in->patchOrder[0];
-	curve.controlheight = in->patchOrder[1];
-	curve.firstcontrol = in->firstvertex;
+	curve.controlwidth = LittleLong(in->patchOrder[0]);
+	curve.controlheight = LittleLong(in->patchOrder[1]);
+	curve.firstcontrol = LittleLong(in->firstvertex);
 	
 	//just use the control points as vertices
-	curve.firstvertex = in->firstmeshvertex;
+	curve.firstvertex = LittleLong(in->firstmeshvertex);
 
 	//evaluate the mesh vertices
 	if (gl_mesherror.value > 0)
@@ -402,7 +402,7 @@ void CS_Create(dq3face_t *in, mesh_t *mesh, mapshader_t *shader)
 	//setup rest of the mesh
 	mesh->shader = shader;
 
-	CreateIndecies(&curve, mesh);
+	CreateCurveIndecies(&curve, mesh);
 	CreateTangentSpace(mesh);
 
 	mesh->trans.origin[0] = mesh->trans.origin[1] = mesh->trans.origin[2] = 0.0f;
@@ -414,10 +414,39 @@ void CS_Create(dq3face_t *in, mesh_t *mesh, mapshader_t *shader)
 //	Con_Printf("MeshCurve %i %i %i\n",curve->firstcontrol,curve->controlwidth,curve->controlheight);
 }
 
+void MESH_CreateInlineModel(dq3face_t *in, mesh_t *mesh, int *indecies, mapshader_t *shader)
+{
+	int i;
+
+	Con_Printf("Inline model\n");
+	//setup stuff of mesh that was stored in the bsp file
+	//note: endiannes is important here as it's from the file!
+
+	mesh->firstvertex = LittleLong(in->firstvertex);
+	mesh->numvertices = LittleLong(in->numvertices);
+	mesh->numindecies = LittleLong(in->nummeshvertices);
+	mesh->numtriangles = mesh->numindecies/3;
+
+	mesh->indecies = (int *)Hunk_Alloc(sizeof(int)*mesh->numindecies);
+
+	for (i=0; i<mesh->numindecies; i++) {
+		mesh->indecies[i] = LittleLong(indecies[i]);
+	}
+
+	//setup rest of the mesh
+	mesh->shader = shader;
+
+	CreateTangentSpace(mesh);
+
+	mesh->trans.origin[0] = mesh->trans.origin[1] = mesh->trans.origin[2] = 0.0f;
+	mesh->trans.angles[0] = mesh->trans.angles[1] = mesh->trans.angles[2] = 0.0f;
+	mesh->trans.scale[0] = mesh->trans.scale[1] = mesh->trans.scale[2] = 1.0f;
+}
+
 /**
 *  Multiplies the curve's color with the current lightmap brightness.
 */
-void CS_SetupMeshColors(mesh_t *mesh)
+void MESH_SetupMeshColors(mesh_t *mesh)
 {
 	int i;
 

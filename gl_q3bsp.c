@@ -273,6 +273,8 @@ void findNeighbourForEdge(glpoly_t *poly, int neighindex) {
 	for (i=0; i<loadmodel->numsurfaces; i++) {
 		p = loadmodel->surfaces[i].polys;
 
+		if(!p) continue; //surface is a curve or a md3
+
 		//check if it has a shared vertex
 		for (j=0; j<p->numneighbours; j++) {
 			int np1, np2;
@@ -594,49 +596,62 @@ void ModQ3_LoadFaces (lump_t *l)
 		planenum = FindPlane(in->normal,tempVertices[in->firstvertex].position); //ENDIAN bug!! flip in->normal	
 		out->plane = loadmodel->planes + planenum;
 				
-	// lighting info
+		// lighting info
 		out->samples = NULL;
 		out->lightmaptexturenum = LittleLong(in->lightofs);
 			
 		out->shader = &loadmodel->mapshaders[LittleLong(in->texinfo)];
 		out->flags = out->shader->shader->flags;
+		out->visframe = -1;
 
-		//fill in the glpoly
-		poly = Hunk_Alloc (sizeof(glpoly_t)+(LittleLong(in->nummeshvertices)-1)*sizeof(int));
-		poly->numverts = in->numvertices;
-		poly->numindecies = in->nummeshvertices;
-		poly->firstvertex = in->firstvertex;
-		poly->neighbours = (mneighbour_t *)Hunk_Alloc (poly->numverts*sizeof(mneighbour_t));
-		poly->next = NULL;
-		poly->flags = out->flags;
+		// normal surface
+		if (in->type == 1) {
+			//fill in the glpoly
+			poly = Hunk_Alloc (sizeof(glpoly_t)+(LittleLong(in->nummeshvertices)-1)*sizeof(int));
+			poly->numverts = LittleLong(in->numvertices);
+			poly->numindecies = LittleLong(in->nummeshvertices);
+			poly->firstvertex = LittleLong(in->firstvertex);
+			poly->neighbours = (mneighbour_t *)Hunk_Alloc (poly->numverts*sizeof(mneighbour_t));
+			poly->next = NULL;
+			poly->flags = out->flags;
 
-		if (in->type == 2) {
+			//fill in the index lists
+			for (i=0; i<LittleLong(in->nummeshvertices); i++) {
+				poly->indecies[i] = poly->firstvertex+LittleLong(meshVerts[i+LittleLong(in->firstmeshvertex)]);
+			}
+
+			out->polys = poly;
+			setupNeighbours(out->polys);
+			out->numedges = poly->numverts;
+		// a bezier
+		} else if (in->type == 2) {
 			if (loadmodel->nummeshes < MAX_MAP_MESHES) {
-				CS_Create(in,&loadmodel->meshes[loadmodel->nummeshes],out->shader);
-				//HACK HACK: So when we try all surfaces in the leafs we now the number of the curve
+				MESH_CreateCurve(in,&loadmodel->meshes[loadmodel->nummeshes],out->shader);
+				//HACK HACK: So when we try all surfaces in the leafs we know the number of the curve
 				//we added here...
-				in->patchOrder[0] = loadmodel->nummeshes;
+				out->visframe = loadmodel->nummeshes;
 				loadmodel->nummeshes++;
 			} else Con_Printf("Warning: MAX_MAP_MESHES exceeded");
 			in->numvertices = 0;
-			poly->numindecies = 0;
 			in->nummeshvertices = 0;
-			poly->numverts = 0;
+			out->polys = NULL;
+		//a md3
+		} if (in->type == 3) {
+			if (loadmodel->nummeshes < MAX_MAP_MESHES) {
+				MESH_CreateInlineModel(in,&loadmodel->meshes[loadmodel->nummeshes],&meshVerts[LittleLong(in->firstmeshvertex)],out->shader);
+				//HACK HACK: So when we try all surfaces in the leafs we know the number of the curve
+				//we added here...
+				out->visframe = loadmodel->nummeshes;
+				loadmodel->nummeshes++;
+			} else Con_Printf("Warning: MAX_MAP_MESHES exceeded");
+			in->numvertices = 0;
+			in->nummeshvertices = 0;
+			out->polys = NULL;
 		} else if (in->type != 1) {
 			in->numvertices = 0;
-			poly->numindecies = 0;
 			in->nummeshvertices = 0;
-			poly->numverts = 0;
+			out->polys = NULL;
 		}
-
-		//fill in the index lists
-		for (i=0; i<LittleLong(in->nummeshvertices); i++) {
-			poly->indecies[i] = poly->firstvertex+meshVerts[i+LittleLong(in->firstmeshvertex)];
-		}
-
-		out->polys = poly;
-		setupNeighbours(out->polys);
-		out->numedges = poly->numverts;
 	}
 }
 
@@ -672,7 +687,7 @@ void ModQ3_SetupFaces (void)
 		s = &loadmodel->surfaces[surfnum];
 		poly = s->polys;
 
-		if (poly->numverts == 0)
+		if (!poly)
 			continue;
 		
 		//checkHasCenterSplit(poly);
@@ -859,6 +874,8 @@ void ModQ3_LoadLeafs (lump_t *l, lump_t *sl, lump_t *ss)
 	int			i, j, count, p;
 	dq3face_t * faces;
 	int			*leaffaces;
+	int			newnumsurf;
+	msurface_t  *surf;
 
 	in = (void *)(mod_base + l->fileofs);
 	if (l->filelen % sizeof(*in))
@@ -910,20 +927,26 @@ void ModQ3_LoadLeafs (lump_t *l, lump_t *sl, lump_t *ss)
 
 		out->cluster = LittleLong(in->cluster);
 
-		//Create the leafcurves by going over all surfaces in this leaf
+		//Create the leafmeshes by going over all surfaces in this leaf
+		//and move the meshes to a separate list
 		out->firstmesh = loadmodel->numleafmeshes;
 		out->nummeshes = 0;
+		newnumsurf = 0;
 		for (j = 0; j<out->nummarksurfaces; j++) {
-			dq3face_t *surf =  faces + leaffaces[LittleLong(in->firstmarksurface)+j];
-			if (surf->type == 2) {
+			surf = loadmodel->marksurfaces[LittleLong(in->firstmarksurface)+j];
+			if (surf->polys) {
+				loadmodel->marksurfaces[LittleLong(in->firstmarksurface)+newnumsurf] = surf;
+				newnumsurf++;
+			} else if (surf->visframe > -1) {
 				if (loadmodel->numleafmeshes < MAX_MAP_LEAFMESHES) {
-					loadmodel->leafmeshes[loadmodel->numleafmeshes] = surf->patchOrder[0];
+					loadmodel->leafmeshes[loadmodel->numleafmeshes] = surf->visframe;
 					loadmodel->numleafmeshes++;
 					out->nummeshes++;
 					//Con_Printf("Curve in leaf %i\n",surf->patchOrder[0]);
 				} else Con_Printf("Warning: MAX_MAP_LEAFMESHES exceeded");
 			}
 		}
+		out->nummarksurfaces = newnumsurf;
 		
 		p = LittleLong(in->cluster);
 		if (p == -1)
