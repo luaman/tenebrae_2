@@ -7,7 +7,7 @@ endif
 
 bin_PROGRAMS = $(SDL_PRG) tenebrae.glx
 
-tenebrae_glx_LDADD = @MATLIB@ @INETLIB@ @X11_LIBS@ @OPENGLLIBS@ 
+tenebrae_glx_LDADD = @MATHLIB@ @INETLIB@ @X11_LIBS@ @OPENGLLIBS@ 
 
 tenebrae_sdl_LDADD = @MATHLIB@ @INETLIB@ @SDL_LIBS@ @OPENGLLIBS@ 
 

@@ -76,7 +76,7 @@ AC_SUBST(OPENGLLIBS)
 # Check for X11 
 # FIXME !!!!
 
-X11_LIBS=-L/usr/X11R6/lib -lpthread -lX11 -lXext -lXxf86dga -lXxf86vm
+X11_LIBS="-L/usr/X11R6/lib -lpthread -lX11 -lXext -lXxf86dga -lXxf86vm"
 
 X11_CFLAGS=""
 
@@ -98,17 +98,22 @@ AC_SUBST(LFLAGS)
 
 
 # =================================================================
-# Check for X11
-
-
-# =================================================================
 # Check for SDL
 
 SDL_VERSION=1.2.0
-AM_PATH_SDL($SDL_VERSION,
-            [ have_sdl=1 ]
+
+AC_ARG_ENABLE(sdl,
+[  AC_HELP_STRING([--disable-sdl], [disable sdl build [default=no]]) ],
+   [ sdl_enabled=no ],
+   [ sdl_enabled=yes ]
 )
-AM_CONDITIONAL(HAVE_SDL, test x$have_sdl = x1 )
+
+AM_PATH_SDL($SDL_VERSION,
+            [ have_sdl=yes ]
+)
+
+AM_CONDITIONAL(HAVE_SDL, test x$have_sdl = xyes && test x$sdl_enabled = xyes )
+
 
 # =================================================================
 # Check for PNG
@@ -165,7 +170,8 @@ AC_SUBST(GAMEDIR)
 
 AC_ARG_ENABLE(asm,
 [  --enable-asm		enable i686 assembly routines [default=no]],
-  ,[enable_asm=no])
+  ,
+  [enable_asm=no])
 if test x$enable_asm = xyes; then
     CFLAGS="$CFLAGS -DUSE_ASM"
 fi
@@ -175,7 +181,8 @@ fi
 
 AC_ARG_ENABLE(userpref,
 [  --enable-userpref	enable user preference directory [default=yes]],
-  ,[enable_userpref=yes])
+  ,
+  [enable_userpref=yes])
 if test x$enable_userpref = xyes; then
     CFLAGS="$CFLAGS -DUSERPREF_DIR"
 fi
