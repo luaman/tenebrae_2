@@ -940,13 +940,9 @@ void ED_LoadFromFile (char *data)
 		{
 			if (((int)ent->v.spawnflags & SPAWNFLAG_NOT_DEATHMATCH))
 			{
-				//PENTA: HACK reuse deathmatch spawn flag as "keep light"
-				if (strcmp (pr_strings + ent->v.classname, "light") &&
-					strcmp (pr_strings + ent->v.classname, "light_lev") ) { //not a light? do it like you always did
-					ED_Free (ent);	
-					inhibit++;
-					continue;
-				} else Con_Printf("kept light");
+				ED_Free (ent);	
+				inhibit++;
+				continue;
 			}
 		}
 		else if ((current_skill == 0 && ((int)ent->v.spawnflags & SPAWNFLAG_NOT_EASY))
