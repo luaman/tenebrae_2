@@ -473,7 +473,7 @@ extern PFNGLSTENCILFUNCSEPARATEATIPROC qglStencilFuncSeparateATI;
 
 #endif /* !__APPLE__ && !MACOSX */
 
-
+#ifndef GL_VERSION_1_3 
 typedef void (APIENTRY * PFNGLACTIVETEXTUREARBPROC) (GLenum texture);
 typedef void (APIENTRY * PFNGLCLIENTACTIVETEXTUREARBPROC) (GLenum texture);
 typedef void (APIENTRY * PFNGLMULTITEXCOORD1DARBPROC) (GLenum target, GLdouble s);
@@ -508,6 +508,7 @@ typedef void (APIENTRY * PFNGLMULTITEXCOORD4IARBPROC) (GLenum target, GLint s, G
 typedef void (APIENTRY * PFNGLMULTITEXCOORD4IVARBPROC) (GLenum target, const GLint *v);
 typedef void (APIENTRY * PFNGLMULTITEXCOORD4SARBPROC) (GLenum target, GLshort s, GLshort t, GLshort r, GLshort q);
 typedef void (APIENTRY * PFNGLMULTITEXCOORD4SVARBPROC) (GLenum target, const GLshort *v);
+#endif
 
 extern PFNGLACTIVETEXTUREARBPROC qglActiveTextureARB;
 extern PFNGLCLIENTACTIVETEXTUREARBPROC qglClientActiveTextureARB;
@@ -791,6 +792,7 @@ extern PFNGLVERTEXATTRIB4UBVARBPROC		qglVertexAttrib4ubvARB;
 
 //PENTA: VERTEX_PROGRAM
 
+#ifndef GL_NV_vertex_program
 /* NV_vertex_program */
 #define GL_VERTEX_PROGRAM_NV              0x8620
 #define GL_VERTEX_STATE_PROGRAM_NV        0x8621
@@ -940,6 +942,7 @@ typedef void (APIENTRY * PFNGLVERTEXATTRIBS4DVNVPROC) (GLuint index, GLsizei cou
 typedef void (APIENTRY * PFNGLVERTEXATTRIBS4FVNVPROC) (GLuint index, GLsizei count, const GLfloat *v);
 typedef void (APIENTRY * PFNGLVERTEXATTRIBS4SVNVPROC) (GLuint index, GLsizei count, const GLshort *v);
 typedef void (APIENTRY * PFNGLVERTEXATTRIBS4UBVNVPROC) (GLuint index, GLsizei count, const GLubyte *v);
+#endif
 
 extern PFNGLAREPROGRAMSRESIDENTNVPROC qglAreProgramsResidentNV ;
 extern PFNGLBINDPROGRAMNVPROC qglBindProgramNV ;

@@ -167,6 +167,7 @@ cvar_t	sh_delux = {"sh_delux","1"};
 mirrorplane_t mirrorplanes[NUM_MIRROR_PLANES];
 int mirror_contents;
 
+#ifndef GL_ATI_pn_triangles
 #define GL_PN_TRIANGLES_ATI                       0x87F0
 #define GL_MAX_PN_TRIANGLES_TESSELATION_LEVEL_ATI 0x87F1
 #define GL_PN_TRIANGLES_POINT_MODE_ATI            0x87F2
@@ -179,6 +180,7 @@ int mirror_contents;
 
 typedef void (APIENTRY *PFNGLPNTRIANGLESIATIPROC)(GLenum pname, GLint param);
 typedef void (APIENTRY *PFNGLPNTRIANGLESFATIPROC)(GLenum pname, GLfloat param);
+#endif
 
 // actually in gl_bumpradeon (duh...)
 extern PFNGLPNTRIANGLESIATIPROC qglPNTrianglesiATI;
