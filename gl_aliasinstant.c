@@ -562,7 +562,7 @@ void R_SetupObjectSpace(entity_t *e, aliaslightinstant_t *linstant) {
 }
 
 void R_SetupLightHAV(aliasframeinstant_t *instant, aliaslightinstant_t *linstant) {
-	int i;
+/*	int i;
 	vec3_t lightDir, H, tx, ty, tz;
 
 	for (i=0; i<instant->paliashdr->poseverts; i++) {
@@ -588,7 +588,7 @@ void R_SetupLightHAV(aliasframeinstant_t *instant, aliaslightinstant_t *linstant
 		linstant->tshalfangles[i][0] = DotProduct(H,tx);
 		linstant->tshalfangles[i][1] = -DotProduct(H,ty);
 		linstant->tshalfangles[i][2] = DotProduct(H,tz);			
-	}	
+	}	*/
 }
 
 extern int	extrudeTimeStamp;			// <AWE> added "extern".
