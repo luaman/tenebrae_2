@@ -282,6 +282,13 @@ void CheckSpecularBumpMappingExtensions(void)
           SAFE_GET_PROC (qglGetFinalCombinerInputParameterfvNV,PFNGLGETFINALCOMBINERINPUTPARAMETERFVNVPROC,"glGetFinalCombinerInputfvNV"); 
           SAFE_GET_PROC (qglGetFinalCombinerInputParameterivNV,PFNGLGETFINALCOMBINERINPUTPARAMETERIVNVPROC,"glGetFinalCombinerInputivNV"); 
      } 
+
+	 //PENTA: Cg uses register combiners2 also, they only add some constant registers tough...
+	 if (strstr(gl_extensions, "GL_NV_register_combiners2")) {
+          SAFE_GET_PROC (qglCombinerStageParameterfvNV,PFNGLCOMBINERSTAGEPARAMETERFVNVPROC,"glCombinerStageParameterfvNV"); 
+          SAFE_GET_PROC (qglGetCombinerStageParameterfvNV,PFNGLGETCOMBINERSTAGEPARAMETERFVNVPROC,"glGetCombinerStageParameterfvNV"); 
+
+	 }
 }
 
 /*
@@ -608,10 +615,14 @@ void VID_Init8bitPalette(void)
           return;
      
      
+
      SAFE_GET_PROC (qglColorTableEXT,GLCOLORTABLEEXTPFN,"glColorTableEXT");
 
+
      if (strstr (gl_extensions, "GL_EXT_shared_texture_palette") && qglColorTableEXT )
+
      {
+
           char thePalette[256*3];
           char *oldPalette, *newPalette;
           
@@ -627,6 +638,7 @@ void VID_Init8bitPalette(void)
           }
           qglColorTableEXT(GL_SHARED_TEXTURE_PALETTE_EXT, GL_RGB, 256, GL_RGB, GL_UNSIGNED_BYTE, (void *) thePalette);
           is8bit = true;
+
      }
      /*
      // 3DFX stuff 
