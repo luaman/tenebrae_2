@@ -1,6 +1,6 @@
 /*
 Copyright (C) 2001-2002 Charles Hollemeersch
-Radeon Version (C) 2002 Jarno Paananen
+Radeon Version (C) 2002-2003 Jarno Paananen
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -94,8 +94,12 @@ PFNGLGETLOCALCONSTANTFLOATVEXTPROC	qglGetLocalConstantFloatvEXT = NULL;
 PFNGLPNTRIANGLESIATIPROC qglPNTrianglesiATI = NULL;
 PFNGLPNTRIANGLESFATIPROC qglPNTrianglesfATI = NULL;
 
+PFNGLSTENCILOPSEPARATEATIPROC qglStencilOpSeparateATI = NULL;
+PFNGLSTENCILFUNCSEPARATEATIPROC qglStencilFuncSeparateATI = NULL;
+
 static unsigned int fragment_shaders;
 static unsigned int vertex_shaders;
+static GLuint lightPos, eyePos; // vertex shader constants
 
 //#define RADEONDEBUG
 
@@ -247,12 +251,13 @@ void GL_CreateShadersRadeon()
 {
     float scaler[4] = {0.5f, 0.5f, 0.5f, 0.5f};
     int i;
-    GLuint mvp, modelview, zcomp;
+    GLuint mvp, modelview, zcomp, tempvec;
     GLuint texturematrix, texturematrix2;
     GLuint vertex;
     GLuint texcoord0;
     GLuint texcoord1;
     GLuint texcoord2;
+    GLuint texcoord3;
     GLuint color;
     GLuint supportedTmu;
     GLuint disttemp, disttemp2;
@@ -318,6 +323,9 @@ void GL_CreateShadersRadeon()
 
     SAFE_GET_PROC( qglPNTrianglesiATI, PFNGLPNTRIANGLESIATIPROC, "glPNTrianglesiATI");
     SAFE_GET_PROC( qglPNTrianglesfATI, PFNGLPNTRIANGLESFATIPROC, "glPNTrianglesfATI");
+
+    SAFE_GET_PROC( qglStencilOpSeparateATI, PFNGLSTENCILOPSEPARATEATIPROC, "glStencilOpSeparateATI");
+    SAFE_GET_PROC( qglStencilFuncSeparateATI, PFNGLSTENCILFUNCSEPARATEATIPROC, "glStencilFuncSeparateATI");
 #endif /* !__APPLE__ && !MACOSX */
 
     glEnable(GL_FRAGMENT_SHADER_ATI);
@@ -577,6 +585,12 @@ void GL_CreateShadersRadeon()
 
     vertex_shaders = qglGenVertexShadersEXT(2);
     checkerror();
+    lightPos = qglGenSymbolsEXT(GL_VECTOR_EXT, GL_INVARIANT_EXT, 
+				GL_FULL_RANGE_EXT, 1);
+    eyePos = qglGenSymbolsEXT(GL_VECTOR_EXT, GL_INVARIANT_EXT, 
+			      GL_FULL_RANGE_EXT, 1);
+
+
     qglBindVertexShaderEXT(vertex_shaders);
     checkerror();
     qglBeginVertexShaderEXT();
@@ -599,11 +613,15 @@ void GL_CreateShadersRadeon()
     checkerror();
     texcoord2     = qglBindTextureUnitParameterEXT( GL_TEXTURE2_ARB, GL_CURRENT_TEXTURE_COORDS );
     checkerror();
+    texcoord3     = qglBindTextureUnitParameterEXT( GL_TEXTURE3_ARB, GL_CURRENT_TEXTURE_COORDS );
+    checkerror();
     disttemp      = qglGenSymbolsEXT(GL_SCALAR_EXT, GL_LOCAL_EXT, GL_FULL_RANGE_EXT, 1);
     checkerror();
     disttemp2     = qglGenSymbolsEXT(GL_SCALAR_EXT, GL_LOCAL_EXT, GL_FULL_RANGE_EXT, 1);
     checkerror();
     zcomp         = qglGenSymbolsEXT(GL_VECTOR_EXT, GL_LOCAL_EXT, GL_FULL_RANGE_EXT, 1);
+    checkerror();
+    tempvec       = qglGenSymbolsEXT(GL_VECTOR_EXT, GL_LOCAL_EXT, GL_FULL_RANGE_EXT, 1);
     checkerror();
     fogstart      = qglBindParameterEXT( GL_FOG_START );
     checkerror();
@@ -621,10 +639,6 @@ void GL_CreateShadersRadeon()
     // copy tex coords of unit 0 to unit 3
     qglShaderOp1EXT( GL_OP_MOV_EXT, GL_OUTPUT_TEXTURE_COORD0_EXT, texcoord0);
     checkerror();
-    qglShaderOp1EXT( GL_OP_MOV_EXT, GL_OUTPUT_TEXTURE_COORD1_EXT, texcoord1);
-    checkerror();
-    qglShaderOp1EXT( GL_OP_MOV_EXT, GL_OUTPUT_TEXTURE_COORD2_EXT, texcoord2);
-    checkerror();
     qglShaderOp1EXT( GL_OP_MOV_EXT, GL_OUTPUT_TEXTURE_COORD3_EXT, texcoord0);
     checkerror();
     qglShaderOp1EXT( GL_OP_MOV_EXT, GL_OUTPUT_COLOR0_EXT, color);
@@ -648,43 +662,94 @@ void GL_CreateShadersRadeon()
     qglShaderOp2EXT( GL_OP_MUL_EXT, GL_OUTPUT_FOG_EXT, disttemp, disttemp2);
     checkerror();
 
+    // calculate light position
+    qglShaderOp2EXT( GL_OP_SUB_EXT, tempvec, lightPos, vertex);
+    checkerror();
+    qglShaderOp2EXT( GL_OP_DOT3_EXT, disttemp, tempvec, tempvec);
+    checkerror();
+    qglShaderOp1EXT( GL_OP_RECIP_SQRT_EXT, disttemp, disttemp);
+    checkerror();
+    qglShaderOp2EXT( GL_OP_MUL_EXT, tempvec, tempvec, disttemp);
+    checkerror();
+    // Normalized light vec now in tempvec, transform to tex1
+    qglShaderOp2EXT( GL_OP_DOT4_EXT, disttemp, tempvec, texcoord1);
+    checkerror();
+    qglInsertComponentEXT( GL_OUTPUT_TEXTURE_COORD1_EXT, disttemp, 0);
+    checkerror();
+    qglShaderOp2EXT( GL_OP_DOT4_EXT, disttemp, tempvec, texcoord2);
+    checkerror();
+    qglInsertComponentEXT( GL_OUTPUT_TEXTURE_COORD1_EXT, disttemp, 1);
+    checkerror();
+    qglShaderOp2EXT( GL_OP_DOT4_EXT, disttemp, tempvec, texcoord3);
+    checkerror();
+    qglInsertComponentEXT( GL_OUTPUT_TEXTURE_COORD1_EXT, disttemp, 2);
+    checkerror();
+
+    // Now, calculate halfvec
+    qglShaderOp2EXT( GL_OP_SUB_EXT, zcomp, eyePos, vertex);
+    checkerror();
+    qglShaderOp2EXT( GL_OP_ADD_EXT, tempvec, tempvec, zcomp);
+    checkerror();
+    qglShaderOp2EXT( GL_OP_DOT3_EXT, disttemp, tempvec, tempvec);
+    checkerror();
+    qglShaderOp1EXT( GL_OP_RECIP_SQRT_EXT, disttemp, disttemp);
+    checkerror();
+    qglShaderOp2EXT( GL_OP_MUL_EXT, tempvec, tempvec, disttemp);
+    checkerror();
+    // Normalized half vec now in tempvec, transform to tex1
+    qglShaderOp2EXT( GL_OP_DOT4_EXT, disttemp, tempvec, texcoord1);
+    checkerror();
+    qglInsertComponentEXT( GL_OUTPUT_TEXTURE_COORD2_EXT, disttemp, 0);
+    checkerror();
+    qglShaderOp2EXT( GL_OP_DOT4_EXT, disttemp, tempvec, texcoord2);
+    checkerror();
+    qglInsertComponentEXT( GL_OUTPUT_TEXTURE_COORD2_EXT, disttemp, 1);
+    checkerror();
+    qglShaderOp2EXT( GL_OP_DOT4_EXT, disttemp, tempvec, texcoord3);
+    checkerror();
+    qglInsertComponentEXT( GL_OUTPUT_TEXTURE_COORD2_EXT, disttemp, 2);
+
     qglEndVertexShaderEXT();
     checkerror();
 
-    // Two transformed textures
+    // And the same with two transformed textures
     qglBindVertexShaderEXT(vertex_shaders+1);
     checkerror();
     qglBeginVertexShaderEXT();
     checkerror();
 
     // Generates a necessary input for the diffuse bumpmapping registers
-    mvp            = qglBindParameterEXT( GL_MVP_MATRIX_EXT );
+    mvp           = qglBindParameterEXT( GL_MVP_MATRIX_EXT );
     checkerror();
-    modelview      = qglBindParameterEXT( GL_MODELVIEW_MATRIX );
+    modelview     = qglBindParameterEXT( GL_MODELVIEW_MATRIX );
     checkerror();
-    vertex         = qglBindParameterEXT( GL_CURRENT_VERTEX_EXT );
+    vertex        = qglBindParameterEXT( GL_CURRENT_VERTEX_EXT );
     checkerror();
-    color          = qglBindParameterEXT( GL_CURRENT_COLOR );
+    color         = qglBindParameterEXT( GL_CURRENT_COLOR );
     checkerror();
-    texturematrix  = qglBindTextureUnitParameterEXT( GL_TEXTURE4_ARB, GL_TEXTURE_MATRIX );
+    texturematrix = qglBindTextureUnitParameterEXT( GL_TEXTURE4_ARB, GL_TEXTURE_MATRIX );
     checkerror();
     texturematrix2 = qglBindTextureUnitParameterEXT( GL_TEXTURE5_ARB, GL_TEXTURE_MATRIX );
     checkerror();
-    texcoord0      = qglBindTextureUnitParameterEXT( GL_TEXTURE0_ARB, GL_CURRENT_TEXTURE_COORDS );
+    texcoord0     = qglBindTextureUnitParameterEXT( GL_TEXTURE0_ARB, GL_CURRENT_TEXTURE_COORDS );
     checkerror();
-    texcoord1      = qglBindTextureUnitParameterEXT( GL_TEXTURE1_ARB, GL_CURRENT_TEXTURE_COORDS );
+    texcoord1     = qglBindTextureUnitParameterEXT( GL_TEXTURE1_ARB, GL_CURRENT_TEXTURE_COORDS );
     checkerror();
-    texcoord2      = qglBindTextureUnitParameterEXT( GL_TEXTURE2_ARB, GL_CURRENT_TEXTURE_COORDS );
+    texcoord2     = qglBindTextureUnitParameterEXT( GL_TEXTURE2_ARB, GL_CURRENT_TEXTURE_COORDS );
     checkerror();
-    disttemp       = qglGenSymbolsEXT(GL_SCALAR_EXT, GL_LOCAL_EXT, GL_FULL_RANGE_EXT, 1);
+    texcoord3     = qglBindTextureUnitParameterEXT( GL_TEXTURE3_ARB, GL_CURRENT_TEXTURE_COORDS );
     checkerror();
-    disttemp2      = qglGenSymbolsEXT(GL_SCALAR_EXT, GL_LOCAL_EXT, GL_FULL_RANGE_EXT, 1);
+    disttemp      = qglGenSymbolsEXT(GL_SCALAR_EXT, GL_LOCAL_EXT, GL_FULL_RANGE_EXT, 1);
     checkerror();
-    zcomp          = qglGenSymbolsEXT(GL_VECTOR_EXT, GL_LOCAL_EXT, GL_FULL_RANGE_EXT, 1);
+    disttemp2     = qglGenSymbolsEXT(GL_SCALAR_EXT, GL_LOCAL_EXT, GL_FULL_RANGE_EXT, 1);
     checkerror();
-    fogstart       = qglBindParameterEXT( GL_FOG_START );
+    zcomp         = qglGenSymbolsEXT(GL_VECTOR_EXT, GL_LOCAL_EXT, GL_FULL_RANGE_EXT, 1);
     checkerror();
-    fogend         = qglBindParameterEXT( GL_FOG_END );
+    tempvec       = qglGenSymbolsEXT(GL_VECTOR_EXT, GL_LOCAL_EXT, GL_FULL_RANGE_EXT, 1);
+    checkerror();
+    fogstart      = qglBindParameterEXT( GL_FOG_START );
+    checkerror();
+    fogend        = qglBindParameterEXT( GL_FOG_END );
     checkerror();
 
     // Transform vertex to view-space
@@ -702,10 +767,6 @@ void GL_CreateShadersRadeon()
     // copy tex coords of unit 0 to unit 3
     qglShaderOp1EXT( GL_OP_MOV_EXT, GL_OUTPUT_TEXTURE_COORD0_EXT, texcoord0);
     checkerror();
-    qglShaderOp1EXT( GL_OP_MOV_EXT, GL_OUTPUT_TEXTURE_COORD1_EXT, texcoord1);
-    checkerror();
-    qglShaderOp1EXT( GL_OP_MOV_EXT, GL_OUTPUT_TEXTURE_COORD2_EXT, texcoord2);
-    checkerror();
     qglShaderOp1EXT( GL_OP_MOV_EXT, GL_OUTPUT_TEXTURE_COORD3_EXT, texcoord0);
     checkerror();
     qglShaderOp1EXT( GL_OP_MOV_EXT, GL_OUTPUT_COLOR0_EXT, color);
@@ -728,6 +789,53 @@ void GL_CreateShadersRadeon()
     checkerror();
     qglShaderOp2EXT( GL_OP_MUL_EXT, GL_OUTPUT_FOG_EXT, disttemp, disttemp2);
     checkerror();
+
+    // calculate light position
+    qglShaderOp2EXT( GL_OP_SUB_EXT, tempvec, lightPos, vertex);
+    checkerror();
+    qglShaderOp2EXT( GL_OP_DOT3_EXT, disttemp, tempvec, tempvec);
+    checkerror();
+    qglShaderOp1EXT( GL_OP_RECIP_SQRT_EXT, disttemp, disttemp);
+    checkerror();
+    qglShaderOp2EXT( GL_OP_MUL_EXT, tempvec, tempvec, disttemp);
+    checkerror();
+    // Normalized light vec now in tempvec, transform to tex1
+    qglShaderOp2EXT( GL_OP_DOT4_EXT, disttemp, tempvec, texcoord1);
+    checkerror();
+    qglInsertComponentEXT( GL_OUTPUT_TEXTURE_COORD1_EXT, disttemp, 0);
+    checkerror();
+    qglShaderOp2EXT( GL_OP_DOT4_EXT, disttemp, tempvec, texcoord2);
+    checkerror();
+    qglInsertComponentEXT( GL_OUTPUT_TEXTURE_COORD1_EXT, disttemp, 1);
+    checkerror();
+    qglShaderOp2EXT( GL_OP_DOT4_EXT, disttemp, tempvec, texcoord3);
+    checkerror();
+    qglInsertComponentEXT( GL_OUTPUT_TEXTURE_COORD1_EXT, disttemp, 2);
+    checkerror();
+
+    // Now, calculate halfvec
+    qglShaderOp2EXT( GL_OP_SUB_EXT, zcomp, eyePos, vertex);
+    checkerror();
+    qglShaderOp2EXT( GL_OP_ADD_EXT, tempvec, tempvec, zcomp);
+    checkerror();
+    qglShaderOp2EXT( GL_OP_DOT3_EXT, disttemp, tempvec, tempvec);
+    checkerror();
+    qglShaderOp1EXT( GL_OP_RECIP_SQRT_EXT, disttemp, disttemp);
+    checkerror();
+    qglShaderOp2EXT( GL_OP_MUL_EXT, tempvec, tempvec, disttemp);
+    checkerror();
+    // Normalized half vec now in tempvec, transform to tex1
+    qglShaderOp2EXT( GL_OP_DOT4_EXT, disttemp, tempvec, texcoord1);
+    checkerror();
+    qglInsertComponentEXT( GL_OUTPUT_TEXTURE_COORD2_EXT, disttemp, 0);
+    checkerror();
+    qglShaderOp2EXT( GL_OP_DOT4_EXT, disttemp, tempvec, texcoord2);
+    checkerror();
+    qglInsertComponentEXT( GL_OUTPUT_TEXTURE_COORD2_EXT, disttemp, 1);
+    checkerror();
+    qglShaderOp2EXT( GL_OP_DOT4_EXT, disttemp, tempvec, texcoord3);
+    checkerror();
+    qglInsertComponentEXT( GL_OUTPUT_TEXTURE_COORD2_EXT, disttemp, 2);
 
     qglEndVertexShaderEXT();
     checkerror();
@@ -770,8 +878,10 @@ void GL_DisableDiffuseShaderRadeon()
     GL_SelectTexture(GL_TEXTURE0_ARB);
 }
 
-void GL_EnableDiffuseSpecularShaderRadeon(qboolean world, vec3_t lightOrig)
+void GL_EnableDiffuseSpecularShaderRadeon(const transform_t *tr,
+					  vec3_t lightOrig, qboolean alias)
 {
+    GLfloat temp[4];
     float invrad = 1/currentshadowlight->radius;
 
     //tex 0 = normal map
@@ -809,7 +919,7 @@ void GL_EnableDiffuseSpecularShaderRadeon(qboolean world, vec3_t lightOrig)
 
         glEnable(GL_TEXTURE_CUBE_MAP_ARB);
         glBindTexture(GL_TEXTURE_CUBE_MAP_ARB, currentshadowlight->filtercube);
-        GL_SetupCubeMapMatrix(world);
+        GL_SetupCubeMapMatrix(tr);
 
         GL_SelectTexture(GL_TEXTURE5_ARB);
         glMatrixMode(GL_TEXTURE);
@@ -835,243 +945,574 @@ void GL_EnableDiffuseSpecularShaderRadeon(qboolean world, vec3_t lightOrig)
 
     GL_SelectTexture(GL_TEXTURE0_ARB);
 
+    temp[0] = currentshadowlight->origin[0];
+    temp[1] = currentshadowlight->origin[1];
+    temp[2] = currentshadowlight->origin[2];
+    temp[3] = 1.0f;
+    qglSetInvariantEXT(lightPos, GL_FLOAT, &temp[0]);
+
+    temp[0] = r_refdef.vieworg[0];
+    temp[1] = r_refdef.vieworg[1];
+    temp[2] = r_refdef.vieworg[2];
+    qglSetInvariantEXT(eyePos, GL_FLOAT, &temp[0]);
 }
 
 
-void R_DrawWorldRadeonDiffuseSpecular(lightcmd_t *lightCmds) 
+
+/************************
+
+Shader utility routines
+
+*************************/
+
+void Radeon_SetupTcMod(tcmod_t *tc)
 {
-    int command, num, i;
-    int lightPos = 0;
-    vec3_t lightOr;
-    msurface_t *surf;
-    float               *v;
-    float* lightP;
-    vec3_t lightDir;
-    vec3_t tsH,H;
-
-    texture_t	*t;//XYZ
-
-    //support flickering lights
-    VectorCopy(currentshadowlight->origin,lightOr);
-
-    while (1)
+    switch (tc->type)
     {
-        command = lightCmds[lightPos++].asInt;
-        if (command == 0) break; //end of list
+    case TCMOD_ROTATE:
+	glTranslatef(0.5,0.5,0.0);
+	glRotatef(cl.time * tc->params[0],0,0,1);
+	glTranslatef(-0.5, -0.5, 0.0);
+	break;
+    case TCMOD_SCROLL:
+	glTranslatef(cl.time * tc->params[0], cl.time * tc->params[1], 0.0);
+	break;
+    case TCMOD_SCALE:
+	glScalef(tc->params[0],tc->params[1],1.0);
+	break;
+    case TCMOD_STRETCH:
+	//PENTA: fixme
+	glScalef(1.0, 1.0, 1.0);
+	break;
+    }
+}
 
-        surf = lightCmds[lightPos++].asVoid;
 
-        if (surf->visframe != r_framecount) {
-            lightPos+=(4+surf->polys->numverts*(2+3));
-            continue;
-        }
+void Radeon_SetupSimpleStage(stage_t *s)
+{
+    tcmod_t *tc;
+    int i;
 
-        num = surf->polys->numverts;
-        lightPos+=4;//skip color
-
-        //XYZ
-        t = R_TextureAnimation (surf->texinfo->texture);
-
-        GL_SelectTexture(GL_TEXTURE0_ARB);
-        GL_Bind(t->gl_texturenum+1);
-        GL_SelectTexture(GL_TEXTURE3_ARB);
-        GL_Bind(t->gl_texturenum);
-
-        glBegin(command);
-        //v = surf->polys->verts[0];
-        v = (float *)(&globalVertexTable[surf->polys->firstvertex]);
-        for (i=0; i<num; i++, v+= VERTEXSIZE)
-        {
-            //skip attent texture coord.
-            lightPos += 2;
-
-            lightP = &lightCmds[lightPos].asFloat;
-            lightPos += 3;
-
-            VectorCopy(lightP, lightDir);
-            VectorNormalize(lightDir);
-
-            //calculate local H vector and put it into tangent space
-
-            //r_origin = camera position
-            VectorSubtract(r_refdef.vieworg,v,H);
-            VectorNormalize(H);
-
-            //put H in tangent space first since lightDir (precalc) is already in tang space
-            if (surf->flags & SURF_PLANEBACK)
-            {
-                tsH[2] = -DotProduct(H,surf->plane->normal);
-            }
-            else
-            { 
-                tsH[2] = DotProduct(H,surf->plane->normal);
-            }
-
-            tsH[1] = -DotProduct(H,surf->texinfo->vecs[1]);
-            tsH[0] = DotProduct(H,surf->texinfo->vecs[0]);
-
-            VectorAdd(lightDir,tsH,tsH);
-
-            // diffuse
-            qglMultiTexCoord2fARB(GL_TEXTURE0_ARB, v[3], v[4]);
-	    
-            qglMultiTexCoord3fvARB(GL_TEXTURE1_ARB, lightP);
-
-            // half vector for specular
-            qglMultiTexCoord3fvARB(GL_TEXTURE2_ARB,&tsH[0]);
-
-            glVertex3fv(&v[0]);
-        }
-        glEnd();
+    if (s->type != STAGE_SIMPLE)
+    {
+	Con_Printf("Non simple stage, in simple stage list");
+	return;
     }
 
-    GL_SelectTexture(GL_TEXTURE0_ARB);
-}
+    glMatrixMode(GL_TEXTURE);
+    glPushMatrix();
 
-
-
-void R_DrawBrushRadeonDiffuseSpecular(entity_t *e)
-{
-    model_t     *model = e->model;
-    msurface_t *surf;
-    glpoly_t    *poly;
-    int         i, j, count;
-    brushlightinstant_t *ins = e->brushlightinstant;
-    float       *v;
-    texture_t	*t;//XYZ	
-
-    count = 0;
-
-    surf = &model->surfaces[model->firstmodelsurface];
-    for (i=0; i<model->nummodelsurfaces; i++, surf++)
+    for (i=0; i<s->numtcmods; i++)
     {
-        if (!ins->polygonVis[i]) continue;
+	Radeon_SetupTcMod(&s->tcmods[i]);	
+    }
 
-        poly = surf->polys;
+    if (s->src_blend > 0)
+    {
+	glBlendFunc(s->src_blend, s->dst_blend);
+	glEnable(GL_BLEND);
+    }
 
-        //XYZ
-        t = R_TextureAnimation (surf->texinfo->texture);
+    if (s->alphatresh > 0)
+    {
+	glEnable(GL_ALPHA_TEST);
+	glAlphaFunc(GL_GREATER, s->alphatresh);
+    }
 
-        GL_SelectTexture(GL_TEXTURE0_ARB);
-        GL_Bind(t->gl_texturenum+1);
-        GL_SelectTexture(GL_TEXTURE3_ARB);
-        GL_Bind(t->gl_texturenum);
-
-        glBegin(GL_TRIANGLE_FAN);
-        //v = poly->verts[0];
-        v = (float *)(&globalVertexTable[poly->firstvertex]);
-        for (j=0 ; j<poly->numverts ; j++, v+= VERTEXSIZE)
-        {       
-            qglMultiTexCoord2fARB(GL_TEXTURE0_ARB, v[3], v[4]);
-            qglMultiTexCoord3fvARB(GL_TEXTURE1_ARB,&ins->tslights[count+j][0]);
-            qglMultiTexCoord3fvARB(GL_TEXTURE2_ARB,&ins->tshalfangles[count+j][0]);
-            glVertex3fv(v);
-        }
-        glEnd();
-        count+=surf->numedges;
-    }   
+    if ((s->numtextures > 0) && (s->texture[0]))
+	GL_Bind(s->texture[0]->texnum);
 }
 
+/************************
 
-void R_DrawAliasFrameRadeonDiffuseSpecular (aliashdr_t *paliashdr, aliasframeinstant_t *instant)
+Generic triangle list routines
+
+*************************/
+
+void FormatError(); // In gl_bumpgf.c
+
+void Radeon_sendTriangleListWV(const vertexdef_t *verts, int *indecies,
+			       int numIndecies)
 {
-    mtriangle_t *tris;
-    fstvert_t   *texcoords;
-    int anim;
-    int                 *indecies;
-    aliaslightinstant_t *linstant = instant->lightinstant;
 
-    tris = (mtriangle_t *)((byte *)paliashdr + paliashdr->triangles);
-    texcoords = (fstvert_t *)((byte *)paliashdr + paliashdr->texcoords);
-
-    //bind normal map
-    anim = (int)(cl.time*10) & 3;
-
-    GL_SelectTexture(GL_TEXTURE0_ARB);
-    GL_Bind(paliashdr->gl_texturenum[currententity->skinnum][anim]+1);
-    GL_SelectTexture(GL_TEXTURE3_ARB);
-    GL_Bind(paliashdr->gl_texturenum[currententity->skinnum][anim]);
-        
-    indecies = (int *)((byte *)paliashdr + paliashdr->indecies);
-
-    glVertexPointer(3, GL_FLOAT, 0, instant->vertices);
+    glVertexPointer(3, GL_FLOAT, verts->vertexstride, verts->vertices);
     glEnableClientState(GL_VERTEX_ARRAY);
-    glNormalPointer(GL_FLOAT, 0, instant->normals);
-    glEnableClientState(GL_NORMAL_ARRAY);
 
     qglClientActiveTextureARB(GL_TEXTURE0_ARB);
-    glTexCoordPointer(2, GL_FLOAT, 0, texcoords);
+    glTexCoordPointer(3, GL_FLOAT, verts->vertexstride, verts->vertices);
     glEnableClientState(GL_TEXTURE_COORD_ARRAY);
 
-    qglClientActiveTextureARB(GL_TEXTURE1_ARB);
-    glTexCoordPointer(3, GL_FLOAT, 0, linstant->tslights);
-    glEnableClientState(GL_TEXTURE_COORD_ARRAY);
-
-    qglClientActiveTextureARB(GL_TEXTURE2_ARB);
-    glTexCoordPointer(3, GL_FLOAT, 0, linstant->tshalfangles);
-    glEnableClientState(GL_TEXTURE_COORD_ARRAY);
-
-    //glDrawElements(GL_TRIANGLES,paliashdr->numtris*3,GL_UNSIGNED_INT,indecies);
-    glDrawElements(GL_TRIANGLES,linstant->numtris*3,GL_UNSIGNED_INT,&linstant->indecies[0]);
+    //draw them
+    glDrawElements(GL_TRIANGLES, numIndecies, GL_UNSIGNED_INT, indecies);
 
     glDisableClientState(GL_VERTEX_ARRAY);
-    glDisableClientState(GL_NORMAL_ARRAY);
     glDisableClientState(GL_TEXTURE_COORD_ARRAY);
+}
+
+void Radeon_sendTriangleListTA(const vertexdef_t *verts, int *indecies,
+			       int numIndecies)
+{
+    glVertexPointer(3, GL_FLOAT, verts->vertexstride, verts->vertices);
+    glEnableClientState(GL_VERTEX_ARRAY);
+
+    if (!verts->texcoords)
+	FormatError();
+    qglClientActiveTextureARB(GL_TEXTURE0_ARB);
+    glTexCoordPointer(2, GL_FLOAT, verts->texcoordstride, verts->texcoords);
+    glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+
+    if (!verts->tangents)
+	FormatError();
+    qglClientActiveTextureARB(GL_TEXTURE1_ARB);
+    glTexCoordPointer(3, GL_FLOAT, verts->tangentstride, verts->tangents);
+    glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+
+    if (!verts->binormals)
+	FormatError();
+    qglClientActiveTextureARB(GL_TEXTURE2_ARB);
+    glTexCoordPointer(3, GL_FLOAT, verts->binormalstride, verts->binormals);
+    glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+
+    if (!verts->normals)
+	FormatError();
+    qglClientActiveTextureARB(GL_TEXTURE3_ARB);
+    glTexCoordPointer(3, GL_FLOAT, verts->normalstride, verts->normals);
+    glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+
+    //draw them
+    glDrawElements(GL_TRIANGLES, numIndecies, GL_UNSIGNED_INT, indecies);
+
+    glDisableClientState(GL_VERTEX_ARRAY);
+    glDisableClientState(GL_TEXTURE_COORD_ARRAY);
+
+    qglClientActiveTextureARB(GL_TEXTURE2_ARB);
+    glDisableClientState(GL_TEXTURE_COORD_ARRAY);
+
+    qglClientActiveTextureARB(GL_TEXTURE1_ARB);
+    glDisableClientState(GL_TEXTURE_COORD_ARRAY);
+
     qglClientActiveTextureARB(GL_TEXTURE0_ARB);
     GL_SelectTexture(GL_TEXTURE0_ARB);
     glDisableClientState(GL_TEXTURE_COORD_ARRAY);
 }
 
-void R_DrawWorldBumpedRadeon()
-{
-    if (!currentshadowlight->visible)
-        return;
-
-    glDepthMask (0);
-    glShadeModel (GL_SMOOTH);
-    GL_AddColor();
-    glColor3fv(&currentshadowlight->color[0]);
-
-    GL_EnableDiffuseSpecularShaderRadeon(true,currentshadowlight->origin);
-    R_DrawWorldRadeonDiffuseSpecular(currentshadowlight->lightCmds);
-    GL_DisableDiffuseShaderRadeon();
-
-    glColor3f (1,1,1);
-    glDisable (GL_BLEND);
-    glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    glDepthMask (1);
-}
-
-void R_DrawBrushBumpedRadeon(entity_t *e)
+void Radeon_drawTriangleListBump (const vertexdef_t *verts, int *indecies,
+				  int numIndecies, shader_t *shader,
+				  const transform_t *tr)
 {
     GL_AddColor();
     glColor3fv(&currentshadowlight->color[0]);
 
+    GL_EnableDiffuseSpecularShaderRadeon(tr,currentshadowlight->origin,true);
+    //bind the correct texture
+    GL_SelectTexture(GL_TEXTURE0_ARB);
+    if (shader->numbumpstages > 0)
+	GL_Bind(shader->bumpstages[0].texture[0]->texnum);
+    GL_SelectTexture(GL_TEXTURE3_ARB);
+    if (shader->numcolorstages > 0)
+	GL_Bind(shader->colorstages[0].texture[0]->texnum);
 
-    GL_EnableDiffuseSpecularShaderRadeon(false,((brushlightinstant_t *)e->brushlightinstant)->lightpos);
-    R_DrawBrushRadeonDiffuseSpecular(e);
+    Radeon_sendTriangleListTA(verts,indecies,numIndecies);
     GL_DisableDiffuseShaderRadeon();
 }
 
-void R_DrawAliasBumpedRadeon(aliashdr_t *paliashdr, aliasframeinstant_t *instant)
+void Radeon_drawTriangleListBase (vertexdef_t *verts, int *indecies,
+				  int numIndecies, shader_t *shader)
 {
-    if ( gl_truform.value )
+    int i;
+
+    glVertexPointer(3, GL_FLOAT, verts->vertexstride, verts->vertices);
+    glEnableClientState(GL_VERTEX_ARRAY);
+
+    qglClientActiveTextureARB(GL_TEXTURE0_ARB);
+    glTexCoordPointer(2, GL_FLOAT, verts->texcoordstride, verts->texcoords);
+    glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+
+    for ( i = 0; i < shader->numstages; i++)
     {
-        glEnable(GL_PN_TRIANGLES_ATI);
-	qglPNTrianglesiATI(GL_PN_TRIANGLES_POINT_MODE_ATI, GL_PN_TRIANGLES_POINT_MODE_CUBIC_ATI);
-	qglPNTrianglesiATI(GL_PN_TRIANGLES_NORMAL_MODE_ATI, GL_PN_TRIANGLES_NORMAL_MODE_QUADRATIC_ATI);
-	qglPNTrianglesiATI(GL_PN_TRIANGLES_TESSELATION_LEVEL_ATI, gl_truform_tesselation.value);
+	Radeon_SetupSimpleStage(&shader->stages[i]);
+	glDrawElements(GL_TRIANGLES,numIndecies,GL_UNSIGNED_INT,indecies);
+	glPopMatrix();
     }
+    glMatrixMode(GL_MODELVIEW);
+
+    if (verts->colors)
+    {
+	glColorPointer(3, GL_UNSIGNED_BYTE, verts->colorstride, verts->colors);
+	glEnableClientState(GL_COLOR_ARRAY);
+	glShadeModel(GL_SMOOTH);
+
+	if (shader->numstages && shader->numcolorstages)
+	{
+	    if (shader->colorstages[0].src_blend >= 0)
+	    {
+		glEnable(GL_BLEND);
+		glBlendFunc(shader->colorstages[0].src_blend,
+			    shader->colorstages[0].dst_blend);
+	    }
+	    else
+	    {
+		glEnable(GL_BLEND);
+		glBlendFunc(GL_ONE, GL_ONE);
+	    }
+	}
+	else 
+	{
+	    glDisable(GL_BLEND);
+	}
+
+	if (shader->numcolorstages)
+	{
+	    if (shader->colorstages[0].numtextures)
+		GL_Bind(shader->colorstages[0].texture[0]->texnum);
+
+	    if (shader->colorstages[0].alphatresh > 0)
+	    {
+		glEnable(GL_ALPHA_TEST);
+		glAlphaFunc(GL_GEQUAL, shader->colorstages[0].alphatresh);
+	    }	
+	}
+
+	glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+
+	glDrawElements(GL_TRIANGLES,numIndecies,GL_UNSIGNED_INT,indecies);
+
+	glDisableClientState(GL_COLOR_ARRAY);
+    }
+    else
+    {
+	glColor3f(0,0,0);
+	glDisable(GL_TEXTURE_2D);
+	glDrawElements(GL_TRIANGLES,numIndecies,GL_UNSIGNED_INT,indecies);
+	glEnable(GL_TEXTURE_2D);
+    }
+
+    glDisableClientState(GL_TEXTURE_COORD_ARRAY);
+    glDisableClientState(GL_VERTEX_ARRAY);
+    glDisable(GL_BLEND);
+}
+
+/*************************
+
+Generic world surfaces routines
+
+**************************/
+
+void Radeon_sendSurfacesBase(msurface_t **surfs, int numSurfaces,
+			     qboolean bindLightmap)
+{
+    int i;
+    glpoly_t *p;
+    msurface_t *surf;
+
+    for ( i = 0; i < numSurfaces; i++)
+    {
+	surf = surfs[i];
+	if (surf->visframe != r_framecount)
+	    continue;
+	p = surf->polys;
+	if (bindLightmap)
+	{
+	    if (surf->lightmaptexturenum < 0)
+		continue;
+	    GL_Bind(lightmap_textures+surf->lightmaptexturenum);
+	}
+	glDrawElements(GL_TRIANGLES, p->numindecies, GL_UNSIGNED_INT,
+		       &p->indecies[0]);
+    }
+}
+
+void Radeon_drawSurfaceListBase (vertexdef_t* verts, msurface_t** surfs,
+				 int numSurfaces, shader_t* shader)
+{
+    int i;
+
+    glVertexPointer(3, GL_FLOAT, verts->vertexstride, verts->vertices);
+    glEnableClientState(GL_VERTEX_ARRAY);
+
+    qglClientActiveTextureARB(GL_TEXTURE0_ARB);
+    glTexCoordPointer(2, GL_FLOAT, verts->texcoordstride, verts->texcoords);
+    glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+
+    glColor3ub(255,255,255);
+
+    if (!shader->cull)
+    {
+	glDisable(GL_CULL_FACE);
+	//Con_Printf("Cullstuff %s\n",shader->name);
+    }
+
+    for (i = 0; i < shader->numstages; i++)
+    {
+	Radeon_SetupSimpleStage(&shader->stages[i]);
+	Radeon_sendSurfacesBase(surfs, numSurfaces, false);
+	glPopMatrix();
+    }
+
+    if (verts->lightmapcoords && (shader->flags & SURF_PPLIGHT))
+    {
+	qglClientActiveTextureARB(GL_TEXTURE1_ARB);
+	glTexCoordPointer(2, GL_FLOAT, verts->lightmapstride,
+			  verts->lightmapcoords);
+	glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+
+	if (shader->numstages && shader->numcolorstages)
+	{
+	    if (shader->colorstages[0].src_blend >= 0)
+	    {
+		glEnable(GL_BLEND);
+		glBlendFunc(shader->colorstages[0].src_blend,
+			    shader->colorstages[0].dst_blend);
+	    }
+	    else
+	    {
+		glEnable(GL_BLEND);
+		glBlendFunc(GL_ONE, GL_ONE);
+	    }
+	}
+	else 
+	{
+	    glDisable(GL_BLEND);
+	}
+
+	if (shader->numcolorstages)
+	{
+	    if (shader->colorstages[0].numtextures)
+		GL_Bind(shader->colorstages[0].texture[0]->texnum);
+
+	    if (shader->colorstages[0].alphatresh > 0)
+	    {
+		glEnable(GL_ALPHA_TEST);
+		glAlphaFunc(GL_GEQUAL, shader->colorstages[0].alphatresh);
+	    }	
+	}
+
+	glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+	GL_EnableMultitexture();
+	glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+	glColor3f(sh_lightmapbright.value, sh_lightmapbright.value,
+		  sh_lightmapbright.value);
+
+	Radeon_sendSurfacesBase(surfs, numSurfaces, true);
+
+	glDisableClientState(GL_TEXTURE_COORD_ARRAY);
+	GL_DisableMultitexture();
+	qglClientActiveTextureARB(GL_TEXTURE0_ARB);
+    }
+
+    if (!shader->cull)
+    {
+	glEnable(GL_CULL_FACE);
+    }
+
+    glDisable(GL_ALPHA_TEST);
+    glMatrixMode(GL_MODELVIEW);
+    glDisableClientState(GL_TEXTURE_COORD_ARRAY);
+    glDisableClientState(GL_VERTEX_ARRAY);
+    glDisable(GL_BLEND);
+}
+
+void Radeon_sendSurfacesTA(msurface_t** surfs, int numSurfaces)
+{
+    int i,j;
+    glpoly_t *p;
+    msurface_t *surf;
+    shader_t *shader, *lastshader;
+    float *v;
+    qboolean cull;
+    lastshader = NULL;
+
+    cull = true;
+    for ( i = 0; i < numSurfaces; i++)
+    {
+	surf = surfs[i];
+	if (surf->visframe != r_framecount)
+	    continue;
+
+	if (!(surf->flags & SURF_PPLIGHT))
+	    continue;
+
+	p = surf->polys;
+		
+	shader = surfs[i]->shader->shader;
+
+	//less state changes
+	if (lastshader != shader)
+	{
+	    if (!shader->cull)
+	    {
+		glDisable(GL_CULL_FACE);
+		cull = false;
+	    }
+	    else
+	    {
+		if (!cull)
+		    glEnable(GL_CULL_FACE);
+		cull = true;
+	    }
+	    //bind the correct texture
+	    GL_SelectTexture(GL_TEXTURE0_ARB);
+	    if (shader->numbumpstages > 0)
+		GL_Bind(shader->bumpstages[0].texture[0]->texnum);
+	    GL_SelectTexture(GL_TEXTURE3_ARB);
+	    if (shader->numcolorstages > 0)
+		GL_Bind(shader->colorstages[0].texture[0]->texnum);
+	    lastshader = shader;
+	}
+
+	//Note: texture coords out of begin-end are not a problem...
+	qglMultiTexCoord3fvARB(GL_TEXTURE1_ARB, &surf->tangent[0]);
+	qglMultiTexCoord3fvARB(GL_TEXTURE2_ARB, &surf->binormal[0]);
+	qglMultiTexCoord3fvARB(GL_TEXTURE3_ARB, &surf->plane->normal[0]);
+	/*
+	  glBegin(GL_POLYGON);
+	  v = (float *)(&globalVertexTable[surf->polys->firstvertex]);
+	  for (j=0; j<p->numverts; j++, v+= VERTEXSIZE) {
+	  qglMultiTexCoord2fARB(GL_TEXTURE0_ARB, v[3], v[4]);
+	  glVertex3fv(&v[0]);
+	  }
+	  glEnd();
+	*/
+	glDrawElements(GL_TRIANGLES, p->numindecies, GL_UNSIGNED_INT, &p->indecies[0]);
+    }
+
+    if (!cull)
+	glEnable(GL_CULL_FACE);
+}
+
+
+void Radeon_sendSurfacesPlain(msurface_t** surfs, int numSurfaces)
+{
+    int i,j;
+    glpoly_t *p;
+    msurface_t *surf;
+    shader_t *shader, *lastshader;
+    float *v;
+    qboolean cull;
+    lastshader = NULL;
+
+    cull = true;
+
+    for (i = 0; i < numSurfaces; i++)
+    {
+	surf = surfs[i];
+		
+	if (surf->visframe != r_framecount)
+	    continue;
+
+	if (!(surf->flags & SURF_PPLIGHT))
+	    continue;
+
+	p = surf->polys;
+
+	shader = surf->shader->shader;
+
+	//less state changes
+	if (lastshader != shader)
+	{
+	    if (!shader->cull)
+	    {
+		glDisable(GL_CULL_FACE);
+		cull = false;
+	    }
+	    else
+	    {
+		if (!cull)
+		    glEnable(GL_CULL_FACE);
+		cull = true;
+	    }
+	    lastshader = shader;
+	}
+	/*		
+		glBegin(GL_POLYGON);
+		v = (float *)(&globalVertexTable[surf->polys->firstvertex]);
+		for (j=0; j<p->numverts; j++, v+= VERTEXSIZE) {
+		//qglMultiTexCoord2fARB(GL_TEXTURE0_ARB, v[3], v[4]);
+		glVertex3fv(&v[0]);
+		}
+		glEnd();
+	*/
+	glDrawElements(GL_TRIANGLES, p->numindecies, GL_UNSIGNED_INT,
+		       &p->indecies[0]);
+    }
+
+    if (!cull)
+	glEnable(GL_CULL_FACE);
+}
+
+void Radeon_drawSurfaceListBump (vertexdef_t *verts, msurface_t **surfs,
+				 int numSurfaces,const transform_t *tr)
+{
+    glVertexPointer(3, GL_FLOAT, verts->vertexstride, verts->vertices);
+    glEnableClientState(GL_VERTEX_ARRAY);
+
+    qglClientActiveTextureARB(GL_TEXTURE0_ARB);
+    glEnableClientState(GL_TEXTURE_COORD_ARRAY);
 
     GL_AddColor();
     glColor3fv(&currentshadowlight->color[0]);
 
-    GL_EnableDiffuseSpecularShaderRadeon(false,instant->lightinstant->lightpos);
-    R_DrawAliasFrameRadeonDiffuseSpecular(paliashdr,instant);
+    GL_EnableDiffuseSpecularShaderRadeon(tr,currentshadowlight->origin,true);
+
+    glTexCoordPointer(2, GL_FLOAT, verts->texcoordstride, verts->texcoords);
+    Radeon_sendSurfacesTA(surfs,numSurfaces);
     GL_DisableDiffuseShaderRadeon();
 
-    if ( gl_truform.value )
+    glDisableClientState(GL_VERTEX_ARRAY);
+    glDisableClientState(GL_TEXTURE_COORD_ARRAY);
+}
+
+typedef struct allocchain_s
+{
+    struct allocchain_s* next;
+    char data[1];//variable sized
+} allocchain_t;
+
+static allocchain_t* allocChain = NULL;
+
+void* Radeon_getDriverMem(size_t size, drivermem_t hint)
+{
+    allocchain_t *r = (allocchain_t *)malloc(size+sizeof(void *));
+    r->next = allocChain;
+    allocChain = r;
+    return &r->data[0];
+}
+
+void Radeon_freeAllDriverMem(void)
+{
+    allocchain_t *r = allocChain;
+    allocchain_t *next;
+
+    while (r)
     {
-        glDisable(GL_PN_TRIANGLES_ATI);
+	next = r->next;
+	free(r);
+	r = next;
     }
+}
+
+void Radeon_freeDriver(void)
+{
+    //nothing here...
+}
+
+
+void BUMP_InitRadeon(void)
+{
+    GLint errPos, errCode;
+    const GLubyte *errString;
+
+    if ( gl_cardtype != RADEON ) return;
+
+    GL_CreateShadersRadeon();
+
+
+    //bind the correct stuff to the bump mapping driver
+    gl_bumpdriver.drawSurfaceListBase = Radeon_drawSurfaceListBase;
+    gl_bumpdriver.drawSurfaceListBump = Radeon_drawSurfaceListBump;
+    gl_bumpdriver.drawTriangleListBase = Radeon_drawTriangleListBase;
+    gl_bumpdriver.drawTriangleListBump = Radeon_drawTriangleListBump;
+    gl_bumpdriver.getDriverMem = Radeon_getDriverMem;
+    gl_bumpdriver.freeAllDriverMem = Radeon_freeAllDriverMem;
+    gl_bumpdriver.freeDriver = Radeon_freeDriver;
 }
