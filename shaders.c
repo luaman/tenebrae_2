@@ -115,7 +115,7 @@ Load a shader, searches for the shader in the shader list
 and returns a pointer to the shader
 ================
 */
-shader_t *GL_ShaderForName(char *name) {
+shader_t *GL_ShaderForName(const char *name) {
 
 	shader_t *s;
 	s = shaderList;
