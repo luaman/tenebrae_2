@@ -1050,7 +1050,8 @@ typedef enum
 	RADEON,
 	PARHELIA,
 	ARB,
-        NV3x
+        NV3x,
+        GL2
 } qcardtype;
 extern qcardtype gl_cardtype;
 

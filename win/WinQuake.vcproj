@@ -116,7 +116,7 @@
 			<Tool
 				Name="VCLinkerTool"
 				AdditionalOptions="/MACHINE:I386"
-				AdditionalDependencies="comctl32.lib ..\dxsdk\sdk\lib\dxguid.lib winmm.lib wsock32.lib opengl32.lib glu32.lib odbc32.lib odbccp32.lib libpng.lib zlib.lib ..\nvparse\nvparse.lib"
+				AdditionalDependencies="comctl32.lib ..\dxsdk\sdk\lib\dxguid.lib winmm.lib wsock32.lib opengl32.lib glu32.lib odbc32.lib odbccp32.lib libpng.lib zlib.lib ..\nvparse\nvparse.lib libxml2.lib"
 				OutputFile="C:\Games\tenebrae\tenebrae2.exe"
 				LinkIncremental="1"
 				SuppressStartupBanner="TRUE"
@@ -215,6 +215,9 @@
 			</File>
 			<File
 				RelativePath="..\gl_bumpgf.c">
+			</File>
+			<File
+				RelativePath="..\gl_bumpgl2.c">
 			</File>
 			<File
 				RelativePath="..\gl_bumpmap.c">
