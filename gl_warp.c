@@ -303,6 +303,7 @@ PENTA:
 Binds a water shader
 =============
 */
+/*
 qboolean OverrideFluidTex(char *name)
 {
     if (gl_watershader.value < 1) return false;
@@ -385,13 +386,13 @@ qboolean OverrideFluidTex(char *name)
 	
     return false;
 }
-
+*/
 /*
 ==================
 PENTA:
 Loads textures needed for the fluid shaders
 ==================
-*/
+*//*
 void InitShaderTex(void)
 {
     newwatertex = EasyTgaLoad("penta/q3water.tga");
@@ -400,7 +401,7 @@ void InitShaderTex(void)
     newteletex = EasyTgaLoad("penta/newtele.tga"); 
     newenvmap = EasyTgaLoad("penta/q3envmap.tga");
 }
-
+*/
 /*
 =============
 EmitSkyPolys
