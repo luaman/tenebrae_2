@@ -141,7 +141,7 @@ typedef struct stage_s {
 	gltexture_t *texture[8];  //animations
 	int			src_blend, dst_blend; //have special values for bumpmap passes
 	int			alphatresh;
-	char		filename[MAX_QPATH*2+1];
+	char		filename[MAX_QPATH*3+2];
 } stage_t;
 
 #define	SURF_NOSHADOW		0x40000	//don't cast stencil shadows
@@ -277,6 +277,9 @@ typedef struct {
 
 typedef struct mesh_s
 {
+	vec3_t mins; //axis aligned bounding box
+	vec3_t maxs;
+
 	int firstvertex; //in world vertex list
 	vec3_t *tangents;
 	vec3_t *binormals;
@@ -499,6 +502,7 @@ typedef struct {
 	int					triangles;	//PENTA: We need tris for shadow volumes
 	int					planes;		//PENTA: Plane eq's for every triangle for every frame
 	int					tangents;	//PENTA: Tangent for every vertex for every frame
+	int					binormals;	//PENTA: Tangent for every vertex for every frame
 	int					texcoords;	//PENTA: For every triangle the 3 texture coords
 	int					indecies;	//PENTA: indecies for gl vertex arrays
 	shader_t			*shader;

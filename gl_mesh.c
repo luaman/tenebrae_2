@@ -402,6 +402,7 @@ void GL_MakeAliasModelDisplayLists (model_t *m, aliashdr_t *hdr)
 	//PENTA: Calculate tangents for vertices (bump mapping)
 	tangents = Hunk_Alloc (paliashdr->poseverts * paliashdr->numposes * sizeof(vec3_t));
 	paliashdr->tangents = (byte *)tangents - (byte *)paliashdr;
+	paliashdr->binormals = 0;
 	//for all frames
 	for (i=0; i<paliashdr->numposes; i++) {
 
