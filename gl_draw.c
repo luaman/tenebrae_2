@@ -117,6 +117,12 @@ void GL_Bind (int texnum)
 */
 }
 
+void GL_BindAdvanced(gltexture_t *tex) {
+	if (tex->dynamic) {
+		Roq_UpdateTexture(tex);
+	}
+	GL_Bind(tex->texnum);
+}
 
 /*
 =============================================================================
@@ -362,6 +368,7 @@ void Draw_Init (void)
 		Cvar_Set ("gl_max_size", "256");
 
 	Cmd_AddCommand ("gl_texturemode", &Draw_TextureMode_f);
+	Cmd_AddCommand ("roq_info", &Roq_Info_f);
 
 	// load the console background and the charset
 	// by hand, because we need to write the version
