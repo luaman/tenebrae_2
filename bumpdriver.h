@@ -27,10 +27,17 @@ typedef struct {
 
 } vertexdef_t;
 
+
+typedef struct {
+	vec3_t	objectorigin;
+	vec3_t	objectvieworg;
+} lightobject_t;
+
 /**
 * Defines driver managed memory types
 */
 typedef enum {DM_SLOWREADWRITE, DM_SLOWREAD, DM_NORMAL} drivermem_t;
+
 //DM_SLOWREADWRITE: the memory is slow in writing and reading, won't be updated outside of
 //the driver much
 //DM_SLOWREAD: the memory is slow in reading (uncached or worse...), won't be read outside
@@ -62,10 +69,10 @@ typedef struct {
 	//drawing code
 
 	void (*drawTriangleListBase) (vertexdef_t *verts, int *indecies, int numIndecies, shader_t *shader, int lightmapIndex);//-1 for no lightmap
-	void (*drawTriangleListBump) (const vertexdef_t *verts, int *indecies, int numIndecies, shader_t *shader, const transform_t *tr);
+	void (*drawTriangleListBump) (const vertexdef_t *verts, int *indecies, int numIndecies, shader_t *shader, const transform_t *tr, const lightobject_t *lo);
 	void (*drawTriangleListSys) (vertexdef_t *verts, int *indecies, int numIndecies, shader_t *shader);
 	void (*drawSurfaceListBase) (vertexdef_t *verts, msurface_t **surfs, int numSurfaces, shader_t *shader);
-	void (*drawSurfaceListBump) (vertexdef_t *verts, msurface_t **surfs, int numSurfaces, const transform_t *tr);
+	void (*drawSurfaceListBump) (vertexdef_t *verts, msurface_t **surfs, int numSurfaces, const transform_t *tr, const lightobject_t *lo);
 
 } bumpdriver_t;
 
