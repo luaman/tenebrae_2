@@ -330,6 +330,7 @@ extern	cvar_t	r_lightmap;
 extern	cvar_t	r_mirroralpha;
 extern	cvar_t	r_wateralpha;
 extern	cvar_t	r_novis;
+extern	cvar_t	r_noareaportal;
 
 extern	cvar_t	gl_clear;
 extern	cvar_t	gl_poly;
@@ -1445,3 +1446,4 @@ qboolean IsShaderBlended(shader_t *s);
 void Roq_Info_f(void);
 void Roq_SetupTexture(gltexture_t *tex,char *filename);
 void Roq_FreeTexture(gltexture_t *tex);
+void Roq_UpdateTexture(gltexture_t *tex);
