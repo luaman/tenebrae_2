@@ -1986,7 +1986,8 @@ void StencilMeshVolumes()
     case 1:
 	// EXT_stencil_two_side
 	glDisable(GL_CULL_FACE);
-	qglActiveStencilFaceEXT(GL_BACK);
+        glEnable(GL_STENCIL_TEST_TWO_SIDE_EXT);
+        qglActiveStencilFaceEXT(GL_BACK);
 	glStencilOp(GL_KEEP, GL_INCR_WRAP_EXT, GL_KEEP);
 	glStencilFunc(GL_ALWAYS, 0, ~0);
 	qglActiveStencilFaceEXT(GL_FRONT);
@@ -1996,7 +1997,7 @@ void StencilMeshVolumes()
 	for (i=0; i<currentshadowlight->numlightcmdsmesh-1; i++)
 	    StencilMeshVolume2((mesh_t *)currentshadowlight->lightCmdsMesh[i].asVoid);
 	glEnable(GL_CULL_FACE);
-	qglActiveStencilFaceEXT(GL_FRONT_AND_BACK);
+        glDisable(GL_STENCIL_TEST_TWO_SIDE_EXT);
 	break;
 
     case 2:
