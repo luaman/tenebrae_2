@@ -35,7 +35,10 @@ static shader_t *shaderList;
 
 void GL_ShaderLoadTextures(shader_t *shader);
 
+qboolean shader_haserrors;
+
 void ShaderError(void) {
+	shader_haserrors = true;
 	if ( !COM_CheckParm ("-forceshaders") )
 		Con_NotifyBox("Shader error\nSee above for details\n");
 }
@@ -47,6 +50,7 @@ void ShaderError(void) {
 void clearStage(stage_t *stage) {
 	memset(stage,0,sizeof(stage_t));
 	stage->texture[0] = NULL;
+	stage->alphatresh = 0;
 	stage->type = STAGE_SIMPLE;
 	stage->src_blend = -1;
 	stage->dst_blend = -1;
@@ -88,6 +92,16 @@ void initDefaultShader(char *name, shader_t *shader) {
 	shader->flags |= (SURF_GLOSS | SURF_PPLIGHT | SURF_BUMP);
 }
 
+void initErrorShader(shader_t *shader) {
+	shader->numbumpstages = 0;
+	shader->numcolorstages = 0;
+	shader->numglossstages = 0;
+	shader->flags = 0;
+	shader->cull = true;
+	shader->mipmap = true;
+	shader->numstages = 1;
+	initDefaultStage("textures/system/shadererror.tga", &shader->stages[0], STAGE_SIMPLE);
+}
 /*
 ================
 GL_ShaderForName
@@ -137,8 +151,13 @@ void StageLoadTextures(stage_t *stage, shader_t *shader) {
 	switch (stage->type) {
 	case STAGE_COLOR:
 	case STAGE_GLOSS:
-	case STAGE_SIMPLE:
 		stage->texture[0] = GL_CacheTexture(stage->filename, shader->mipmap, TEXTURE_RGB);
+		break;
+	case STAGE_SIMPLE:
+		if (stage->flags & STAGE_CUBEMAP)
+			stage->texture[0] = GL_CacheTexture(stage->filename, shader->mipmap, TEXTURE_CUBEMAP);
+		else
+			stage->texture[0] = GL_CacheTexture(stage->filename, shader->mipmap, TEXTURE_RGB);
 		break;
 	case STAGE_BUMP:
 		stage->texture[0] = GL_CacheTexture(stage->filename, shader->mipmap, TEXTURE_NORMAL);
@@ -199,10 +218,15 @@ qboolean IsShaderBlended(shader_t *s) {
 
 // parse some stuff but make sure you give some errors
 #define GET_SAFE_TOKEN data = COM_Parse (data);\
-if (!data)\
-Sys_Error ("ED_ParseEntity: EOF without closing brace");\
-if (com_token[0] == '}')\
-  Sys_Error ("ED_ParseEntity: '}' not expected here")
+if (!data) {\
+	Con_Printf ("LoadShader: EOF without closing brace");\
+	ShaderError();\
+}\
+if (com_token[0] == '}') {\
+	Sys_Error ("LoadShader: '}' not expected here");\
+	ShaderError();\
+}
+
 
 /**
 * Parse a tcmod command out of the shader file
@@ -283,10 +307,11 @@ char *ParseStage (char *data, shader_t *shader)
 	char		command[MAX_QPATH];
 	char		texture[MAX_QPATH*3+2], detail[MAX_QPATH];
 	stage_t		stage;
-	qboolean	isgraygloss;
+	qboolean	isgraygloss, hascubetexture;
 	//Con_Printf("Parsing shader stage...\n");
 	clearStage(&stage);
 	isgraygloss  = false;
+	hascubetexture = false;
 
 // go through all the dictionary pairs
 	while (1)
@@ -336,9 +361,13 @@ char *ParseStage (char *data, shader_t *shader)
 				shader->bumpstages[shader->numbumpstages] = stage;
 				shader->numbumpstages++;
 
-			} else {
+			} else { //Default stage
 				if (shader->numstages >= SHADER_MAX_STAGES)
 					return NULL;
+
+				if (hascubetexture)
+					stage.flags = stage.flags | STAGE_CUBEMAP;
+
 				shader->stages[shader->numstages] = stage;
 				shader->numstages++;
 			}
@@ -346,8 +375,11 @@ char *ParseStage (char *data, shader_t *shader)
 		}
 		
 		//ugh nasty
-		if (!data)
-			Sys_Error ("ParseStage: EOF without '}'");
+		if (!data) {
+			Con_Printf("ParseStage: EOF without '}'");
+			ShaderError();
+			return NULL;
+		}
 
 		//see what command it is
 		strncpy (command, com_token,sizeof(command));
@@ -380,6 +412,11 @@ char *ParseStage (char *data, shader_t *shader)
 				strncpy(detail, com_token, MAX_QPATH);
 				GET_SAFE_TOKEN;
 				sprintf(texture, "%s+%s", detail, com_token);
+			} else if (!strcmp(com_token, "cube")) {
+				//It's a cube map
+				GET_SAFE_TOKEN;
+				strncpy(texture,com_token, MAX_QPATH);
+				hascubetexture = true;
 			} else
 				strncpy(texture,com_token,MAX_QPATH);
 
@@ -545,8 +582,11 @@ char *ParseShader (char *data, shader_t *shader)
 			break;
 		
 		//ugh nasty
-		if (!data)
-			Sys_Error ("ParseShader: EOF without '}'");
+		if (!data) {
+			Con_Printf("ParseStage: EOF without '}'");
+			ShaderError();
+			return NULL;
+		}
 
 		//see what command it is
 		strncpy (command, com_token,sizeof(command));
@@ -602,6 +642,9 @@ void LoadShadersFromString (char *data,const char *filename)
 		if (!data)
 			break;
 
+		//No errors yet.
+		shader_haserrors = false;
+
 		//check if shader already exists
 		s = shaderList;
 		while(s) {
@@ -609,7 +652,7 @@ void LoadShadersFromString (char *data,const char *filename)
 				Con_Printf("Shader error:\nShader '%s' was defined a second time in '%s'\n",com_token, filename);
 				Con_Printf("This may cause texture errors\n");
 				ShaderError();
-				return;
+				break;
 			}
 			s = s->next;
 		}
@@ -628,15 +671,18 @@ void LoadShadersFromString (char *data,const char *filename)
 		data = COM_Parse (data);
 		if (!data)
 			break;
-		if (com_token[0] != '{')
-			Sys_Error ("ED_LoadFromFile: found %s when expecting {",com_token);
+		if (com_token[0] != '{') {
+			Con_Printf("ED_LoadFromFile: found %s when expecting {",com_token);
+			ShaderError();
+		}
 
-		//Con_Printf("Parsing %s...\n",s->name);
+		Con_DPrintf("Parsing %s...\n",s->name);
 		data = ParseShader (data, s);
-	}
-	
-	if ((!fog_start.value) && (!fog_end.value)) {
-		Cvar_SetValue ("gl_fog",0.0);
+
+		if (shader_haserrors) {
+			Con_Printf("setuperror\n");
+			initErrorShader(s);
+		}
 	}
 }
 
