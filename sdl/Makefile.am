@@ -289,6 +289,11 @@ GL_TENEBRAE_SRCS =			\
 	$(MASTER_DIR)/gl_drivermem.c		\
 	$(MASTER_DIR)/gl_vertexcache.c		\
 	$(MASTER_DIR)/gl_bumparb.c		\
+	$(MASTER_DIR)/gl_bumpgl2.c		\
+	$(MASTER_DIR)/gl_bumpgf.c		\
+	$(MASTER_DIR)/gl_bumpparhelia.c		\
+	$(MASTER_DIR)/gl_bumpradeon.c		\
+	$(MASTER_DIR)/gl_bumpnv3x.c		\
 	$(MASTER_DIR)/gl_bumpmap.c		\
 	$(MASTER_DIR)/gl_bumpstat.c		\
 	$(MASTER_DIR)/gl_common.c		\
@@ -300,11 +305,6 @@ GL_TENEBRAE_SRCS =			\
 	$(MASTER_DIR)/gl_shadow.c		\
 	$(MASTER_DIR)/gl_svbsp.c		
 
-#	$(MASTER_DIR)/gl_bumpgl2.c		\
-#	$(MASTER_DIR)/gl_bumpgf.c		\
-#	$(MASTER_DIR)/gl_bumpparhelia.c		\
-#	$(MASTER_DIR)/gl_bumpradeon.c		\
-#	$(MASTER_DIR)/gl_bumpnv3x.c		\
 #	$(MASTER_DIR)/gl_bumpgeneric.c		\
 #
 

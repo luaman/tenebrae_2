@@ -95,6 +95,11 @@ GLQUAKE_OBJS= \
 	$(BUILDDIR)/glquake/gl_drivermem.o \
 	$(BUILDDIR)/glquake/gl_vertexcache.o \
 	$(BUILDDIR)/glquake/gl_bumparb.o \
+	$(BUILDDIR)/glquake/gl_bumpgf.o \
+	$(BUILDDIR)/glquake/gl_bumpgl2.o \
+	$(BUILDDIR)/glquake/gl_bumpparhelia.o \
+	$(BUILDDIR)/glquake/gl_bumpradeon.o \
+	$(BUILDDIR)/glquake/gl_bumpnv3x.o \
 	$(BUILDDIR)/glquake/gl_bumpmap.o \
 	$(BUILDDIR)/glquake/gl_bumpstat.o \
 	$(BUILDDIR)/glquake/gl_common.o \
@@ -170,11 +175,6 @@ GLQUAKE_OBJS= \
 	$(BUILDDIR)/glquake/lex.yy.o \
 	$(BUILDDIR)/glquake/te_scripts.o 
 
-#	$(BUILDDIR)/glquake/gl_bumpgf.o \
-#	$(BUILDDIR)/glquake/gl_bumpgl2.o \
-#	$(BUILDDIR)/glquake/gl_bumpparhelia.o \
-#	$(BUILDDIR)/glquake/gl_bumpradeon.o \
-#	$(BUILDDIR)/glquake/gl_bumpnv3x.o \
 #	$(BUILDDIR)/glquake/gl_bumpgeneric.o \
 
 $(BUILDDIR)/bin/tenebrae.run : $(GLQUAKE_OBJS)
