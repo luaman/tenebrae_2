@@ -605,6 +605,8 @@ void GF3_drawTriangleListBase (vertexdef_t *verts, int *indecies, int numIndecie
 		glDisable(GL_CULL_FACE);
 		//Con_Printf("Cullstuff %s\n",shader->name);
 	}
+
+	glColor3ub(255,255,255);
 	
 	for (i=0; i<shader->numstages; i++) {
 		GF3_SetupSimpleStage(&shader->stages[i]);
@@ -742,7 +744,6 @@ void GF3_drawTriangleListBase (vertexdef_t *verts, int *indecies, int numIndecie
 		GL_SelectTexture(GL_TEXTURE1_ARB);
 		glEnable(GL_TEXTURE_2D);
 		GL_Bind(lightmap_textures+lightmapIndex);
-
 		qglClientActiveTextureARB(GL_TEXTURE0_ARB);
 		glTexCoordPointer(2, GL_FLOAT, verts->texcoordstride, verts->texcoords);
 		glEnableClientState(GL_TEXTURE_COORD_ARRAY);
@@ -795,6 +796,15 @@ void GF3_drawTriangleListBase (vertexdef_t *verts, int *indecies, int numIndecie
 
 		glDisableClientState(GL_COLOR_ARRAY);
 	} else if (shader->flags & SURF_PPLIGHT) {
+		//No colors no lightmap
+		
+		if (shader->colorstages[0].src_blend >= 0) {
+			glBlendFunc(shader->colorstages[0].src_blend, shader->colorstages[0].dst_blend);
+			glEnable(GL_BLEND);
+		} else {
+			glDisable(GL_BLEND);
+		}
+		
 		glColor3f(0,0,0);
 		glDisable(GL_TEXTURE_2D);
 		glDrawElements(GL_TRIANGLES,numIndecies,GL_UNSIGNED_INT,indecies);
