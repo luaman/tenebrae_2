@@ -290,12 +290,16 @@ typedef struct mesh_s
 	int numtriangles;
 	int *neighbours; //numtriangles*3 neighbour triangle indexes
 
+	int *unexplodedIndecies; //only during load time an when isExploded == true
+
 	transform_t trans;
 
 	int	visframe;
 	int lightTimestamp;
 	mapshader_t	*shader;
 	int lightmapIndex;
+
+	qboolean isExploded; //Every triangle has unique vertices, no shared ones
 
 	struct mesh_s *next; //for the texture chains
 	struct mesh_s *shadowchain;

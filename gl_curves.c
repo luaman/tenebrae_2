@@ -446,8 +446,10 @@ void CreateTangentSpace(mesh_t *mesh) {
 	
 	int i,j;
 	int *num = malloc(sizeof(int)*mesh->numvertices);
+	int *addIndecies;
 	vec3_t tang, bin, v1, v2, norm;
 
+	addIndecies = (mesh->isExploded) ? mesh->unexplodedIndecies : mesh->indecies;
 	Q_memset(num,0,sizeof(int)*mesh->numvertices);
 	mesh->tangents = Hunk_Alloc(sizeof(vec3_t)*mesh->numvertices);
 	mesh->binormals = Hunk_Alloc(sizeof(vec3_t)*mesh->numvertices);
@@ -464,10 +466,10 @@ void CreateTangentSpace(mesh_t *mesh) {
 		
 		//smooth tangent space basis
 		for (j=0; j<3; j++) {
-			VectorAdd(mesh->tangents[mesh->indecies[i*3+j]],tang,mesh->tangents[mesh->indecies[i*3+j]]);
-			VectorAdd(mesh->binormals[mesh->indecies[i*3+j]],bin,mesh->binormals[mesh->indecies[i*3+j]]);
-			VectorAdd(mesh->normals[mesh->indecies[i*3+j]],norm,mesh->normals[mesh->indecies[i*3+j]]);
-			num[mesh->indecies[i*3+j]]++;
+			VectorAdd(mesh->tangents[addIndecies[i*3+j]],tang,mesh->tangents[addIndecies[i*3+j]]);
+			VectorAdd(mesh->binormals[addIndecies[i*3+j]],bin,mesh->binormals[addIndecies[i*3+j]]);
+			VectorAdd(mesh->normals[addIndecies[i*3+j]],norm,mesh->normals[addIndecies[i*3+j]]);
+			num[addIndecies[i*3+j]]++;
 		}
 	}
 
@@ -543,6 +545,7 @@ int FindNeighbourMesh(int triIndex, int edgeIndex, int numTris, int *triangles, 
 
 void SetupMeshConnectivity(mesh_t *m) {
 	int i, j;
+	int *indecies;
 
 	m->neighbours = Hunk_Alloc(sizeof(int)*m->numtriangles*3);
 
@@ -550,14 +553,57 @@ void SetupMeshConnectivity(mesh_t *m) {
 		m->neighbours[i] = -1;
 	}
 
+	indecies = (m->isExploded) ? m->unexplodedIndecies : m->indecies; 
+
 	//Setup connectivity
 	for (i=0; i<m->numtriangles; i++)
 		for (j=0 ; j<3 ; j++) {
 			//none found yet 
 			if (m->neighbours[i*3+j] == -1) {
-				m->neighbours[i*3+j] = FindNeighbourMesh(i, j, m->numtriangles, m->indecies, m->neighbours);
+				m->neighbours[i*3+j] = FindNeighbourMesh(i, j, m->numtriangles, indecies, m->neighbours);
 			}
 		}
+}
+
+qboolean compareVert(mmvertex_t *v1, mmvertex_t *v2) {
+
+	return (v1->position[0] == v2->position[0]) &&
+		   (v1->position[1] == v2->position[1]) &&
+		   (v1->position[2] == v2->position[2]) /*&&
+		   (v1->texture[0] == v2->texture[0]) &&
+		   (v1->texture[1] == v2->texture[1])*/;
+
+}
+
+void SetupUnexplodedIndecies(mesh_t *mesh) {
+
+	int i, j;
+
+	for (i=0; i<mesh->numindecies; i++) {
+		mmvertex_t vert = tempVertices[mesh->firstvertex+mesh->indecies[i]];
+		mesh->unexplodedIndecies[i] = -1;
+		for (j=0; j<mesh->numvertices; j++) {
+			if (compareVert(&vert,&tempVertices[mesh->firstvertex+j])) {
+				mesh->unexplodedIndecies[i] = j;
+				break;
+			}
+		}
+		//
+		if (mesh->unexplodedIndecies[i] == -1) {
+			mesh->unexplodedIndecies[i]	= mesh->indecies[i];
+		}
+	}
+}
+
+void DistribueUnexplodedNormals(mesh_t *mesh) {
+
+	int i, j;
+
+	for (i=0; i<mesh->numindecies; i++) {
+		VectorCopy(mesh->normals[mesh->unexplodedIndecies[i]],mesh->normals[mesh->indecies[i]]);
+		VectorCopy(mesh->tangents[mesh->unexplodedIndecies[i]],mesh->tangents[mesh->indecies[i]]);
+		VectorCopy(mesh->binormals[mesh->unexplodedIndecies[i]],mesh->binormals[mesh->indecies[i]]);
+	}
 }
 
 /*
@@ -578,6 +624,8 @@ void MESH_CreateCurve(dq3face_t *in, mesh_t *mesh, mapshader_t *shader)
 	
 	//just use the control points as vertices
 	curve.firstvertex = LittleLong(in->firstmeshvertex);
+
+	mesh->isExploded = false;
 
 	//evaluate the mesh vertices
 	if (gl_mesherror.value > 0)
@@ -613,11 +661,18 @@ void MESH_CreateInlineModel(dq3face_t *in, mesh_t *mesh, int *indecies, mapshade
 	mesh->numindecies = LittleLong(in->nummeshvertices);
 	mesh->numtriangles = mesh->numindecies/3;
 
+	Con_Printf("Triangles(%i) Vertices(%i) Indecies(%i)\n",mesh->numtriangles,mesh->numvertices,mesh->numindecies);
+	
+	mesh->isExploded = (mesh->numindecies == mesh->numvertices);
+
 	mesh->indecies = (int *)Hunk_Alloc(sizeof(int)*mesh->numindecies);
+	mesh->unexplodedIndecies = malloc(sizeof(int)*mesh->numindecies);
 
 	for (i=0; i<mesh->numindecies; i++) {
 		mesh->indecies[i] = LittleLong(indecies[i]);
 	}
+
+	SetupUnexplodedIndecies(mesh);
 
 	//setup rest of the mesh
 	mesh->shader = shader;
@@ -625,6 +680,9 @@ void MESH_CreateInlineModel(dq3face_t *in, mesh_t *mesh, int *indecies, mapshade
 
 	CreateTangentSpace(mesh);
 	SetupMeshConnectivity(mesh);
+
+	DistribueUnexplodedNormals(mesh);
+	free(mesh->unexplodedIndecies);
 
 	mesh->trans.origin[0] = mesh->trans.origin[1] = mesh->trans.origin[2] = 0.0f;
 	mesh->trans.angles[0] = mesh->trans.angles[1] = mesh->trans.angles[2] = 0.0f;
