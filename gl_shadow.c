@@ -329,7 +329,7 @@ qboolean R_MarkShadowSurf(msurface_t *surf, shadowlight_t *light)
 		return false;
 	}
 
-	if (!( surf->flags & SURF_PPLIGHT)) {
+	if (!(surf->flags & SURF_PPLIGHT) && (surf->flags & SURF_NOSHADOW)) {
 		return false;
 	}
 
@@ -1118,6 +1118,9 @@ void R_DrawBrushModelVolumes(entity_t *e) {
 	{
 		if (!ins->polygonVis[i]) continue;
 
+		if (surf->flags & SURF_NOSHADOW)
+			continue;
+
 		poly = surf->polys;
 		//extrude edges
 		for (j=0 ; j<poly->numneighbours ; j++)
@@ -1272,6 +1275,8 @@ void PrecalcVolumesForLight(model_t *model) {
 			continue;
 		}
 	
+		if (surf->shader->shader->flags & SURF_NOSHADOW)
+			goto noshadow;
 		
 		//a. far cap
 //		volumeCmds[volumePos++] = GL_POLYGON;
@@ -1382,6 +1387,7 @@ void PrecalcVolumesForLight(model_t *model) {
 			break;
 		}
 		
+noshadow:
 		lightCmds[lightPos++].asVoid = surf;
 
 		//c. glow surfaces/texture coordinates
@@ -1546,6 +1552,8 @@ void DrawVolumeFromCmds(int *volumeCmds, lightcmd_t *lightCmds, float *volumeVer
 		surf = lightCmds[lightPos++].asVoid;
 		if (surf == NULL)
 			break;
+		
+		if (surf->shader->shader->flags & SURF_NOSHADOW) continue;
 
 		glBegin(GL_TRIANGLES);
 		//v = surf->polys->verts[0];
@@ -1570,6 +1578,157 @@ void DrawVolumeFromCmds(int *volumeCmds, lightcmd_t *lightCmds, float *volumeVer
 		*/
 	}
 	
+}
+
+
+int		extrudeTimeStamp = 0;
+vec3_t	extrudedVerts[MAXALIASVERTS];	//PENTA: Temp buffer for extruded vertices
+int		extrudedTimestamp[MAXALIASVERTS];	//PENTA: Temp buffer for extruded vertices
+qboolean	triangleVis[MAXALIASTRIS*2];	//PENTA: Temp buffer for light facingness of triangles
+
+void SetupMeshToLightVisibility(shadowlight_t *light, mesh_t *mesh) {
+
+	float d, scale;
+	int i, j;
+	vec3_t v2, *v1;	
+	
+	if (mesh->numtriangles > MAXALIASTRIS*2) return;
+	if (mesh->numvertices > MAXALIASVERTS) return;
+
+	extrudeTimeStamp++;
+	//calculate visibility
+	for (i=0; i<mesh->numtriangles; i++) {
+		d = DotProduct(mesh->triplanes[i].normal, light->origin) - mesh->triplanes[i].dist;
+		if (d > 0) 
+			triangleVis[i] = true;
+		else
+			triangleVis[i] = false;
+	}
+
+	//extude vertices
+	for (i=0; i<mesh->numtriangles; i++) {
+
+		if (triangleVis[i]) {//backfacing extrude it!
+			
+			for (j=0; j<3; j++) {
+
+				int index = mesh->indecies[i*3+j];
+				if (extrudedTimestamp[index] == extrudeTimeStamp) continue;
+				extrudedTimestamp[index] = extrudeTimeStamp;
+
+				v1 = &extrudedVerts[index];
+				VectorCopy(globalVertexTable[mesh->firstvertex+index].position,v2);
+
+				VectorSubtract (v2, light->origin, (*v1));
+				scale = Length ((*v1));
+
+				if (sh_visiblevolumes.value) {
+					//make them short so that we see them
+					VectorScale ((*v1), (1/scale)* 70, (*v1));
+				} else {
+					//we don't have to be afraid they will clip with the far plane
+					//since we use the infinite matrix trick
+					VectorScale ((*v1), (1/scale)* light->radius*10, (*v1));
+				}
+				VectorAdd ((*v1), v2 ,(*v1));
+			}
+		}
+	}
+}
+
+void DrawMeshVolume(mesh_t *mesh) {
+
+	int i, j;
+
+	if (mesh->numtriangles > MAXALIASTRIS*2) return;
+	if (mesh->numvertices > MAXALIASVERTS) return;
+
+
+	for (i=0; i<mesh->numtriangles; i++) {
+
+		if (triangleVis[i]) {
+
+			for (j=0; j<3; j++) {
+
+				qboolean shadow = false;
+				if (mesh->neighbours[i*3+j] == -1) {
+					shadow = true;
+				} else if (!triangleVis[mesh->neighbours[i*3+j]]) {
+					shadow = true;
+				}
+
+				if (shadow) {
+					int index = mesh->indecies[i*3+j];
+					glBegin(GL_QUAD_STRIP);
+					glVertex3fv(&globalVertexTable[mesh->firstvertex+index].position[0]);
+					glVertex3fv(&extrudedVerts[index][0]);
+
+					index = mesh->indecies[i*3+(j+1)%3];
+					glVertex3fv(&globalVertexTable[mesh->firstvertex+index].position[0]);
+					glVertex3fv(&extrudedVerts[index][0]);
+					glEnd();
+				}
+			}
+/*		}
+	}
+
+	glBegin(GL_TRIANGLES);
+	for (i=0; i<mesh->numtriangles; i++) {
+
+		if (triangleVis[i]) {
+*/	
+			glBegin(GL_TRIANGLES);
+			for (j=0; j<3; j++) {
+				int index = mesh->indecies[i*3+j];
+				glVertex3fv(&globalVertexTable[mesh->firstvertex+index].position[0]);
+			}
+			glEnd();
+	
+			glBegin(GL_TRIANGLES);			
+			for (j=2; j>=0; j--) {
+				int index = mesh->indecies[i*3+j];
+				glVertex3fv(&extrudedVerts[index][0]);
+			}	
+			glEnd();
+		}
+	}
+	//glEnd();
+	
+}
+
+void StencilMeshVolume(mesh_t *mesh) {
+
+	if (mesh->shader->shader->flags & SURF_NOSHADOW) return;
+
+	SetupMeshToLightVisibility(currentshadowlight, mesh);
+
+	//
+	//Pass 1 increase
+	//
+	glCullFace(GL_BACK);
+	glStencilOp(GL_KEEP, GL_INCR, GL_KEEP);
+	//glCullFace(GL_FRONT);
+
+	DrawMeshVolume(mesh);
+
+	//
+	// Second Pass. Decrease Stencil Value In The Shadow
+	//
+	glCullFace(GL_FRONT);
+	glStencilOp(GL_KEEP, GL_DECR, GL_KEEP);
+	//glCullFace(GL_BACK);
+	
+	DrawMeshVolume(mesh);
+	glCullFace(GL_BACK);
+}
+
+void StencilMeshVolumes() {
+
+	int i;
+	for (i=0; i<currentshadowlight->numlightcmdsmesh-1; i++) {
+		StencilMeshVolume((mesh_t *)currentshadowlight->lightCmdsMesh[i].asVoid);
+	}
+
 }
 
 /*
