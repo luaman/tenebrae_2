@@ -294,6 +294,7 @@ GL_TENEBRAE_SRCS =			\
 	$(MASTER_DIR)/gl_bumpradeon.c		\
 	$(MASTER_DIR)/gl_bumpnv3x.c		\
 	$(MASTER_DIR)/gl_bumpgeneric.c		\
+	$(MASTER_DIR)/gl_bumpstat.c		\
 	$(MASTER_DIR)/gl_common.c		\
 	$(MASTER_DIR)/gl_curves.c		\
 	$(MASTER_DIR)/gl_glare.c		\
