@@ -847,7 +847,7 @@ void ARB_DisableBumpShader(shader_t* shader)
 }
 
 
-void ARB_EnableBumpShader(const transform_t *tr, vec3_t lightOrig,
+void ARB_EnableBumpShader(const transform_t *tr, const lightobject_t *lo,
                           qboolean alias, shader_t* shader)
 {
     //tex 0 = normal map
@@ -870,8 +870,8 @@ void ARB_EnableBumpShader(const transform_t *tr, vec3_t lightOrig,
     glScalef(0.5,0.5,0.5);
     glScalef(1.0f/(currentshadowlight->radiusv[0]),
              1.0f/(currentshadowlight->radiusv[1]),
-	     1.0f/(currentshadowlight->radiusv[2]));
-    glTranslatef(-lightOrig[0], -lightOrig[1], -lightOrig[2]);
+			1.0f/(currentshadowlight->radiusv[2]));
+    GL_SetupAttenMatrix(tr);
 
     glGetError();
     glEnable(GL_VERTEX_PROGRAM_ARB);
@@ -925,11 +925,11 @@ void ARB_EnableBumpShader(const transform_t *tr, vec3_t lightOrig,
 
     GL_SelectTexture(GL_TEXTURE0_ARB);
 
-    qglProgramEnvParameter4fARB( GL_VERTEX_PROGRAM_ARB, 0, currentshadowlight->origin[0],
-                                 currentshadowlight->origin[1],  currentshadowlight->origin[2], 0.0);
+    qglProgramEnvParameter4fARB( GL_VERTEX_PROGRAM_ARB, 0, lo->objectorigin[0],
+									lo->objectorigin[1],  lo->objectorigin[2], 0.0);
     Arb_checkerror();
-    qglProgramEnvParameter4fARB( GL_VERTEX_PROGRAM_ARB, 1, r_refdef.vieworg[0],
-    		                 r_refdef.vieworg[1],  r_refdef.vieworg[2], 0.0);
+    qglProgramEnvParameter4fARB( GL_VERTEX_PROGRAM_ARB, 1, lo->objectvieworg[0],
+    		                 lo->objectvieworg[1],  lo->objectvieworg[2], 0.0);
     Arb_checkerror();
 }
 
@@ -1044,7 +1044,7 @@ void FormatError(); // In gl_bumpgf.c
 
 void ARB_drawTriangleListBump (const vertexdef_t *verts, int *indecies,
 			       int numIndecies, shader_t *shader,
-			       const transform_t *tr)
+			       const transform_t *tr, const lightobject_t *lo)
 {
     glEnableClientState(GL_VERTEX_ARRAY);
     glVertexPointer(3, GL_FLOAT, verts->vertexstride, verts->vertices);
@@ -1052,7 +1052,7 @@ void ARB_drawTriangleListBump (const vertexdef_t *verts, int *indecies,
     GL_AddColor();
     glColor3fv(&currentshadowlight->color[0]);
 
-    ARB_EnableBumpShader(tr,currentshadowlight->origin,true, shader);
+    ARB_EnableBumpShader(tr, lo, true, shader);
 
     //bind the correct textures
     GL_SelectTexture(GL_TEXTURE0_ARB);
@@ -1639,7 +1639,7 @@ void ARB_drawSurfaceListBase (vertexdef_t* verts, msurface_t** surfs,
     glDisable(GL_BLEND);
 }
 
-void ARB_sendSurfacesTA(msurface_t** surfs, int numSurfaces, const transform_t *tr)
+void ARB_sendSurfacesTA(msurface_t** surfs, int numSurfaces, const transform_t *tr, const lightobject_t *lo)
 {
     int i,j;
     glpoly_t *p;
@@ -1670,14 +1670,14 @@ void ARB_sendSurfacesTA(msurface_t** surfs, int numSurfaces, const transform_t *
             {
                 // disable previous shader if switching between colored and mono gloss
                 ARB_DisableBumpShader(lastshader);
-                ARB_EnableBumpShader(tr,currentshadowlight->origin,true, shader);
+                ARB_EnableBumpShader(tr, lo, true, shader);
             }
             else
             {
                 if ( !lastshader )
                 {
                     // Enable shader for the first surface
-                    ARB_EnableBumpShader(tr,currentshadowlight->origin,true, shader);
+                    ARB_EnableBumpShader(tr, lo, true, shader);
                 }
             }
 
@@ -1732,7 +1732,7 @@ void ARB_sendSurfacesTA(msurface_t** surfs, int numSurfaces, const transform_t *
 
 
 void ARB_drawSurfaceListBump (vertexdef_t *verts, msurface_t **surfs,
-			      int numSurfaces,const transform_t *tr)
+			      int numSurfaces,const transform_t *tr, const lightobject_t *lo)
 {
     glVertexPointer(3, GL_FLOAT, verts->vertexstride, verts->vertices);
     glEnableClientState(GL_VERTEX_ARRAY);
@@ -1744,7 +1744,7 @@ void ARB_drawSurfaceListBump (vertexdef_t *verts, msurface_t **surfs,
     GL_AddColor();
     glColor3fv(&currentshadowlight->color[0]);
 
-    ARB_sendSurfacesTA(surfs,numSurfaces, tr);
+    ARB_sendSurfacesTA(surfs,numSurfaces, tr, lo);
 
     glDisableClientState(GL_VERTEX_ARRAY);
     glDisableClientState(GL_TEXTURE_COORD_ARRAY);

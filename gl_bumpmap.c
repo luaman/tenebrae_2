@@ -285,34 +285,52 @@ void R_WorldToObjectMatrix(entity_t *e, matrix_4x4 result)
 GL_SetupCubeMapMatrix
 
 Loads the current matrix with a tranformation used for light filters
+-Put object space into world space
+-Then put this worldspace into lightspace
 =============
 */
-
 void GL_SetupCubeMapMatrix(const transform_t *tr) {
-
-	glLoadIdentity();
 
 	glRotatef (-currentshadowlight->angles[0],  1, 0, 0);
     glRotatef (-currentshadowlight->angles[1],  0, 1, 0);
     glRotatef (-currentshadowlight->angles[2],  0, 0, 1);
 
-	glRotatef (currentshadowlight->rspeed*cl.time,0,0,1);
-
 	glTranslatef(-currentshadowlight->origin[0],
-				-currentshadowlight->origin[1],
-				-currentshadowlight->origin[2]);
+				 -currentshadowlight->origin[1],
+				 -currentshadowlight->origin[2]);
 
-	//if (!world)
-	//	R_RotateForEntity(currententity);
 	glTranslatef (tr->origin[0],  tr->origin[1],  tr->origin[2]);
 
     glRotatef (tr->angles[1],  0, 0, 1);
     glRotatef (-tr->angles[0], 0, 1, 0);
     glRotatef (tr->angles[2],  1, 0, 0);
 
-	//Con_Printf("Angles3: %f %f %f\n",tr->angles[0],tr->angles[1],tr->angles[2]);
+}
+
+/*
+=============
+GL_SetupAttenMatrix
+
+Loads the current matrix with a tranformation used for light filters
+-Put object space into world space
+-Then put this worldspace into lightspace
+	(Ignore light angles as the boxes don't rotate with the light)
+=============
+*/
+void GL_SetupAttenMatrix(const transform_t *tr) {
+
+	glTranslatef(-currentshadowlight->origin[0],
+				 -currentshadowlight->origin[1],
+				 -currentshadowlight->origin[2]);
+
+	glTranslatef (tr->origin[0],  tr->origin[1],  tr->origin[2]);
+
+    glRotatef (tr->angles[1],  0, 0, 1);
+    glRotatef (-tr->angles[0], 0, 1, 0);
+    glRotatef (tr->angles[2],  1, 0, 0);
 
 }
+
 /**************************************************************
 
 	PART2: Geommety sending code
@@ -798,11 +816,6 @@ void R_DrawBrushObjectLight(entity_t *e,void (*BrushGeoSender) (entity_t *e)) {
 	
 	model_t		*clmodel;
 	
-	vec3_t oldlightorigin;
-	//backup light origin since we will have to translate
-	//light into model space
-	VectorCopy (currentshadowlight->origin, oldlightorigin);
-	
 	currententity = e;
 	currenttexture = -1;
 	
@@ -813,10 +826,8 @@ void R_DrawBrushObjectLight(entity_t *e,void (*BrushGeoSender) (entity_t *e)) {
 	R_RotateForEntity (e);
 	e->angles[0] = -e->angles[0];	// stupid quake bug
 	
-	VectorCopy(((brushlightinstant_t *)e->brushlightinstant)->lightpos,currentshadowlight->origin);
 	BrushGeoSender(e);
 	
-	VectorCopy(oldlightorigin,currentshadowlight->origin);
 	glPopMatrix ();
 }
 
@@ -995,9 +1006,6 @@ Same as R_DrawBrushObjectLight but with alias models
 */
 void R_DrawAliasObjectLight(entity_t *e,void (*AliasGeoSender) (aliashdr_t *paliashdr, aliasframeinstant_t* instant))
 {
-	int				pose, numposes;
-	//matrix_4x4		transf;
-	//float			org[4],res[4];
 	aliashdr_t	*paliashdr;
         alias3data_t    *data;
 	vec3_t		oldlightpos, oldvieworg;
@@ -1006,8 +1014,6 @@ void R_DrawAliasObjectLight(entity_t *e,void (*AliasGeoSender) (aliashdr_t *pali
 
 	currententity = e;
 	
-//	VectorCopy (currententity->origin, r_entorigin);
-//	VectorSubtract (r_origin, r_entorigin, modelorg);
 
 	glPushMatrix ();
 	R_RotateForEntity (e);
@@ -1037,21 +1043,11 @@ void R_DrawAliasObjectLight(entity_t *e,void (*AliasGeoSender) (aliashdr_t *pali
 			return;
 		}
 		
-		VectorCopy(currentshadowlight->origin,oldlightpos);
-		VectorCopy(currentshadowlight->origin,currentshadowlight->oldlightorigin);
-		VectorCopy( r_refdef.vieworg,oldvieworg);
-		VectorCopy( aliasframeinstant->lightinstant->vieworg, r_refdef.vieworg);
-		VectorCopy(aliasframeinstant->lightinstant->lightpos ,currentshadowlight->origin);
-		pose = paliashdr->frames[e->frame].firstpose;
-		numposes = paliashdr->frames[e->frame].numposes;
-		
 		//Draw it!
 		AliasGeoSender(paliashdr,aliasframeinstant);
 		
 		aliasframeinstant = aliasframeinstant->_next;
         
-		VectorCopy(oldvieworg, r_refdef.vieworg);
-		VectorCopy(oldlightpos,currentshadowlight->origin);		
 	} /* for paliashdr */
 
 	glPopMatrix();
@@ -1090,6 +1086,8 @@ void R_DrawSpriteModelLight (entity_t *e)
 
 	up = vup;
 	right = vright;
+
+	if (frame->shader->flags & SURF_NODRAW) return;
 
 	//We don't do full bumpapping on sprites only additive cube*attenuation*colormap
 	if (!frame->shader->numcolorstages) return;
@@ -1137,6 +1135,8 @@ void R_DrawSpriteModelLightWV (entity_t *e)
 
 	up = vup;
 	right = vright;
+
+	if (frame->shader->flags & SURF_NODRAW) return;
 
 	//We don't do full bumpapping on sprites only additive cube*attenuation*colormap
 	if (!frame->shader->numcolorstages) return;

@@ -55,7 +55,7 @@ void GF3_SetupTcMods(stage_t *s);
 Pixel shader for diffuse bump mapping does diffuse bumpmapping with norm cube, self shadowing & dist attent in
 1 pass (thanx to the 4 texture units on a gf4)
 */
-void GL_EnableDiffuseShaderGF3(const transform_t *tr, vec3_t lightOrig, int stageIndex) {
+void GL_EnableDiffuseShaderGF3(const transform_t *tr, const lightobject_t *lo, int stageIndex) {
 
 	//tex 0 = normal map
 	//tex 1 = nomalization cube map (tangent space light vector)
@@ -75,7 +75,6 @@ void GL_EnableDiffuseShaderGF3(const transform_t *tr, vec3_t lightOrig, int stag
 	glPushMatrix();
 	glLoadIdentity();
 	if (currentshadowlight->shader->numstages) {
-		GL_SetupCubeMapMatrix(tr);
 		if (currentshadowlight->shader->stages[stageIndex].texture[0]->type == GL_TEXTURE_CUBE_MAP_ARB) {
 			glEnable(GL_TEXTURE_CUBE_MAP_ARB);
 			glBindTexture(GL_TEXTURE_CUBE_MAP_ARB, currentshadowlight->shader->stages[stageIndex].texture[0]->texnum);
@@ -92,6 +91,7 @@ void GL_EnableDiffuseShaderGF3(const transform_t *tr, vec3_t lightOrig, int stag
 
 		}	
 		GF3_SetupTcMods(&currentshadowlight->shader->stages[stageIndex]);
+		GL_SetupCubeMapMatrix(tr);
 	} else {
 		glEnable(GL_TEXTURE_3D);
 		glBindTexture(GL_TEXTURE_3D, atten3d_texture_object);
@@ -101,11 +101,8 @@ void GL_EnableDiffuseShaderGF3(const transform_t *tr, vec3_t lightOrig, int stag
 		glScalef(1.0f/(currentshadowlight->radiusv[0]), 
 				 1.0f/(currentshadowlight->radiusv[1]),
 				 1.0f/(currentshadowlight->radiusv[2]));
-				
-		/*glScalef(1/currentshadowlight->radius,
-			1/currentshadowlight->radius,1/currentshadowlight->radius);
-			*/
-		glTranslatef(-lightOrig[0], -lightOrig[1], -lightOrig[2]);
+
+		GL_SetupAttenMatrix(tr);
 	}
 
 	glDisable(GL_PER_STAGE_CONSTANTS_NV);
@@ -179,10 +176,8 @@ void GL_EnableDiffuseShaderGF3(const transform_t *tr, vec3_t lightOrig, int stag
     //qglBindProgramARB( GL_VERTEX_PROGRAM_ARB, diffuse_program_object );
     //glEnable( GL_VERTEX_PROGRAM_ARB );
 	qglBindProgramNV( GL_VERTEX_PROGRAM_NV, diffuse_program_object );
-	qglProgramParameter4fNV( GL_VERTEX_PROGRAM_NV, 24, currentshadowlight->origin[0],
-		 currentshadowlight->origin[1],  currentshadowlight->origin[2], 1.0);
-	qglProgramParameter4fNV( GL_VERTEX_PROGRAM_NV, 25, r_refdef.vieworg[0],
-		 r_refdef.vieworg[1],  r_refdef.vieworg[2], 1.0);
+	qglProgramParameter4fNV( GL_VERTEX_PROGRAM_NV, 24, lo->objectorigin[0], lo->objectorigin[1], lo->objectorigin[2], 1.0);
+	qglProgramParameter4fNV( GL_VERTEX_PROGRAM_NV, 25, lo->objectvieworg[0], lo->objectvieworg[1], lo->objectvieworg[2], 1.0);
     glEnable( GL_VERTEX_PROGRAM_NV );
 
 }
@@ -221,7 +216,7 @@ void GL_DisableDiffuseShaderGF3(int stageIndex) {
     glDisable( GL_VERTEX_PROGRAM_NV );
 }
 
-void GL_EnableSpecularShaderGF3(const transform_t *tr, vec3_t lightOrig, int stageIndex, qboolean alias, qboolean packedGloss) {
+void GL_EnableSpecularShaderGF3(const transform_t *tr, const lightobject_t *lo, int stageIndex, qboolean alias, qboolean packedGloss) {
 
 	vec3_t scaler = {0.5f, 0.5f, 0.5f};
 	float invrad = 1/currentshadowlight->radius;
@@ -244,9 +239,7 @@ void GL_EnableSpecularShaderGF3(const transform_t *tr, vec3_t lightOrig, int sta
 	glMatrixMode(GL_TEXTURE);
 	glPushMatrix();
 	glLoadIdentity();
-
 	if (currentshadowlight->shader->numstages) {
-		GL_SetupCubeMapMatrix(tr);
 		if (currentshadowlight->shader->stages[stageIndex].texture[0]->type == GL_TEXTURE_CUBE_MAP_ARB) {
 			glEnable(GL_TEXTURE_CUBE_MAP_ARB);
 			glBindTexture(GL_TEXTURE_CUBE_MAP_ARB, currentshadowlight->shader->stages[stageIndex].texture[0]->texnum);
@@ -262,18 +255,18 @@ void GL_EnableSpecularShaderGF3(const transform_t *tr, vec3_t lightOrig, int sta
 					 1.0f/(currentshadowlight->radiusv[2]));
 		}
 		GF3_SetupTcMods(&currentshadowlight->shader->stages[stageIndex]);
+		GL_SetupCubeMapMatrix(tr);
 	} else {
 		glEnable(GL_TEXTURE_3D);
 		glBindTexture(GL_TEXTURE_3D, atten3d_texture_object);
 
 		glTranslatef(0.5,0.5,0.5);
 		glScalef(0.5,0.5,0.5);
-		//glScalef(invrad, invrad, invrad);
 		glScalef(1.0f/(currentshadowlight->radiusv[0]), 
 				 1.0f/(currentshadowlight->radiusv[1]),
 				 1.0f/(currentshadowlight->radiusv[2]));
 
-		glTranslatef(-lightOrig[0], -lightOrig[1], -lightOrig[2]);
+		GL_SetupAttenMatrix(tr);
 
 
 	}
@@ -362,19 +355,9 @@ void GL_EnableSpecularShaderGF3(const transform_t *tr, vec3_t lightOrig, int sta
 
 	glEnable(GL_REGISTER_COMBINERS_NV);
 
-
-    // Enable the vertex program.
-//    qglBindProgramARB( GL_VERTEX_PROGRAM_ARB, diffuse_program_object );
-//    glEnable( GL_VERTEX_PROGRAM_ARB );
-	//if (alias)
-		qglBindProgramNV( GL_VERTEX_PROGRAM_NV, specularalias_program_object );
-	//else
-	//	qglBindProgramNV( GL_VERTEX_PROGRAM_NV, diffuse_program_object );
-
-	qglProgramParameter4fNV( GL_VERTEX_PROGRAM_NV, 24, currentshadowlight->origin[0],
-		 currentshadowlight->origin[1],  currentshadowlight->origin[2], 1.0);
-	qglProgramParameter4fNV( GL_VERTEX_PROGRAM_NV, 25,r_refdef.vieworg[0], r_refdef.vieworg[1],  r_refdef.vieworg[2], 1.0);
-
+	qglBindProgramNV( GL_VERTEX_PROGRAM_NV, specularalias_program_object );
+	qglProgramParameter4fNV( GL_VERTEX_PROGRAM_NV, 24, lo->objectorigin[0], lo->objectorigin[1], lo->objectorigin[2], 1.0);
+	qglProgramParameter4fNV( GL_VERTEX_PROGRAM_NV, 25, lo->objectvieworg[0], lo->objectvieworg[1], lo->objectvieworg[2], 1.0);
     glEnable( GL_VERTEX_PROGRAM_NV );
 
 }
@@ -384,7 +367,7 @@ GL_DisableSpecularShaderGF3() ??
 Same as GL_DisableDiffuseShaderGF3()
 */
 
-void GL_EnableAttentShaderGF3(vec3_t lightOrig) {
+void GL_EnableAttentShaderGF3(const transform_t *tr) {
 
 	float invrad = 1/currentshadowlight->radius;
 
@@ -397,10 +380,9 @@ void GL_EnableAttentShaderGF3(vec3_t lightOrig) {
 	glScalef(1.0f/(currentshadowlight->radiusv[0]), 
 				 1.0f/(currentshadowlight->radiusv[1]),
 				 1.0f/(currentshadowlight->radiusv[2]));
-	glTranslatef(-lightOrig[0],
-				 -lightOrig[1],
-				 -lightOrig[2]);
-	
+
+	GL_SetupAttenMatrix(tr);
+
 	glDisable(GL_TEXTURE_2D);
 	glEnable(GL_TEXTURE_3D);
 	glBindTexture(GL_TEXTURE_3D, atten3d_texture_object);
@@ -590,7 +572,7 @@ void GF3_sendTriangleListTA(const vertexdef_t *verts, int *indecies, int numInde
 
 }
 
-void GF3_drawTriangleListBump (const vertexdef_t *verts, int *indecies, int numIndecies, shader_t *shader, const transform_t *tr) {
+void GF3_drawTriangleListBump (const vertexdef_t *verts, int *indecies, int numIndecies, shader_t *shader, const transform_t *tr,const lightobject_t *lo) {
 
 	int i, num;
 
@@ -599,7 +581,7 @@ void GF3_drawTriangleListBump (const vertexdef_t *verts, int *indecies, int numI
 	if (currentshadowlight->shader->numstages) {
 		//draw attent into dest alpha
 		GL_DrawAlpha();
-		GL_EnableAttentShaderGF3(currentshadowlight->origin);
+		GL_EnableAttentShaderGF3(tr);
 		GF3_sendTriangleListWV(verts,indecies,numIndecies);
 		GL_DisableAttentShaderGF3();
 		GL_ModulateAlphaDrawColor();
@@ -613,7 +595,7 @@ void GF3_drawTriangleListBump (const vertexdef_t *verts, int *indecies, int numI
 	if ((shader->numglossstages > 0) && (shader->numbumpstages > 0)) {
 		//FIXME: A lot of statechanges for every pass we could only rebind the texture (and some overhead like matrix setup,...)
 		for(i=0; i<num; i++) {
-			GL_EnableSpecularShaderGF3(tr,currentshadowlight->origin,i,true,(shader->glossstages[0].type == STAGE_GRAYGLOSS));
+			GL_EnableSpecularShaderGF3(tr, lo, i,true,(shader->glossstages[0].type == STAGE_GRAYGLOSS));
 			//bind the correct texture
 			GL_SelectTexture(GL_TEXTURE0_ARB);
 			GL_BindAdvanced(shader->bumpstages[0].texture[0]);
@@ -628,7 +610,7 @@ void GF3_drawTriangleListBump (const vertexdef_t *verts, int *indecies, int numI
 
 	if ((shader->numcolorstages > 0) && (shader->numbumpstages > 0)) {
 		for(i=0; i<num; i++) {
-			GL_EnableDiffuseShaderGF3(tr,currentshadowlight->origin,i);
+			GL_EnableDiffuseShaderGF3(tr, lo, i);
 			//bind the correct texture
 			GL_SelectTexture(GL_TEXTURE0_ARB);
 			GL_BindAdvanced(shader->bumpstages[0].texture[0]);
@@ -1415,7 +1397,7 @@ void GF3_sendSurfacesPlain(msurface_t **surfs, int numSurfaces) {
 	 glEnable(GL_CULL_FACE);
 }
 
-void GF3_drawSurfaceListBump (vertexdef_t *verts, msurface_t **surfs, int numSurfaces,const transform_t *tr) {
+void GF3_drawSurfaceListBump (vertexdef_t *verts, msurface_t **surfs, int numSurfaces,const transform_t *tr, const lightobject_t *lo) {
 
 	int i, num;
 
@@ -1428,7 +1410,7 @@ void GF3_drawSurfaceListBump (vertexdef_t *verts, msurface_t **surfs, int numSur
 	if (currentshadowlight->shader->numstages) {
 		//draw attent into dest alpha
 		GL_DrawAlpha();
-		GL_EnableAttentShaderGF3(currentshadowlight->origin);
+		GL_EnableAttentShaderGF3(tr);
 		
 		glTexCoordPointer(3, GL_FLOAT, verts->vertexstride, verts->vertices);
 		GF3_sendSurfacesPlain(surfs,numSurfaces);
@@ -1442,7 +1424,7 @@ void GF3_drawSurfaceListBump (vertexdef_t *verts, msurface_t **surfs, int numSur
 
 	num = (currentshadowlight->shader->numstages == 0) ? 1 : currentshadowlight->shader->numstages;
 	for (i=0; i<num; i++) {
-		GL_EnableSpecularShaderGF3(tr,currentshadowlight->origin, i, true,true);
+		GL_EnableSpecularShaderGF3(tr, lo, i, true,true);
 		glTexCoordPointer(2, GL_FLOAT, verts->texcoordstride, verts->texcoords);
 		GF3_sendSurfacesTA(surfs,numSurfaces, true);
 		GL_DisableDiffuseShaderGF3(i);
@@ -1450,7 +1432,7 @@ void GF3_drawSurfaceListBump (vertexdef_t *verts, msurface_t **surfs, int numSur
 
 
 	for (i=0; i<num; i++) {
-		GL_EnableDiffuseShaderGF3(tr,currentshadowlight->origin,i);
+		GL_EnableDiffuseShaderGF3(tr, lo, i);
 		GF3_sendSurfacesTA(surfs,numSurfaces, false);
 		GL_DisableDiffuseShaderGF3(i);
 	}
@@ -1508,10 +1490,12 @@ void GF3_drawSurfaceListBump (vertexdef_t *verts, msurface_t **surfs, int numSur
 	  "MOV   o[COL0], v[COL0];"
 
       // Transform vertex by texture matrix and copy to output
-      "DP4   o[TEX3].x, v[OPOS], c[4];"
-      "DP4   o[TEX3].y, v[OPOS], c[5];"
-      "DP4   o[TEX3].z, v[OPOS], c[6];"
-      "DP4   o[TEX3].w, v[OPOS], c[7];"
+      "DP4   R0.x, v[OPOS], c[4];"
+      "DP4   R0.y, v[OPOS], c[5];"
+      "DP4   R0.z, v[OPOS], c[6];"
+      "DP4   R0.w, v[OPOS], c[7];"
+	  "RCP	 R1.x, R0.w;"
+      "MUL	 o[TEX3], R0, R1.x;"
 
       "END";
 
@@ -1563,10 +1547,12 @@ void GF3_drawSurfaceListBump (vertexdef_t *verts, msurface_t **surfs, int numSur
 	  "MOV   o[COL0], v[COL0];"
 
       // Transform vertex by texture matrix and copy to output
-      "DP4   o[TEX3].x, v[OPOS], c[4];"
-      "DP4   o[TEX3].y, v[OPOS], c[5];"
-      "DP4   o[TEX3].z, v[OPOS], c[6];"
-      "DP4   o[TEX3].w, v[OPOS], c[7];"
+      "DP4   R0.x, v[OPOS], c[4];"
+      "DP4   R0.y, v[OPOS], c[5];"
+      "DP4   R0.z, v[OPOS], c[6];"
+      "DP4   R0.w, v[OPOS], c[7];"
+	  "RCP	 R1.x, R0.w;"
+      "MUL	 o[TEX3], R0, R1.x;"
 
       "END";
 

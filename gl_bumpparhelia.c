@@ -900,8 +900,10 @@ void Parhelia_CreateShaders()
   Pixel shader for diffuse bump mapping does diffuse bumpmapping with norm
   cube, self shadowing & dist attent in 1 pass
 */
-void Parhelia_EnableDiffuseShader(const transform_t *tr, vec3_t lightOrig)
+void Parhelia_EnableDiffuseShader(const transform_t *tr, const lightobject_t *lo)
 {
+	float temp[4];
+
     //tex 0 = normal map
     //tex 1 = normalization cube map (tangent space light vector)
     //tex 2 = color map
@@ -911,6 +913,16 @@ void Parhelia_EnableDiffuseShader(const transform_t *tr, vec3_t lightOrig)
 
     glEnable(GL_VERTEX_SHADER_EXT);
     qglBindVertexShaderEXT( vertex_shaders );
+    temp[0] = currentshadowlight->origin[0];
+    temp[1] = currentshadowlight->origin[1];
+    temp[2] = currentshadowlight->origin[2];
+    temp[3] = 1.0f;
+    qglSetInvariantEXT(lightPos, GL_FLOAT, &temp[0]);
+
+    temp[0] = r_refdef.vieworg[0];
+    temp[1] = r_refdef.vieworg[1];
+    temp[2] = r_refdef.vieworg[2];
+    qglSetInvariantEXT(eyePos, GL_FLOAT, &temp[0]);
     Parhelia_checkerror();
 
     glEnable(GL_FRAGMENT_SHADER_MTX );
@@ -946,7 +958,7 @@ void Parhelia_EnableDiffuseShader(const transform_t *tr, vec3_t lightOrig)
         glScalef(1.0f/(currentshadowlight->radiusv[0]),
                  1.0f/(currentshadowlight->radiusv[1]),
 	         1.0f/(currentshadowlight->radiusv[2]));
-	glTranslatef(-lightOrig[0], -lightOrig[1], -lightOrig[2]);
+		GL_SetupAttenMatrix(tr);
 
         qglBindFragShaderMTX( fragment_shaders );
         Parhelia_checkerror();
@@ -987,12 +999,24 @@ void Parhelia_DisableDiffuseShader()
     GL_SelectTexture(GL_TEXTURE0_ARB);
 }
 
-void Parhelia_EnableSpecularShader(const transform_t *tr, vec3_t lightOrig,
+void Parhelia_EnableSpecularShader(const transform_t *tr, const lightobject_t *lo,
 				   qboolean alias)
 {
     vec3_t scaler = {0.5f, 0.5f, 0.5f};
+	float temp[4];
+
     glEnable(GL_VERTEX_SHADER_EXT);
     qglBindVertexShaderEXT( vertex_shaders+1 );
+    temp[0] = currentshadowlight->origin[0];
+    temp[1] = currentshadowlight->origin[1];
+    temp[2] = currentshadowlight->origin[2];
+    temp[3] = 1.0f;
+    qglSetInvariantEXT(lightPos, GL_FLOAT, &temp[0]);
+
+    temp[0] = r_refdef.vieworg[0];
+    temp[1] = r_refdef.vieworg[1];
+    temp[2] = r_refdef.vieworg[2];
+    qglSetInvariantEXT(eyePos, GL_FLOAT, &temp[0]);
     Parhelia_checkerror();
 
     glEnable(GL_FRAGMENT_SHADER_MTX );
@@ -1033,7 +1057,7 @@ void Parhelia_EnableSpecularShader(const transform_t *tr, vec3_t lightOrig,
         glScalef(1.0f/(currentshadowlight->radiusv[0]),
                  1.0f/(currentshadowlight->radiusv[1]),
 	         1.0f/(currentshadowlight->radiusv[2]));
-	glTranslatef(-lightOrig[0], -lightOrig[1], -lightOrig[2]);
+		GL_SetupAttenMatrix(tr);
 
         qglBindFragShaderMTX( fragment_shaders + 2 );
         Parhelia_checkerror();
@@ -1043,7 +1067,7 @@ void Parhelia_EnableSpecularShader(const transform_t *tr, vec3_t lightOrig,
 
 }
 
-void Parhelia_EnableAttentShader(vec3_t lightOrig)
+void Parhelia_EnableAttentShader(const transform_t *tr)
 {
     glMatrixMode(GL_TEXTURE);
     glPushMatrix();
@@ -1053,9 +1077,7 @@ void Parhelia_EnableAttentShader(vec3_t lightOrig)
     glScalef(1.0f/(currentshadowlight->radiusv[0]),
              1.0f/(currentshadowlight->radiusv[1]),
              1.0f/(currentshadowlight->radiusv[2]));
-    glTranslatef(-lightOrig[0],
-		 -lightOrig[1],
-		 -lightOrig[2]);
+	GL_SetupAttenMatrix(tr);
 	
     glDisable(GL_TEXTURE_2D);
     glEnable(GL_TEXTURE_3D);
@@ -1210,13 +1232,13 @@ void Parhelia_sendTriangleListTA(const vertexdef_t *verts, int *indecies,
 
 void Parhelia_drawTriangleListBump (const vertexdef_t *verts, int *indecies,
 				    int numIndecies, shader_t *shader,
-				    const transform_t *tr)
+				    const transform_t *tr, const lightobject_t *lo)
 {
     if (currentshadowlight->filtercube)
     {
 	//draw attent into dest alpha
 	GL_DrawAlpha();
-	Parhelia_EnableAttentShader(currentshadowlight->origin);
+	Parhelia_EnableAttentShader(tr);
 	Parhelia_sendTriangleListWV(verts,indecies,numIndecies);
 	Parhelia_DisableAttentShader();
 	GL_ModulateAlphaDrawColor();
@@ -1227,7 +1249,7 @@ void Parhelia_drawTriangleListBump (const vertexdef_t *verts, int *indecies,
     }
     glColor3fv(&currentshadowlight->color[0]);
 
-    Parhelia_EnableSpecularShader(tr,currentshadowlight->origin,true);
+    Parhelia_EnableSpecularShader(tr, lo, true);
     //bind the correct texture
     GL_SelectTexture(GL_TEXTURE0_ARB);
     if (shader->numbumpstages > 0)
@@ -1239,7 +1261,7 @@ void Parhelia_drawTriangleListBump (const vertexdef_t *verts, int *indecies,
     Parhelia_sendTriangleListTA(verts,indecies,numIndecies);
     Parhelia_DisableDiffuseShader();
 
-    Parhelia_EnableDiffuseShader(tr,currentshadowlight->origin);
+    Parhelia_EnableDiffuseShader(tr, lo);
     //bind the correct texture
     GL_SelectTexture(GL_TEXTURE0_ARB);
     if (shader->numbumpstages > 0)
@@ -1599,7 +1621,7 @@ void Parhelia_sendSurfacesPlain(msurface_t** surfs, int numSurfaces)
 }
 
 void Parhelia_drawSurfaceListBump (vertexdef_t *verts, msurface_t **surfs,
-				   int numSurfaces,const transform_t *tr)
+				   int numSurfaces,const transform_t *tr, const lightobject_t *lo)
 {
     glVertexPointer(3, GL_FLOAT, verts->vertexstride, verts->vertices);
     glEnableClientState(GL_VERTEX_ARRAY);
@@ -1611,7 +1633,7 @@ void Parhelia_drawSurfaceListBump (vertexdef_t *verts, msurface_t **surfs,
     {
 	//draw attent into dest alpha
 	GL_DrawAlpha();
-	Parhelia_EnableAttentShader(currentshadowlight->origin);
+	Parhelia_EnableAttentShader(tr);
 		
 	glTexCoordPointer(3, GL_FLOAT, verts->vertexstride, verts->vertices);
 	Parhelia_sendSurfacesPlain(surfs,numSurfaces);
@@ -1625,13 +1647,13 @@ void Parhelia_drawSurfaceListBump (vertexdef_t *verts, msurface_t **surfs,
     }
     glColor3fv(&currentshadowlight->color[0]);
 
-    Parhelia_EnableSpecularShader(tr,currentshadowlight->origin,true);
+    Parhelia_EnableSpecularShader(tr, lo, true);
 
     glTexCoordPointer(2, GL_FLOAT, verts->texcoordstride, verts->texcoords);
     Parhelia_sendSurfacesTA(surfs,numSurfaces);
     Parhelia_DisableDiffuseShader();
 
-    Parhelia_EnableDiffuseShader(tr,currentshadowlight->origin);
+    Parhelia_EnableDiffuseShader(tr, lo);
     Parhelia_sendSurfacesTA(surfs,numSurfaces);
     Parhelia_DisableDiffuseShader();
 

@@ -1099,7 +1099,7 @@ void Radeon_sendTriangleListTA(const vertexdef_t *verts, int *indecies,
 
 void Radeon_drawTriangleListBump (const vertexdef_t *verts, int *indecies,
 				  int numIndecies, shader_t *shader,
-				  const transform_t *tr)
+				  const transform_t *tr,  const lightobject_t *lo)
 {
     GL_AddColor();
     glColor3fv(&currentshadowlight->color[0]);
@@ -1450,7 +1450,7 @@ void Radeon_sendSurfacesPlain(msurface_t** surfs, int numSurfaces)
 }
 
 void Radeon_drawSurfaceListBump (vertexdef_t *verts, msurface_t **surfs,
-				 int numSurfaces,const transform_t *tr)
+				 int numSurfaces,const transform_t *tr, const lightobject_t *lo)
 {
     glVertexPointer(3, GL_FLOAT, verts->vertexstride, verts->vertices);
     glEnableClientState(GL_VERTEX_ARRAY);
