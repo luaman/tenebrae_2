@@ -92,14 +92,10 @@ GLQUAKE_OBJS= \
 	$(BUILDDIR)/glquake/gl_aliasinstant.o \
 	$(BUILDDIR)/glquake/gl_brushinstant.o \
 	$(BUILDDIR)/glquake/gl_bumpdriver.o \
-	$(BUILDDIR)/glquake/gl_bumpgf.o \
+	$(BUILDDIR)/glquake/gl_drivermem.o \
+	$(BUILDDIR)/glquake/gl_vertexcache.o \
 	$(BUILDDIR)/glquake/gl_bumparb.o \
-	$(BUILDDIR)/glquake/gl_bumpgl2.o \
 	$(BUILDDIR)/glquake/gl_bumpmap.o \
-	$(BUILDDIR)/glquake/gl_bumpparhelia.o \
-	$(BUILDDIR)/glquake/gl_bumpradeon.o \
-	$(BUILDDIR)/glquake/gl_bumpnv3x.o \
-	$(BUILDDIR)/glquake/gl_bumpgeneric.o \
 	$(BUILDDIR)/glquake/gl_bumpstat.o \
 	$(BUILDDIR)/glquake/gl_common.o \
 	$(BUILDDIR)/glquake/gl_curves.o \
@@ -174,6 +170,12 @@ GLQUAKE_OBJS= \
 	$(BUILDDIR)/glquake/lex.yy.o \
 	$(BUILDDIR)/glquake/te_scripts.o 
 
+#	$(BUILDDIR)/glquake/gl_bumpgf.o \
+#	$(BUILDDIR)/glquake/gl_bumpgl2.o \
+#	$(BUILDDIR)/glquake/gl_bumpparhelia.o \
+#	$(BUILDDIR)/glquake/gl_bumpradeon.o \
+#	$(BUILDDIR)/glquake/gl_bumpnv3x.o \
+#	$(BUILDDIR)/glquake/gl_bumpgeneric.o \
 
 $(BUILDDIR)/bin/tenebrae.run : $(GLQUAKE_OBJS)
 	$(CC) $(CFLAGS) -o $@ $(GLQUAKE_OBJS) $(LDFLAGS)
@@ -224,6 +226,12 @@ $(BUILDDIR)/glquake/gl_brushinstant.o :      $(MOUNT_DIR)/gl_brushinstant.c
 	$(DO_GL_CC)
 
 $(BUILDDIR)/glquake/gl_bumpdriver.o :      $(MOUNT_DIR)/gl_bumpdriver.c
+	$(DO_GL_CC)
+
+$(BUILDDIR)/glquake/gl_drivermem.o :      $(MOUNT_DIR)/gl_drivermem.c
+	$(DO_GL_CC)
+
+$(BUILDDIR)/glquake/gl_vertexcache.o :      $(MOUNT_DIR)/gl_vertexcache.c
 	$(DO_GL_CC)
 
 $(BUILDDIR)/glquake/gl_bumpgf.o :      $(MOUNT_DIR)/gl_bumpgf.c
