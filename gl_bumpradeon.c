@@ -990,11 +990,11 @@ void Radeon_sendTriangleListWV(const vertexdef_t *verts, int *indecies,
 			       int numIndecies)
 {
 
-    glVertexPointer(3, GL_FLOAT, verts->vertexstride, verts->vertices);
+    GL_VertexPointer(3, GL_FLOAT, verts->vertexstride, verts->vertices);
     glEnableClientState(GL_VERTEX_ARRAY);
 
     qglClientActiveTextureARB(GL_TEXTURE0_ARB);
-    glTexCoordPointer(3, GL_FLOAT, verts->vertexstride, verts->vertices);
+    GL_TexCoordPointer(3, GL_FLOAT, verts->vertexstride, verts->vertices);
     glEnableClientState(GL_TEXTURE_COORD_ARRAY);
 
     //draw them
@@ -1007,31 +1007,29 @@ void Radeon_sendTriangleListWV(const vertexdef_t *verts, int *indecies,
 void Radeon_sendTriangleListTA(const vertexdef_t *verts, int *indecies,
 			       int numIndecies)
 {
-    glVertexPointer(3, GL_FLOAT, verts->vertexstride, verts->vertices);
+    GL_VertexPointer(3, GL_FLOAT, verts->vertexstride, verts->vertices);
     glEnableClientState(GL_VERTEX_ARRAY);
 
-    if (!verts->texcoords)
-	FormatError();
+    //Check the input vertices
+    if (IsNullDriver(verts->texcoords)) FormatError();
+    if (IsNullDriver(verts->binormals)) FormatError();
+    if (IsNullDriver(verts->tangents)) FormatError();
+    if (IsNullDriver(verts->normals)) FormatError();
+
     qglClientActiveTextureARB(GL_TEXTURE0_ARB);
-    glTexCoordPointer(2, GL_FLOAT, verts->texcoordstride, verts->texcoords);
+    GL_TexCoordPointer(2, GL_FLOAT, verts->texcoordstride, verts->texcoords);
     glEnableClientState(GL_TEXTURE_COORD_ARRAY);
 
-    if (!verts->tangents)
-	FormatError();
     qglClientActiveTextureARB(GL_TEXTURE1_ARB);
-    glTexCoordPointer(3, GL_FLOAT, verts->tangentstride, verts->tangents);
+    GL_TexCoordPointer(3, GL_FLOAT, verts->tangentstride, verts->tangents);
     glEnableClientState(GL_TEXTURE_COORD_ARRAY);
 
-    if (!verts->binormals)
-	FormatError();
     qglClientActiveTextureARB(GL_TEXTURE2_ARB);
-    glTexCoordPointer(3, GL_FLOAT, verts->binormalstride, verts->binormals);
+    GL_TexCoordPointer(3, GL_FLOAT, verts->binormalstride, verts->binormals);
     glEnableClientState(GL_TEXTURE_COORD_ARRAY);
 
-    if (!verts->normals)
-	FormatError();
     qglClientActiveTextureARB(GL_TEXTURE3_ARB);
-    glTexCoordPointer(3, GL_FLOAT, verts->normalstride, verts->normals);
+    GL_TexCoordPointer(3, GL_FLOAT, verts->normalstride, verts->normals);
     glEnableClientState(GL_TEXTURE_COORD_ARRAY);
 
     //draw them
@@ -1090,11 +1088,11 @@ void Radeon_drawTriangleListBase (vertexdef_t *verts, int *indecies,
 {
     int i;
 
-    glVertexPointer(3, GL_FLOAT, verts->vertexstride, verts->vertices);
+    GL_VertexPointer(3, GL_FLOAT, verts->vertexstride, verts->vertices);
     glEnableClientState(GL_VERTEX_ARRAY);
 
     qglClientActiveTextureARB(GL_TEXTURE0_ARB);
-    glTexCoordPointer(2, GL_FLOAT, verts->texcoordstride, verts->texcoords);
+    GL_TexCoordPointer(2, GL_FLOAT, verts->texcoordstride, verts->texcoords);
     glEnableClientState(GL_TEXTURE_COORD_ARRAY);
 
     if (!shader->cull)
@@ -1114,9 +1112,9 @@ void Radeon_drawTriangleListBase (vertexdef_t *verts, int *indecies,
     }
     glMatrixMode(GL_MODELVIEW);
 
-    if (verts->colors && (shader->flags & SURF_PPLIGHT))
+    if (!IsNullDriver(verts->colors) && (shader->flags & SURF_PPLIGHT))
     {
-	glColorPointer(3, GL_UNSIGNED_BYTE, verts->colorstride, verts->colors);
+	GL_ColorPointer(3, GL_UNSIGNED_BYTE, verts->colorstride, verts->colors);
 	glEnableClientState(GL_COLOR_ARRAY);
 	glShadeModel(GL_SMOOTH);
 
@@ -1220,11 +1218,11 @@ void Radeon_drawSurfaceListBase (vertexdef_t* verts, msurface_t** surfs,
 {
     int i;
 
-    glVertexPointer(3, GL_FLOAT, verts->vertexstride, verts->vertices);
+    GL_VertexPointer(3, GL_FLOAT, verts->vertexstride, verts->vertices);
     glEnableClientState(GL_VERTEX_ARRAY);
 
     qglClientActiveTextureARB(GL_TEXTURE0_ARB);
-    glTexCoordPointer(2, GL_FLOAT, verts->texcoordstride, verts->texcoords);
+    GL_TexCoordPointer(2, GL_FLOAT, verts->texcoordstride, verts->texcoords);
     glEnableClientState(GL_TEXTURE_COORD_ARRAY);
 
     glColor3ub(255,255,255);
@@ -1242,10 +1240,10 @@ void Radeon_drawSurfaceListBase (vertexdef_t* verts, msurface_t** surfs,
 	glPopMatrix();
     }
 
-    if (verts->lightmapcoords && (shader->flags & SURF_PPLIGHT))
+    if (!IsNullDriver(verts->lightmapcoords) && (shader->flags & SURF_PPLIGHT))
     {
 	qglClientActiveTextureARB(GL_TEXTURE1_ARB);
-	glTexCoordPointer(2, GL_FLOAT, verts->lightmapstride,
+	GL_TexCoordPointer(2, GL_FLOAT, verts->lightmapstride,
 			  verts->lightmapcoords);
 	glEnableClientState(GL_TEXTURE_COORD_ARRAY);
 
@@ -1443,7 +1441,7 @@ void Radeon_drawSurfaceListBump (vertexdef_t *verts, msurface_t **surfs,
 				 int numSurfaces, const transform_t *tr,
                                  const lightobject_t *lo)
 {
-    glVertexPointer(3, GL_FLOAT, verts->vertexstride, verts->vertices);
+    GL_VertexPointer(3, GL_FLOAT, verts->vertexstride, verts->vertices);
     glEnableClientState(GL_VERTEX_ARRAY);
 
     qglClientActiveTextureARB(GL_TEXTURE0_ARB);
@@ -1454,7 +1452,7 @@ void Radeon_drawSurfaceListBump (vertexdef_t *verts, msurface_t **surfs,
     	//draw attent into dest alpha
     	GL_DrawAlpha();
 	Radeon_EnableAttentShader(tr);
-	glTexCoordPointer(3, GL_FLOAT, verts->vertexstride, verts->vertices);
+	GL_TexCoordPointer(3, GL_FLOAT, verts->vertexstride, verts->vertices);
 	Radeon_sendSurfacesPlain(surfs,numSurfaces);
 	Radeon_DisableAttentShader();
 	GL_ModulateAlphaDrawColor();
@@ -1465,7 +1463,7 @@ void Radeon_drawSurfaceListBump (vertexdef_t *verts, msurface_t **surfs,
     }
     glColor3fv(&currentshadowlight->color[0]);
 
-    glTexCoordPointer(2, GL_FLOAT, verts->texcoordstride, verts->texcoords);
+    GL_TexCoordPointer(2, GL_FLOAT, verts->texcoordstride, verts->texcoords);
     Radeon_sendSurfacesTA(surfs, numSurfaces, tr, lo);
 
     glDisableClientState(GL_VERTEX_ARRAY);

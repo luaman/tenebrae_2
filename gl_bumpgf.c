@@ -448,6 +448,8 @@ Shader utitlity routines
 
 *************************/
 
+void FormatError(void); // in gl_bumparb.c
+
 void GF3_SetupTcMod(tcmod_t *tc) {
 
 	switch (tc->type) {
@@ -509,17 +511,13 @@ Generic triangle list routines
 
 *************************/
 
-void FormatError () {
-	Sys_Error("Invalid vertexdef_t\n");
-}
-
 void GF3_sendTriangleListWV(const vertexdef_t *verts, int *indecies, int numIndecies) {
 
-	glVertexPointer(3, GL_FLOAT, verts->vertexstride, verts->vertices);
+	GL_VertexPointer(3, GL_FLOAT, verts->vertexstride, verts->vertices);
 	glEnableClientState(GL_VERTEX_ARRAY);
 
 	qglClientActiveTextureARB(GL_TEXTURE0_ARB);
-	glTexCoordPointer(3, GL_FLOAT, verts->vertexstride, verts->vertices);
+	GL_TexCoordPointer(3, GL_FLOAT, verts->vertexstride, verts->vertices);
 	glEnableClientState(GL_TEXTURE_COORD_ARRAY);
 
 	//draw them
@@ -531,27 +529,29 @@ void GF3_sendTriangleListWV(const vertexdef_t *verts, int *indecies, int numInde
 
 void GF3_sendTriangleListTA(const vertexdef_t *verts, int *indecies, int numIndecies) {
 
-	glVertexPointer(3, GL_FLOAT, verts->vertexstride, verts->vertices);
+	GL_VertexPointer(3, GL_FLOAT, verts->vertexstride, verts->vertices);
 	glEnableClientState(GL_VERTEX_ARRAY);
 
-	if (!verts->texcoords) FormatError();
+	//Check the input vertices
+	if (IsNullDriver(verts->texcoords)) FormatError();
+	if (IsNullDriver(verts->binormals)) FormatError();
+	if (IsNullDriver(verts->tangents)) FormatError();
+	if (IsNullDriver(verts->normals)) FormatError();
+
 	qglClientActiveTextureARB(GL_TEXTURE0_ARB);
-	glTexCoordPointer(2, GL_FLOAT, verts->texcoordstride, verts->texcoords);
+	GL_TexCoordPointer(2, GL_FLOAT, verts->texcoordstride, verts->texcoords);
 	glEnableClientState(GL_TEXTURE_COORD_ARRAY);
 
-	if (!verts->tangents) FormatError();
 	qglClientActiveTextureARB(GL_TEXTURE1_ARB);
-	glTexCoordPointer(3, GL_FLOAT, verts->tangentstride, verts->tangents);
+	GL_TexCoordPointer(3, GL_FLOAT, verts->tangentstride, verts->tangents);
 	glEnableClientState(GL_TEXTURE_COORD_ARRAY);
 
-	if (!verts->binormals) FormatError();
 	qglClientActiveTextureARB(GL_TEXTURE2_ARB);
-	glTexCoordPointer(3, GL_FLOAT, verts->binormalstride, verts->binormals);
+	GL_TexCoordPointer(3, GL_FLOAT, verts->binormalstride, verts->binormals);
 	glEnableClientState(GL_TEXTURE_COORD_ARRAY);
 
-	if (!verts->normals) FormatError();
 	qglClientActiveTextureARB(GL_TEXTURE3_ARB);
-	glTexCoordPointer(3, GL_FLOAT, verts->normalstride, verts->normals);
+	GL_TexCoordPointer(3, GL_FLOAT, verts->normalstride, verts->normals);
 	glEnableClientState(GL_TEXTURE_COORD_ARRAY);
 
 	//draw them
@@ -627,11 +627,11 @@ void GF3_drawTriangleListBase (vertexdef_t *verts, int *indecies, int numIndecie
 
 	int i;
 
-	glVertexPointer(3, GL_FLOAT, verts->vertexstride, verts->vertices);
+	GL_VertexPointer(3, GL_FLOAT, verts->vertexstride, verts->vertices);
 	glEnableClientState(GL_VERTEX_ARRAY);
 
 	qglClientActiveTextureARB(GL_TEXTURE0_ARB);
-	glTexCoordPointer(2, GL_FLOAT, verts->texcoordstride, verts->texcoords);
+	GL_TexCoordPointer(2, GL_FLOAT, verts->texcoordstride, verts->texcoords);
 	glEnableClientState(GL_TEXTURE_COORD_ARRAY);
 
 	if (!shader->cull) {
@@ -649,7 +649,7 @@ void GF3_drawTriangleListBase (vertexdef_t *verts, int *indecies, int numIndecie
 	
 	glMatrixMode(GL_MODELVIEW);
 
-	if (verts->lightmapcoords && (lightmapIndex >= 0) && (shader->flags & SURF_PPLIGHT)) {
+	if (!IsNullDriver(verts->lightmapcoords) && (lightmapIndex >= 0) && (shader->flags & SURF_PPLIGHT)) {
 
 		//Delux lightmapping
 		qboolean usedelux = (sh_delux.value != 0);
@@ -660,23 +660,23 @@ void GF3_drawTriangleListBase (vertexdef_t *verts, int *indecies, int numIndecie
 
 		if (usedelux) {
 
-			glNormalPointer(GL_FLOAT, verts->normalstride, verts->normals);
+			GL_NormalPointer(GL_FLOAT, verts->normalstride, verts->normals);
 			glEnableClientState(GL_NORMAL_ARRAY);
 
 			qglClientActiveTextureARB(GL_TEXTURE0_ARB);
-			glTexCoordPointer(3, GL_FLOAT, verts->tangentstride, verts->tangents);
+			GL_TexCoordPointer(3, GL_FLOAT, verts->tangentstride, verts->tangents);
 			glEnableClientState(GL_TEXTURE_COORD_ARRAY);
 
 			qglClientActiveTextureARB(GL_TEXTURE1_ARB);
-			glTexCoordPointer(3, GL_FLOAT, verts->binormalstride, verts->binormals);
+			GL_TexCoordPointer(3, GL_FLOAT, verts->binormalstride, verts->binormals);
 			glEnableClientState(GL_TEXTURE_COORD_ARRAY);
 
 			qglClientActiveTextureARB(GL_TEXTURE2_ARB);
-			glTexCoordPointer(2, GL_FLOAT, verts->lightmapstride, verts->lightmapcoords);
+			GL_TexCoordPointer(2, GL_FLOAT, verts->lightmapstride, verts->lightmapcoords);
 			glEnableClientState(GL_TEXTURE_COORD_ARRAY);
 
 			qglClientActiveTextureARB(GL_TEXTURE3_ARB);
-			glTexCoordPointer(2, GL_FLOAT, verts->texcoordstride, verts->texcoords);
+			GL_TexCoordPointer(2, GL_FLOAT, verts->texcoordstride, verts->texcoords);
 			glEnableClientState(GL_TEXTURE_COORD_ARRAY);
 
 			GL_SelectTexture(GL_TEXTURE0_ARB);
@@ -778,11 +778,11 @@ void GF3_drawTriangleListBase (vertexdef_t *verts, int *indecies, int numIndecie
 		glEnable(GL_TEXTURE_2D);
 		GL_Bind(lightmap_textures+lightmapIndex);
 		qglClientActiveTextureARB(GL_TEXTURE0_ARB);
-		glTexCoordPointer(2, GL_FLOAT, verts->texcoordstride, verts->texcoords);
+		GL_TexCoordPointer(2, GL_FLOAT, verts->texcoordstride, verts->texcoords);
 		glEnableClientState(GL_TEXTURE_COORD_ARRAY);
 
 		qglClientActiveTextureARB(GL_TEXTURE1_ARB);
-		glTexCoordPointer(2, GL_FLOAT, verts->lightmapstride, verts->lightmapcoords);
+		GL_TexCoordPointer(2, GL_FLOAT, verts->lightmapstride, verts->lightmapcoords);
 		glEnableClientState(GL_TEXTURE_COORD_ARRAY);
 
 		glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
@@ -796,9 +796,9 @@ void GF3_drawTriangleListBase (vertexdef_t *verts, int *indecies, int numIndecie
 		glDisable(GL_TEXTURE_2D);
 		GL_SelectTexture(GL_TEXTURE0_ARB);
 
-	} else if (verts->colors && (shader->flags & SURF_PPLIGHT)) {
+	} else if (!IsNullDriver(verts->colors) && (shader->flags & SURF_PPLIGHT)) {
 
-		glColorPointer(3, GL_UNSIGNED_BYTE, verts->colorstride, verts->colors);
+		GL_ColorPointer(3, GL_UNSIGNED_BYTE, verts->colorstride, verts->colors);
 		glEnableClientState(GL_COLOR_ARRAY);
 		glShadeModel(GL_SMOOTH);
 
@@ -938,7 +938,7 @@ void GF3_TestAmbientBumps (vertexdef_t *verts, msurface_t **surfs, int numSurfac
 	//Pass 1: Lightmap (= ambient occlusion) * colormap
 
 	qglClientActiveTextureARB(GL_TEXTURE1_ARB);
-	glTexCoordPointer(2, GL_FLOAT, verts->lightmapstride, verts->lightmapcoords);
+	GL_TexCoordPointer(2, GL_FLOAT, verts->lightmapstride, verts->lightmapcoords);
 	glEnableClientState(GL_TEXTURE_COORD_ARRAY);
 
 	if (shader->numcolorstages) {
@@ -1053,11 +1053,11 @@ void GF3_drawSurfaceListBase (vertexdef_t *verts, msurface_t **surfs, int numSur
 	int i;
 	qboolean usedelux;
 
-	glVertexPointer(3, GL_FLOAT, verts->vertexstride, verts->vertices);
+	GL_VertexPointer(3, GL_FLOAT, verts->vertexstride, verts->vertices);
 	glEnableClientState(GL_VERTEX_ARRAY);
 
 	qglClientActiveTextureARB(GL_TEXTURE0_ARB);
-	glTexCoordPointer(2, GL_FLOAT, verts->texcoordstride, verts->texcoords);
+	GL_TexCoordPointer(2, GL_FLOAT, verts->texcoordstride, verts->texcoords);
 	glEnableClientState(GL_TEXTURE_COORD_ARRAY);
 
 	glColor3ub(255,255,255);
@@ -1078,14 +1078,14 @@ void GF3_drawSurfaceListBase (vertexdef_t *verts, msurface_t **surfs, int numSur
 		glPopMatrix();
 	}
 
-	if (verts->lightmapcoords && (shader->flags & SURF_PPLIGHT)) {
+	if (!IsNullDriver(verts->lightmapcoords) && (shader->flags & SURF_PPLIGHT)) {
 #ifdef AMBIENT_BUMP
 
 	GF3_TestAmbientBumps(verts, surfs, numSurfaces, shader);
 
 #else
 		qglClientActiveTextureARB(GL_TEXTURE1_ARB);
-		glTexCoordPointer(2, GL_FLOAT, verts->lightmapstride, verts->lightmapcoords);
+		GL_TexCoordPointer(2, GL_FLOAT, verts->lightmapstride, verts->lightmapcoords);
 		glEnableClientState(GL_TEXTURE_COORD_ARRAY);
 
 		//Delux lightmapping
@@ -1102,11 +1102,11 @@ void GF3_drawSurfaceListBase (vertexdef_t *verts, msurface_t **surfs, int numSur
 			glDisableClientState(GL_TEXTURE_COORD_ARRAY);
 
 			qglClientActiveTextureARB(GL_TEXTURE2_ARB);
-			glTexCoordPointer(2, GL_FLOAT, verts->lightmapstride, verts->lightmapcoords);
+			GL_TexCoordPointer(2, GL_FLOAT, verts->lightmapstride, verts->lightmapcoords);
 			glEnableClientState(GL_TEXTURE_COORD_ARRAY);
 
 			qglClientActiveTextureARB(GL_TEXTURE3_ARB);
-			glTexCoordPointer(2, GL_FLOAT, verts->texcoordstride, verts->texcoords);
+			GL_TexCoordPointer(2, GL_FLOAT, verts->texcoordstride, verts->texcoords);
 			glEnableClientState(GL_TEXTURE_COORD_ARRAY);
 
 			GL_SelectTexture(GL_TEXTURE0_ARB);
@@ -1401,7 +1401,7 @@ void GF3_drawSurfaceListBump (vertexdef_t *verts, msurface_t **surfs, int numSur
 
 	int i, num;
 
-	glVertexPointer(3, GL_FLOAT, verts->vertexstride, verts->vertices);
+	GL_VertexPointer(3, GL_FLOAT, verts->vertexstride, verts->vertices);
 	glEnableClientState(GL_VERTEX_ARRAY);
 
 	qglClientActiveTextureARB(GL_TEXTURE0_ARB);
@@ -1412,7 +1412,7 @@ void GF3_drawSurfaceListBump (vertexdef_t *verts, msurface_t **surfs, int numSur
 		GL_DrawAlpha();
 		GL_EnableAttentShaderGF3(tr);
 		
-		glTexCoordPointer(3, GL_FLOAT, verts->vertexstride, verts->vertices);
+		GL_TexCoordPointer(3, GL_FLOAT, verts->vertexstride, verts->vertices);
 		GF3_sendSurfacesPlain(surfs,numSurfaces);
 
 		GL_DisableAttentShaderGF3();
@@ -1425,7 +1425,7 @@ void GF3_drawSurfaceListBump (vertexdef_t *verts, msurface_t **surfs, int numSur
 	num = (currentshadowlight->shader->numstages == 0) ? 1 : currentshadowlight->shader->numstages;
 	for (i=0; i<num; i++) {
 		GL_EnableSpecularShaderGF3(tr, lo, i, true,true);
-		glTexCoordPointer(2, GL_FLOAT, verts->texcoordstride, verts->texcoords);
+		GL_TexCoordPointer(2, GL_FLOAT, verts->texcoordstride, verts->texcoords);
 		GF3_sendSurfacesTA(surfs,numSurfaces, true);
 		GL_DisableDiffuseShaderGF3(i);
 	}

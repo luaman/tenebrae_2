@@ -728,10 +728,16 @@ void NV3x_drawTriangleListBump (const vertexdef_t *verts, int *indecies,
 			       const transform_t *tr, const lightobject_t *lo)
 {
     glEnableClientState(GL_VERTEX_ARRAY);
-    glVertexPointer(3, GL_FLOAT, verts->vertexstride, verts->vertices);
+    GL_VertexPointer(3, GL_FLOAT, verts->vertexstride, verts->vertices);
 
     GL_AddColor();
     glColor3fv(&currentshadowlight->color[0]);
+
+    //Check the input vertices
+    if (IsNullDriver(verts->texcoords)) FormatError();
+    if (IsNullDriver(verts->binormals)) FormatError();
+    if (IsNullDriver(verts->tangents)) FormatError();
+    if (IsNullDriver(verts->normals)) FormatError();
 
     NV3x_EnableBumpShader(tr, lo, true, shader);
 
@@ -740,33 +746,25 @@ void NV3x_drawTriangleListBump (const vertexdef_t *verts, int *indecies,
     qglClientActiveTextureARB(GL_TEXTURE0_ARB);
     if (shader->numbumpstages > 0)
 	GL_BindAdvanced(shader->bumpstages[0].texture[0]);
-    if (!verts->texcoords)
-	FormatError();
     glEnableClientState(GL_TEXTURE_COORD_ARRAY);
-    glTexCoordPointer(2, GL_FLOAT, verts->texcoordstride, verts->texcoords);
+    GL_TexCoordPointer(2, GL_FLOAT, verts->texcoordstride, verts->texcoords);
 
     GL_SelectTexture(GL_TEXTURE1_ARB);
     qglClientActiveTextureARB(GL_TEXTURE1_ARB);
     if (shader->numcolorstages > 0)
 	GL_BindAdvanced(shader->colorstages[0].texture[0]);
-    if (!verts->tangents)
-	FormatError();
     glEnableClientState(GL_TEXTURE_COORD_ARRAY);
-    glTexCoordPointer(3, GL_FLOAT, verts->tangentstride, verts->tangents);
+    GL_TexCoordPointer(3, GL_FLOAT, verts->tangentstride, verts->tangents);
 
-    if (!verts->binormals)
-	FormatError();
     GL_SelectTexture(GL_TEXTURE2_ARB);
     qglClientActiveTextureARB(GL_TEXTURE2_ARB);
     glEnableClientState(GL_TEXTURE_COORD_ARRAY);
-    glTexCoordPointer(3, GL_FLOAT, verts->binormalstride, verts->binormals);
+    GL_TexCoordPointer(3, GL_FLOAT, verts->binormalstride, verts->binormals);
 
-    if (!verts->normals)
-	FormatError();
     GL_SelectTexture(GL_TEXTURE3_ARB);
     qglClientActiveTextureARB(GL_TEXTURE3_ARB);
     glEnableClientState(GL_TEXTURE_COORD_ARRAY);
-    glTexCoordPointer(3, GL_FLOAT, verts->normalstride, verts->normals);
+    GL_TexCoordPointer(3, GL_FLOAT, verts->normalstride, verts->normals);
 
     glDrawElements(GL_TRIANGLES, numIndecies, GL_UNSIGNED_INT, indecies);
 
@@ -792,12 +790,12 @@ void NV3x_drawTriangleListBase (vertexdef_t *verts, int *indecies,
     int i;
 
     glGetError();
-    glVertexPointer(3, GL_FLOAT, verts->vertexstride, verts->vertices);
+    GL_VertexPointer(3, GL_FLOAT, verts->vertexstride, verts->vertices);
     glEnableClientState(GL_VERTEX_ARRAY);
 
     GL_SelectTexture(GL_TEXTURE0_ARB);
     qglClientActiveTextureARB(GL_TEXTURE0_ARB);
-    glTexCoordPointer(2, GL_FLOAT, verts->texcoordstride, verts->texcoords);
+    GL_TexCoordPointer(2, GL_FLOAT, verts->texcoordstride, verts->texcoords);
     glEnableClientState(GL_TEXTURE_COORD_ARRAY);
 
     if (!shader->cull)
@@ -805,7 +803,7 @@ void NV3x_drawTriangleListBase (vertexdef_t *verts, int *indecies,
 	glDisable(GL_CULL_FACE); 
     } 
 
-	glColor3ub(255,255,255);
+    glColor3ub(255,255,255);
 
     for ( i = 0; i < shader->numstages; i++)
     {
@@ -815,7 +813,7 @@ void NV3x_drawTriangleListBase (vertexdef_t *verts, int *indecies,
     }
     glMatrixMode(GL_MODELVIEW);
 
-    if (verts->lightmapcoords && (lightmapIndex >= 0) && (shader->flags & SURF_PPLIGHT)) 
+    if (!IsNullDriver(verts->lightmapcoords) && (lightmapIndex >= 0) && (shader->flags & SURF_PPLIGHT)) 
     {
 	//Delux lightmapping
 	qboolean usedelux = (sh_delux.value != 0);
@@ -865,7 +863,7 @@ void NV3x_drawTriangleListBase (vertexdef_t *verts, int *indecies,
             GL_SelectTexture(GL_TEXTURE0_ARB);
 	    glEnable(GL_TEXTURE_2D);
             qglClientActiveTextureARB(GL_TEXTURE0_ARB);
-	    glTexCoordPointer(2, GL_FLOAT, verts->texcoordstride, verts->texcoords);
+	    GL_TexCoordPointer(2, GL_FLOAT, verts->texcoordstride, verts->texcoords);
 	    glEnableClientState(GL_TEXTURE_COORD_ARRAY);
 	    GL_Bind(lightmap_textures+lightmapIndex);
 
@@ -873,8 +871,8 @@ void NV3x_drawTriangleListBase (vertexdef_t *verts, int *indecies,
             GL_SelectTexture(GL_TEXTURE1_ARB);
 	    glEnable(GL_TEXTURE_2D);
             qglClientActiveTextureARB(GL_TEXTURE1_ARB);
-	    glTexCoordPointer(2, GL_FLOAT, verts->lightmapstride,
-			      verts->lightmapcoords);
+	    GL_TexCoordPointer(2, GL_FLOAT, verts->lightmapstride,
+			       verts->lightmapcoords);
 	    glEnableClientState(GL_TEXTURE_COORD_ARRAY);
 	    GL_Bind(lightmap_textures+lightmapIndex+1);
 
@@ -887,16 +885,16 @@ void NV3x_drawTriangleListBase (vertexdef_t *verts, int *indecies,
 		    GL_BindAdvanced(shader->bumpstages[0].texture[0]);
 	    }
             qglClientActiveTextureARB(GL_TEXTURE2_ARB);
-	    glTexCoordPointer(3, GL_FLOAT, verts->tangentstride,
-			      verts->tangents);
+	    GL_TexCoordPointer(3, GL_FLOAT, verts->tangentstride,
+			       verts->tangents);
 	    glEnableClientState(GL_TEXTURE_COORD_ARRAY);
 
             // Setup base texture
             GL_SelectTexture(GL_TEXTURE3_ARB);
 	    glEnable(GL_TEXTURE_2D);
             qglClientActiveTextureARB(GL_TEXTURE3_ARB);
-	    glTexCoordPointer(3, GL_FLOAT, verts->binormalstride,
-			      verts->binormals);
+	    GL_TexCoordPointer(3, GL_FLOAT, verts->binormalstride,
+			       verts->binormals);
 	    glEnableClientState(GL_TEXTURE_COORD_ARRAY);
 
 	    if (shader->numcolorstages)
@@ -913,8 +911,8 @@ void NV3x_drawTriangleListBase (vertexdef_t *verts, int *indecies,
 
 	    // Normals
             qglClientActiveTextureARB(GL_TEXTURE4_ARB);
-	    glTexCoordPointer(3, GL_FLOAT, verts->normalstride,
-			      verts->normals);
+	    GL_TexCoordPointer(3, GL_FLOAT, verts->normalstride,
+			       verts->normals);
 	    glEnableClientState(GL_TEXTURE_COORD_ARRAY);
 
 	    NV3x_EnableDeluxShader(shader);
@@ -972,7 +970,7 @@ void NV3x_drawTriangleListBase (vertexdef_t *verts, int *indecies,
 
 	    GL_SelectTexture(GL_TEXTURE0_ARB);
             qglClientActiveTextureARB(GL_TEXTURE0_ARB);
-	    glTexCoordPointer(2, GL_FLOAT, verts->texcoordstride, verts->texcoords);
+	    GL_TexCoordPointer(2, GL_FLOAT, verts->texcoordstride, verts->texcoords);
 	    glEnableClientState(GL_TEXTURE_COORD_ARRAY);
 	    glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
 
@@ -980,7 +978,7 @@ void NV3x_drawTriangleListBase (vertexdef_t *verts, int *indecies,
 	    glEnable(GL_TEXTURE_2D);
 	    GL_Bind(lightmap_textures+lightmapIndex);
             qglClientActiveTextureARB(GL_TEXTURE1_ARB);
-	    glTexCoordPointer(2, GL_FLOAT, verts->lightmapstride, verts->lightmapcoords);
+	    GL_TexCoordPointer(2, GL_FLOAT, verts->lightmapstride, verts->lightmapcoords);
 	    glEnableClientState(GL_TEXTURE_COORD_ARRAY);
 
 	    glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
@@ -994,9 +992,9 @@ void NV3x_drawTriangleListBase (vertexdef_t *verts, int *indecies,
     }
     else
     {
-	if (verts->colors && (shader->flags & SURF_PPLIGHT))
+	if (!IsNullDriver(verts->colors) && (shader->flags & SURF_PPLIGHT))
 	{
-	    glColorPointer(3, GL_UNSIGNED_BYTE, verts->colorstride, verts->colors);
+	    GL_ColorPointer(3, GL_UNSIGNED_BYTE, verts->colorstride, verts->colors);
 	    glEnableClientState(GL_COLOR_ARRAY);
 	    glShadeModel(GL_SMOOTH);
 
@@ -1042,10 +1040,10 @@ void NV3x_drawTriangleListBase (vertexdef_t *verts, int *indecies,
 	    {
 
 		if (shader->colorstages[0].src_blend >= 0) {
-			glBlendFunc(shader->colorstages[0].src_blend, shader->colorstages[0].dst_blend);
-			glEnable(GL_BLEND);
+		    glBlendFunc(shader->colorstages[0].src_blend, shader->colorstages[0].dst_blend);
+		    glEnable(GL_BLEND);
 		} else {
-			glDisable(GL_BLEND);
+		    glDisable(GL_BLEND);
 		}
 
 		glColor3f(0,0,0);
@@ -1143,13 +1141,13 @@ void NV3x_drawSurfaceListBase (vertexdef_t* verts, msurface_t** surfs,
     int usedelux;
 
         checkerror();
-    glVertexPointer(3, GL_FLOAT, verts->vertexstride, verts->vertices);
+    GL_VertexPointer(3, GL_FLOAT, verts->vertexstride, verts->vertices);
     glEnableClientState(GL_VERTEX_ARRAY);
 
     GL_SelectTexture(GL_TEXTURE0_ARB);
     qglClientActiveTextureARB(GL_TEXTURE0_ARB);
     glEnableClientState(GL_TEXTURE_COORD_ARRAY);
-    glTexCoordPointer(2, GL_FLOAT, verts->texcoordstride, verts->texcoords);
+    GL_TexCoordPointer(2, GL_FLOAT, verts->texcoordstride, verts->texcoords);
 
     glColor3ub(255,255,255);
 
@@ -1166,11 +1164,11 @@ void NV3x_drawSurfaceListBase (vertexdef_t* verts, msurface_t** surfs,
 	NV3x_sendSurfacesBase(surfs, numSurfaces, false);
 	glPopMatrix();
     }
-    if (verts->lightmapcoords && (shader->flags & SURF_PPLIGHT))
+    if (!IsNullDriver(verts->lightmapcoords) && (shader->flags & SURF_PPLIGHT))
     {
 	GL_SelectTexture(GL_TEXTURE1_ARB);
         qglClientActiveTextureARB(GL_TEXTURE1_ARB);
-	glTexCoordPointer(2, GL_FLOAT, verts->lightmapstride,
+	GL_TexCoordPointer(2, GL_FLOAT, verts->lightmapstride,
 	                  verts->lightmapcoords);
 	glEnableClientState(GL_TEXTURE_COORD_ARRAY);
 
@@ -1416,12 +1414,12 @@ void NV3x_sendSurfacesTA(msurface_t** surfs, int numSurfaces, const transform_t 
 void NV3x_drawSurfaceListBump (vertexdef_t *verts, msurface_t **surfs,
 			      int numSurfaces,const transform_t *tr, const lightobject_t *lo)
 {
-    glVertexPointer(3, GL_FLOAT, verts->vertexstride, verts->vertices);
+    GL_VertexPointer(3, GL_FLOAT, verts->vertexstride, verts->vertices);
     glEnableClientState(GL_VERTEX_ARRAY);
 
     qglClientActiveTextureARB(GL_TEXTURE0_ARB);
     glEnableClientState(GL_TEXTURE_COORD_ARRAY);
-    glTexCoordPointer(2, GL_FLOAT, verts->texcoordstride, verts->texcoords);
+    GL_TexCoordPointer(2, GL_FLOAT, verts->texcoordstride, verts->texcoords);
 
     GL_AddColor();
     glColor3fv(&currentshadowlight->color[0]);

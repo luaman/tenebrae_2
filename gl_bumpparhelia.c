@@ -1169,11 +1169,11 @@ void Parhelia_sendTriangleListWV(const vertexdef_t *verts, int *indecies,
 				 int numIndecies)
 {
 
-    glVertexPointer(3, GL_FLOAT, verts->vertexstride, verts->vertices);
+    GL_VertexPointer(3, GL_FLOAT, verts->vertexstride, verts->vertices);
     glEnableClientState(GL_VERTEX_ARRAY);
 
     qglClientActiveTextureARB(GL_TEXTURE0_ARB);
-    glTexCoordPointer(3, GL_FLOAT, verts->vertexstride, verts->vertices);
+    GL_TexCoordPointer(3, GL_FLOAT, verts->vertexstride, verts->vertices);
     glEnableClientState(GL_TEXTURE_COORD_ARRAY);
 
     //draw them
@@ -1186,31 +1186,29 @@ void Parhelia_sendTriangleListWV(const vertexdef_t *verts, int *indecies,
 void Parhelia_sendTriangleListTA(const vertexdef_t *verts, int *indecies,
 				 int numIndecies)
 {
-    glVertexPointer(3, GL_FLOAT, verts->vertexstride, verts->vertices);
+    GL_VertexPointer(3, GL_FLOAT, verts->vertexstride, verts->vertices);
     glEnableClientState(GL_VERTEX_ARRAY);
 
-    if (!verts->texcoords)
-	FormatError();
+    //Check the input vertices
+    if (IsNullDriver(verts->texcoords)) FormatError();
+    if (IsNullDriver(verts->binormals)) FormatError();
+    if (IsNullDriver(verts->tangents)) FormatError();
+    if (IsNullDriver(verts->normals)) FormatError();
+
     qglClientActiveTextureARB(GL_TEXTURE0_ARB);
-    glTexCoordPointer(2, GL_FLOAT, verts->texcoordstride, verts->texcoords);
+    GL_TexCoordPointer(2, GL_FLOAT, verts->texcoordstride, verts->texcoords);
     glEnableClientState(GL_TEXTURE_COORD_ARRAY);
 
-    if (!verts->tangents)
-	FormatError();
     qglClientActiveTextureARB(GL_TEXTURE1_ARB);
-    glTexCoordPointer(3, GL_FLOAT, verts->tangentstride, verts->tangents);
+    GL_TexCoordPointer(3, GL_FLOAT, verts->tangentstride, verts->tangents);
     glEnableClientState(GL_TEXTURE_COORD_ARRAY);
 
-    if (!verts->binormals)
-	FormatError();
     qglClientActiveTextureARB(GL_TEXTURE2_ARB);
-    glTexCoordPointer(3, GL_FLOAT, verts->binormalstride, verts->binormals);
+    GL_TexCoordPointer(3, GL_FLOAT, verts->binormalstride, verts->binormals);
     glEnableClientState(GL_TEXTURE_COORD_ARRAY);
 
-    if (!verts->normals)
-	FormatError();
     qglClientActiveTextureARB(GL_TEXTURE3_ARB);
-    glTexCoordPointer(3, GL_FLOAT, verts->normalstride, verts->normals);
+    GL_TexCoordPointer(3, GL_FLOAT, verts->normalstride, verts->normals);
     glEnableClientState(GL_TEXTURE_COORD_ARRAY);
 
     //draw them
@@ -1280,11 +1278,11 @@ void Parhelia_drawTriangleListBase (vertexdef_t *verts, int *indecies,
 {
     int i;
 
-    glVertexPointer(3, GL_FLOAT, verts->vertexstride, verts->vertices);
+    GL_VertexPointer(3, GL_FLOAT, verts->vertexstride, verts->vertices);
     glEnableClientState(GL_VERTEX_ARRAY);
 
     qglClientActiveTextureARB(GL_TEXTURE0_ARB);
-    glTexCoordPointer(2, GL_FLOAT, verts->texcoordstride, verts->texcoords);
+    GL_TexCoordPointer(2, GL_FLOAT, verts->texcoordstride, verts->texcoords);
     glEnableClientState(GL_TEXTURE_COORD_ARRAY);
 
     if (!shader->cull)
@@ -1302,9 +1300,9 @@ void Parhelia_drawTriangleListBase (vertexdef_t *verts, int *indecies,
     }
     glMatrixMode(GL_MODELVIEW);
 
-    if (verts->colors && (shader->flags & SURF_PPLIGHT))
+    if (!IsNullDriver(verts->colors) && (shader->flags & SURF_PPLIGHT))
     {
-	glColorPointer(3, GL_UNSIGNED_BYTE, verts->colorstride, verts->colors);
+	GL_ColorPointer(3, GL_UNSIGNED_BYTE, verts->colorstride, verts->colors);
 	glEnableClientState(GL_COLOR_ARRAY);
 	glShadeModel(GL_SMOOTH);
 
@@ -1407,11 +1405,11 @@ void Parhelia_drawSurfaceListBase (vertexdef_t* verts, msurface_t** surfs,
 {
     int i;
 
-    glVertexPointer(3, GL_FLOAT, verts->vertexstride, verts->vertices);
+    GL_VertexPointer(3, GL_FLOAT, verts->vertexstride, verts->vertices);
     glEnableClientState(GL_VERTEX_ARRAY);
 
     qglClientActiveTextureARB(GL_TEXTURE0_ARB);
-    glTexCoordPointer(2, GL_FLOAT, verts->texcoordstride, verts->texcoords);
+    GL_TexCoordPointer(2, GL_FLOAT, verts->texcoordstride, verts->texcoords);
     glEnableClientState(GL_TEXTURE_COORD_ARRAY);
 
     glColor3ub(255,255,255);
@@ -1429,10 +1427,10 @@ void Parhelia_drawSurfaceListBase (vertexdef_t* verts, msurface_t** surfs,
 	glPopMatrix();
     }
 
-    if (verts->lightmapcoords && (shader->flags & SURF_PPLIGHT))
+    if (!IsNullDriver(verts->lightmapcoords) && (shader->flags & SURF_PPLIGHT))
     {
 	qglClientActiveTextureARB(GL_TEXTURE1_ARB);
-	glTexCoordPointer(2, GL_FLOAT, verts->lightmapstride,
+	GL_TexCoordPointer(2, GL_FLOAT, verts->lightmapstride,
 			  verts->lightmapcoords);
 	glEnableClientState(GL_TEXTURE_COORD_ARRAY);
 
@@ -1623,7 +1621,7 @@ void Parhelia_sendSurfacesPlain(msurface_t** surfs, int numSurfaces)
 void Parhelia_drawSurfaceListBump (vertexdef_t *verts, msurface_t **surfs,
 				   int numSurfaces,const transform_t *tr, const lightobject_t *lo)
 {
-    glVertexPointer(3, GL_FLOAT, verts->vertexstride, verts->vertices);
+    GL_VertexPointer(3, GL_FLOAT, verts->vertexstride, verts->vertices);
     glEnableClientState(GL_VERTEX_ARRAY);
 
     qglClientActiveTextureARB(GL_TEXTURE0_ARB);
@@ -1635,7 +1633,7 @@ void Parhelia_drawSurfaceListBump (vertexdef_t *verts, msurface_t **surfs,
 	GL_DrawAlpha();
 	Parhelia_EnableAttentShader(tr);
 		
-	glTexCoordPointer(3, GL_FLOAT, verts->vertexstride, verts->vertices);
+	GL_TexCoordPointer(3, GL_FLOAT, verts->vertexstride, verts->vertices);
 	Parhelia_sendSurfacesPlain(surfs,numSurfaces);
 
 	Parhelia_DisableAttentShader();
@@ -1649,7 +1647,7 @@ void Parhelia_drawSurfaceListBump (vertexdef_t *verts, msurface_t **surfs,
 
     Parhelia_EnableSpecularShader(tr, lo, true);
 
-    glTexCoordPointer(2, GL_FLOAT, verts->texcoordstride, verts->texcoords);
+    GL_TexCoordPointer(2, GL_FLOAT, verts->texcoordstride, verts->texcoords);
     Parhelia_sendSurfacesTA(surfs,numSurfaces);
     Parhelia_DisableDiffuseShader();
 
