@@ -1449,8 +1449,18 @@ void	VID_Init (unsigned char *palette)
 								break;
 							}
 						}
-					}
-					else
+					//User specified nothing try to find the 640 * 480 mode
+					} else if (!COM_CheckParm("-height")) {
+						for (i=1, vid_default=0 ; i<nummodes ; i++)
+						{
+							if ((modelist[i].width == width) && (modelist[i].bpp == bpp) && (modelist[i].height = 480))
+							{
+								vid_default = i;
+								done = 1;
+								break;
+							}
+						}
+					} else
 					{
 						for (i=1, vid_default=0 ; i<nummodes ; i++)
 						{
