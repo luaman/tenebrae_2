@@ -64,18 +64,22 @@ void R_DrawMeshAmbient(mesh_t *mesh) {
 	def.texcoords = &globalVertexTable[mesh->firstvertex].texture[0];
 	def.texcoordstride = sizeof(mmvertex_t);
 
-	def.tangents = NULL;
+	def.tangents = &mesh->tangents[0][0];
 	def.tangentstride = 0;
-	def.binormals = NULL;
+
+	def.binormals = &mesh->binormals[0][0];
 	def.binormalstride = 0;
-	def.normals = NULL;
+
+	def.normals = &mesh->normals[0][0];
 	def.normalstride = 0;
-	def.lightmapcoords = NULL; // no lightmaps on aliasses
+
+	def.lightmapcoords = &globalVertexTable[mesh->firstvertex].lightmap[0]; // no lightmaps on aliasses
+	def.lightmapstride = sizeof(mmvertex_t);
 
 	def.colors = &globalVertexTable[mesh->firstvertex].color[0];
 	def.colorstride = sizeof(mmvertex_t);
 
-	gl_bumpdriver.drawTriangleListBase(&def, mesh->indecies, mesh->numindecies, mesh->shader->shader);
+	gl_bumpdriver.drawTriangleListBase(&def, mesh->indecies, mesh->numindecies, mesh->shader->shader, mesh->lightmapIndex);
 }
 
 void R_DrawMeshBumped(mesh_t *mesh) {
@@ -124,7 +128,7 @@ void R_DrawAliasAmbient(aliashdr_t *paliashdr, aliasframeinstant_t *instant) {
 	def.colors = NULL;
 	def.colorstride = 0;
 
-	gl_bumpdriver.drawTriangleListBase(&def, (int *)((byte *)paliashdr + paliashdr->indecies),paliashdr->numtris*3,paliashdr->shader);
+	gl_bumpdriver.drawTriangleListBase(&def, (int *)((byte *)paliashdr + paliashdr->indecies),paliashdr->numtris*3,paliashdr->shader, -1);
 }
 
 void R_DrawAliasBumped(aliashdr_t *paliashdr, aliasframeinstant_t *instant) {

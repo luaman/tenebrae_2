@@ -61,7 +61,7 @@ typedef struct {
 
 	//drawing code
 
-	void (*drawTriangleListBase) (vertexdef_t *verts, int *indecies, int numIndecies, shader_t *shader);
+	void (*drawTriangleListBase) (vertexdef_t *verts, int *indecies, int numIndecies, shader_t *shader, int lightmapIndex);//-1 for no lightmap
 	void (*drawTriangleListBump) (const vertexdef_t *verts, int *indecies, int numIndecies, shader_t *shader, const transform_t *tr);
 	void (*drawTriangleListSys) (vertexdef_t *verts, int *indecies, int numIndecies, shader_t *shader);
 	void (*drawSurfaceListBase) (vertexdef_t *verts, msurface_t **surfs, int numSurfaces, shader_t *shader);
