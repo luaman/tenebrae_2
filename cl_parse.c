@@ -354,6 +354,12 @@ void CL_ParseUpdate (int bits)
 		bits |= (i<<8);
 	}
 
+	if (bits & U_TENEBRAEBITS)
+	{
+		i = MSG_ReadShort ();
+		bits |= (i<<16);
+	}
+
 	if (bits & U_LONGENTITY)	
 		num = MSG_ReadShort ();
 	else
@@ -483,27 +489,38 @@ if (bits&(1<<i))
 	if ( bits & U_NOLERP )
 		ent->forcelink = true;
 
-	//PENTA: more baseline fields
-	if (bits & U_MOREDATA) {
-		//Con_Printf("parsemoredata\n");
-		ent->alpha = MSG_ReadByte () / 255.0;
-		ent->style = MSG_ReadByte ();
-		ent->light_lev = MSG_ReadShort ();
-		ent->pflags = MSG_ReadByte();
+	//PENTA: new baseline fields
+	if (bits & U_COLOR) {
 		for (i=0 ; i<3 ; i++)
 		{
 			ent->color[i] = MSG_ReadByte() / 255.0;
-		}			
+		}		
 	} else {
-		ent->alpha = ent->baseline.alpha;
-		ent->style = ent->baseline.style;
-		ent->light_lev = ent->baseline.light_lev;
-		ent->pflags = ent->baseline.pflags;
 		for (i=0 ; i<3 ; i++)
 		{
 			ent->color[i] = ent->baseline.color[i];
 		}
 	}
+
+	if (bits & U_ALPHA)
+		ent->alpha = MSG_ReadByte () / 255.0;
+	else
+		ent->alpha = ent->baseline.alpha;
+
+	if (bits & U_LIGHTLEV)
+		ent->light_lev = MSG_ReadShort ();
+	else
+		ent->light_lev = ent->baseline.light_lev;
+
+	if (bits & U_STYLE)
+		ent->style = MSG_ReadByte ();
+	else
+		ent->style = ent->baseline.style;	
+
+	if (bits & U_PFLAGS)
+		ent->pflags = MSG_ReadByte();
+	else
+		ent->pflags = ent->baseline.pflags;
 
 	if ( forcelink )
 	{	// didn't have an update last message
