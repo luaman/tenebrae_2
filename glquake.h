@@ -403,6 +403,8 @@ extern	float	fog_color[4];
 extern	cvar_t	r_tangentscale; //scale tangent/binormal by this
 extern  cvar_t  sh_delux;
 extern  cvar_t  sh_rtlights;
+extern	cvar_t	gl_clipboth;
+extern	cvar_t  gl_displacement;
 
 extern	int			mirrortexturenum;	// quake texturenum, not gltexturenum
 extern	qboolean	mirror;
@@ -986,62 +988,74 @@ extern PFNGLVERTEXATTRIBS4FVNVPROC qglVertexAttribs4fvNV ;
 extern PFNGLVERTEXATTRIBS4SVNVPROC qglVertexAttribs4svNV ;
 extern PFNGLVERTEXATTRIBS4UBVNVPROC qglVertexAttribs4ubvNV ;
 
-// <AWE> : MacOS X 10.2: defined in <OpenGL/glext.h> as APPLE extension:
-#if defined (__APPLE__) || defined (MACOSX)
+/* GL_ARB_vertex_buffer_object */
 
-// GL_NV_vertex_array_range = GL_APPLE_vertex_array_range
-#define GL_VERTEX_ARRAY_RANGE_NV		GL_VERTEX_ARRAY_RANGE_APPLE
-#define GL_VERTEX_ARRAY_RANGE_LENGTH_NV		GL_VERTEX_ARRAY_RANGE_LENGTH_APPLE
-#define GL_MAX_VERTEX_ARRAY_RANGE_ELEMENT_NV	GL_MAX_VERTEX_ARRAY_RANGE_ELEMENT_APPLE
-#define GL_VERTEX_ARRAY_RANGE_POINTER_NV	GL_VERTEX_ARRAY_RANGE_POINTER_APPLE
-#define GL_VERTEX_ARRAY_RANGE_VALID_NV		GL_VERTEX_ARRAY_STORAGE_HINT_APPLE
+#define GL_BUFFER_SIZE_ARB                0x8764
+#define GL_BUFFER_USAGE_ARB               0x8765
+#define GL_ARRAY_BUFFER_ARB               0x8892
+#define GL_ELEMENT_ARRAY_BUFFER_ARB       0x8893
+#define GL_ARRAY_BUFFER_BINDING_ARB       0x8894
+#define GL_ELEMENT_ARRAY_BUFFER_BINDING_ARB 0x8895
+#define GL_VERTEX_ARRAY_BUFFER_BINDING_ARB 0x8896
+#define GL_NORMAL_ARRAY_BUFFER_BINDING_ARB 0x8897
+#define GL_COLOR_ARRAY_BUFFER_BINDING_ARB 0x8898
+#define GL_INDEX_ARRAY_BUFFER_BINDING_ARB 0x8899
+#define GL_TEXTURE_COORD_ARRAY_BUFFER_BINDING_ARB 0x889A
+#define GL_EDGE_FLAG_ARRAY_BUFFER_BINDING_ARB 0x889B
+#define GL_SECONDARY_COLOR_ARRAY_BUFFER_BINDING_ARB 0x889C
+#define GL_FOG_COORDINATE_ARRAY_BUFFER_BINDING_ARB 0x889D
+#define GL_WEIGHT_ARRAY_BUFFER_BINDING_ARB 0x889E
+#define GL_VERTEX_ATTRIB_ARRAY_BUFFER_BINDING_ARB 0x889F
+#define GL_READ_ONLY_ARB                  0x88B8
+#define GL_WRITE_ONLY_ARB                 0x88B9
+#define GL_READ_WRITE_ARB                 0x88BA
+#define GL_BUFFER_ACCESS_ARB              0x88BB
+#define GL_BUFFER_MAPPED_ARB              0x88BC
+#define GL_BUFFER_MAP_POINTER_ARB         0x88BD
+#define GL_STREAM_DRAW_ARB                0x88E0
+#define GL_STREAM_READ_ARB                0x88E1
+#define GL_STREAM_COPY_ARB                0x88E2
+#define GL_STATIC_DRAW_ARB                0x88E4
+#define GL_STATIC_READ_ARB                0x88E5
+#define GL_STATIC_COPY_ARB                0x88E6
+#define GL_DYNAMIC_DRAW_ARB               0x88E8
+#define GL_DYNAMIC_READ_ARB               0x88E9
+#define GL_DYNAMIC_COPY_ARB               0x88EA
 
-#else
+typedef ptrdiff_t GLintptrARB;
+typedef ptrdiff_t GLsizeiptrARB;
 
+typedef void (APIENTRY * PFNGLBINDBUFFERARBPROC) (GLenum target, GLuint buffer);
+typedef void (APIENTRY * PFNGLDELETEBUFFERSARBPROC) (GLsizei n, const GLuint *buffers);
+typedef void (APIENTRY * PFNGLGENBUFFERSARBPROC) (GLsizei n, GLuint *buffers);
+typedef GLboolean (APIENTRY * PFNGLISBUFFERARBPROC) (GLuint buffer);
+typedef void (APIENTRY * PFNGLBUFFERDATAARBPROC) (GLenum target, GLsizeiptrARB size, const GLvoid *data, GLenum usage);
+typedef void (APIENTRY * PFNGLBUFFERSUBDATAARBPROC) (GLenum target, GLintptrARB offset, GLsizeiptrARB size, const GLvoid *data);
+typedef void (APIENTRY * PFNGLGETBUFFERSUBDATAARBPROC) (GLenum target, GLintptrARB offset, GLsizeiptrARB size, GLvoid *data);
+typedef GLvoid* (APIENTRY * PFNGLMAPBUFFERARBPROC) (GLenum target, GLenum access);
+typedef GLboolean (APIENTRY * PFNGLUNMAPBUFFERARBPROC) (GLenum target);
+typedef void (APIENTRY * PFNGLGETBUFFERPARAMETERIVARBPROC) (GLenum target, GLenum pname, GLint *params);
+typedef void (APIENTRY * PFNGLGETBUFFERPOINTERVARBPROC) (GLenum target, GLenum pname, GLvoid* *params);
+
+extern PFNGLBINDBUFFERARBPROC qglBindBufferARB;
+extern PFNGLDELETEBUFFERSARBPROC qglDeleteBuffersARB;
+extern PFNGLGENBUFFERSARBPROC qglGenBuffersARB;
+extern PFNGLISBUFFERARBPROC qglIsBufferARB;
+extern PFNGLBUFFERDATAARBPROC qglBufferDataARB;
+extern PFNGLBUFFERSUBDATAARBPROC qglBufferSubDataARB;
+extern PFNGLGETBUFFERSUBDATAARBPROC qglGetBufferSubDataARB;
+extern PFNGLMAPBUFFERARBPROC qglMapBufferARB;
+extern PFNGLUNMAPBUFFERARBPROC qglUnmapBufferARB;
+extern PFNGLGETBUFFERPARAMETERIVARBPROC qglGetBufferParameterivARB;
+extern PFNGLGETBUFFERPOINTERVARBPROC qglGetBufferPointervARB;
+
+/* clamp_to_edge */
 #define GL_CLAMP_TO_EDGE                	0x812F
 
-// GL_NV_vertex_array_range
-#define GL_VERTEX_ARRAY_RANGE_NV          	0x851D
-#define GL_VERTEX_ARRAY_RANGE_LENGTH_NV   	0x851E
-#define GL_VERTEX_ARRAY_RANGE_VALID_NV    	0x851F
-#define GL_MAX_VERTEX_ARRAY_RANGE_ELEMENT_NV 	0x8520
-#define GL_VERTEX_ARRAY_RANGE_POINTER_NV  	0x8521
+/* ATI_texture_mirror_once */
+#define GL_MIRROR_CLAMP_ATI                     0x8742
+#define GL_MIRROR_CLAMP_TO_EDGE_ATI             0x8743
 
-#endif /* !__APPLE__ && !MACOSX */
-
-// <AWE> There are some diffs with the function parameters. wgl stuff not present with MacOS X. -DC- and SDL 
-#if defined (__APPLE__) || defined (MACOSX) || defined(SDL) || defined (__glx__)
-
-typedef void (APIENTRY * PFNGLFLUSHVERTEXARRAYRANGEAPPLEPROC) (GLsizei length, const GLvoid *pointer);
-typedef void (APIENTRY * PFNGLVERTEXARRAYRANGEAPPLEPROC) (GLsizei size, const GLvoid *pointer);
-
-extern PFNGLFLUSHVERTEXARRAYRANGEAPPLEPROC qglFlushVertexArrayRangeAPPLE;
-extern PFNGLVERTEXARRAYRANGEAPPLEPROC qglVertexArrayRangeAPPLE;
-
-#define qglVertexArrayRangeNV	qglVertexArrayRangeAPPLE
-
-#else
-
-typedef void (APIENTRY * PFNGLFLUSHVERTEXARRAYRANGENVPROC) (void);
-typedef void (APIENTRY * PFNGLVERTEXARRAYRANGENVPROC) (GLsizei size, const GLvoid *pointer);
-typedef void * (APIENTRY * PFNWGLALLOCATEMEMORYNVPROC) (int size, float readfreq, float writefreq, float priority);
-typedef void (APIENTRY * PFNWGLFREEMEMORYNVPROC) (void *pointer);
-
-extern PFNGLFLUSHVERTEXARRAYRANGENVPROC qglFlushVertexArrayRangeNV;
-extern PFNGLVERTEXARRAYRANGENVPROC glVertexArrayRangeNV;
-extern PFNWGLALLOCATEMEMORYNVPROC wglAllocateMemoryNV;
-extern PFNWGLFREEMEMORYNVPROC wglFreeMemoryNV;
-
-#endif /* __APPLE__ || MACOSX */
-
-/*
-
-*/
-
-typedef void (APIENTRY *lpMTexFUNC) (GLenum, GLfloat, GLfloat);
-typedef void (APIENTRY *lpSelTexFUNC) (GLenum);
-//extern lpMTexFUNC qglMTexCoord2fSGIS;
-//extern lpSelTexFUNC qglSelectTextureSGIS;
 
 extern qboolean gl_mtexable;
 extern qboolean gl_texturefilteranisotropic; // <AWE> true if anisotropic texture filtering available.
@@ -1062,7 +1076,7 @@ extern qcardtype gl_cardtype;
 //extern qboolean gl_nvcombiner; //PENTA: true if nvdida texture shaders are present
 //extern qboolean gl_geforce3;
 //extern qboolean gl_radeon;//PA:
-extern qboolean gl_var;
+extern qboolean gl_vbo;
 extern qboolean gl_texcomp;
 
 extern GLfloat	gl_textureanisotropylevel; // <AWE> required for anisotropic textures.
@@ -1213,9 +1227,9 @@ extern shadowlight_t *currentshadowlight;
 extern msurface_t *shadowchain; //linked list of polygons that are shadowed
 extern float frustumPlanes[6][4];
 
-extern mmvertex_t *globalVertexTable;
 extern mmvertex_t *tempVertices;
 
+#define	MAX_LIGHTMAPS	256
 #define MAX_VOLUME_COMMANDS 131072 //Thats 0.5 meg storage for commands, insane
 #define MAX_VOLUME_VERTS 87381 //1 Meg storage for vertices
 #define MAX_LIGHT_COMMANDS 65536 //0.25 meg for light commands
@@ -1224,10 +1238,6 @@ extern lightcmd_t	lightCmdsBuff[MAX_LIGHT_COMMANDS+128];
 //XYZ
 extern int	numNormals[MAXALIASTRIS]; //Used during tangent space calc
 extern char	loadname[32];	// for hunk tags
-
-//64 kb should be enough
-#define AGP_BUFFER_SIZE 2048*4
-extern void *AGP_Buffer;
 
 //view origin in object space
 extern vec3_t object_vieworg;
@@ -1401,8 +1411,6 @@ void		V_CalcBlend (void);
 int R_GetNextVertexIndex(void);
 int R_AllocateVertexInTemp(vec3_t pos, float texture [2], float lightmap[2], byte color[4]);
 void R_CopyVerticesToHunk(void);
-void R_EnableVertexTable(int fields);
-void R_DisableVertexTable(int fields);
 
 typedef struct mirrorplane_s {
 	int texture_object;  //Object we should render to and use for drawing
@@ -1435,10 +1443,13 @@ extern int lightmap_textures;
 
 #include "gl_md3.h"
 #include "bumpdriver.h"
+#include "gl_drivermem.h"
 //*******************************
 //  Shader related declarations
 //*******************************
 //
+
+extern vertexdef_t worldVertexDef;
 
 #include "surfaceflags.h"
 
@@ -1453,8 +1464,21 @@ extern cvar_t willi_gray_colormaps;
 gltexture_t *GL_CacheTexture (char *filename,  qboolean mipmap, int type);
 shader_t *GL_ShaderForName(const char *name);
 qboolean IsShaderBlended(shader_t *s);
+void SH_SetupTcMods(stage_t *s);
+void SH_SetupSimpleStage(stage_t *s);
+void SH_BindBumpmap(shader_t *shader, int index);
+void SH_BindColormap(shader_t *shader, int index);
+void SH_SetupAlphaTest(shader_t *shader);
 
 void Roq_Info_f(void);
 void Roq_SetupTexture(gltexture_t *tex,char *filename);
 void Roq_FreeTexture(gltexture_t *tex);
 void Roq_UpdateTexture(gltexture_t *tex);
+
+#define FILE_LIGHTMAP_WIDTH 128
+#define PACKED_LIGHTMAP_WIDTH 512
+#define PACKED_LIGHTMAP_COLUMS (PACKED_LIGHTMAP_WIDTH/FILE_LIGHTMAP_WIDTH)
+#define PACKED_LIGHTMAP_COUNT (PACKED_LIGHTMAP_COLUMS*PACKED_LIGHTMAP_COLUMS)
+
+#define LIGHTMAP_COLUMN(r) (((r)%PACKED_LIGHTMAP_COUNT)%PACKED_LIGHTMAP_COLUMS)
+#define LIGHTMAP_ROW(r) (((r)%PACKED_LIGHTMAP_COUNT)/PACKED_LIGHTMAP_COLUMS)
