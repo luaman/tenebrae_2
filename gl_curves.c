@@ -373,6 +373,9 @@ void SubdivideCurve(curve_t *in, mesh_t *out, mmvertex_t *verts, int amount) {
 	free(expand);
 }
 
+/** 
+* If this returns true consider the points "degenerate" producing a zero area traingle.
+*/ 
 qboolean degenerateDist(vec3_t v1, vec3_t v2) {
 	vec3_t s;
 	float d;
@@ -381,6 +384,9 @@ qboolean degenerateDist(vec3_t v1, vec3_t v2) {
 	return (d < 0.01);
 }
 
+/**
+* Setup de index table (vertices are already calculated we just setup the indexes here)
+*/
 void CreateCurveIndecies(curve_t *curve, mesh_t *mesh)
 {
 	int i,j, i1, i2, li1, li2;
@@ -442,6 +448,10 @@ void CreateCurveIndecies(curve_t *curve, mesh_t *mesh)
 	}*/
 }
 
+/**
+* Setup the tangentspace for the mesh
+*   (also sets up the per triangle plane eq's for the shadow volume calculations)
+*/
 void CreateTangentSpace(mesh_t *mesh) {
 	
 	int i,j;
@@ -492,6 +502,7 @@ void CreateTangentSpace(mesh_t *mesh) {
 }
 
 /**
+* Setup neighbour pointers for the given triangle
 * triangles points to a listf of numTris*3 indecies;
 */
 int FindNeighbourMesh(int triIndex, int edgeIndex, int numTris, int *triangles, int *neighbours) {
@@ -543,6 +554,9 @@ int FindNeighbourMesh(int triIndex, int edgeIndex, int numTris, int *triangles, 
 	return -1;
 }
 
+/**
+* Setup neghbour pointers for all triangles (needed by shadow volumes)
+*/
 void SetupMeshConnectivity(mesh_t *m) {
 	int i, j;
 	int *indecies;
@@ -565,16 +579,26 @@ void SetupMeshConnectivity(mesh_t *m) {
 		}
 }
 
+/**
+* Check if 2 vertices are equal
+*	This just checks the position currently, it's used by the smooth normal calculations so we
+*   may want to consider angle between the tris or texture coords in the future.
+*/
 qboolean compareVert(mmvertex_t *v1, mmvertex_t *v2) {
-
 	return (v1->position[0] == v2->position[0]) &&
 		   (v1->position[1] == v2->position[1]) &&
-		   (v1->position[2] == v2->position[2]) /*&&
+		   (v1->position[2] == v2->position[2]) &&
 		   (v1->texture[0] == v2->texture[0]) &&
-		   (v1->texture[1] == v2->texture[1])*/;
+		   (v1->texture[1] == v2->texture[1]);
 
 }
 
+/**
+* Sometimes q3map produces unique vertices for every triangle (if they have lightmap coords)
+* so the smooth normal calculations will always produce per triangle normals.
+* To solve this we create an extra index table unexplodedIndecies that points to the shared vertices
+* for every triangle (so it will have wrong texture coords for some of the tris)
+*/
 void SetupUnexplodedIndecies(mesh_t *mesh) {
 
 	int i, j;
@@ -595,6 +619,10 @@ void SetupUnexplodedIndecies(mesh_t *mesh) {
 	}
 }
 
+/**
+* Smooth ormals are calculated for the unexplodedVertices, copy the smooth ones ove to the individual
+* vertices of the triangles.
+*/
 void DistribueUnexplodedNormals(mesh_t *mesh) {
 
 	int i, j;
@@ -605,6 +633,30 @@ void DistribueUnexplodedNormals(mesh_t *mesh) {
 		VectorCopy(mesh->binormals[mesh->unexplodedIndecies[i]],mesh->binormals[mesh->indecies[i]]);
 	}
 }
+
+/**
+* Setup this mesh's bounding box
+*/
+void SetupMeshBox(mesh_t *m) {
+
+	int i;
+
+	m->mins[0] = 10e10;
+	m->mins[1] = 10e10;
+	m->mins[2] = 10e10;
+
+
+	m->maxs[0] = -10e10;
+	m->maxs[1] = -10e10;
+	m->maxs[2] = -10e10;
+
+	for (i=0; i<m->numvertices; i++) {
+		VectorMax(m->maxs, tempVertices[m->firstvertex+i].position ,m->maxs);
+		VectorMin(m->mins, tempVertices[m->firstvertex+i].position ,m->mins);
+	}
+}
+
+
 
 /*
 =================
@@ -638,6 +690,7 @@ void MESH_CreateCurve(dq3face_t *in, mesh_t *mesh, mapshader_t *shader)
 	CreateCurveIndecies(&curve, mesh);
 	CreateTangentSpace(mesh);
 	SetupMeshConnectivity(mesh);
+	SetupMeshBox(mesh);
 
 	mesh->trans.origin[0] = mesh->trans.origin[1] = mesh->trans.origin[2] = 0.0f;
 	mesh->trans.angles[0] = mesh->trans.angles[1] = mesh->trans.angles[2] = 0.0f;
@@ -680,6 +733,7 @@ void MESH_CreateInlineModel(dq3face_t *in, mesh_t *mesh, int *indecies, mapshade
 
 	CreateTangentSpace(mesh);
 	SetupMeshConnectivity(mesh);
+	SetupMeshBox(mesh);
 
 	DistribueUnexplodedNormals(mesh);
 	free(mesh->unexplodedIndecies);
