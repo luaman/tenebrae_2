@@ -748,7 +748,7 @@ void ARB_SetupSimpleStage(stage_t *s)
 	ARB_SetupTcMod(&s->tcmods[i]);	
     }
 
-    if (s->src_blend > 0)
+    if (s->src_blend > -1)
     {
 	glBlendFunc(s->src_blend, s->dst_blend);
 	glEnable(GL_BLEND);
@@ -869,6 +869,11 @@ void ARB_drawTriangleListBase (vertexdef_t *verts, int *indecies,
     glTexCoordPointer(2, GL_FLOAT, verts->texcoordstride, verts->texcoords);
     glEnableClientState(GL_TEXTURE_COORD_ARRAY);
 
+    if (!shader->cull)
+    { 
+	glDisable(GL_CULL_FACE); 
+    } 
+
     for ( i = 0; i < shader->numstages; i++)
     {
 	ARB_SetupSimpleStage(&shader->stages[i]);
@@ -877,7 +882,7 @@ void ARB_drawTriangleListBase (vertexdef_t *verts, int *indecies,
     }
     glMatrixMode(GL_MODELVIEW);
 
-    if (verts->colors)
+    if (verts->colors && (shader->flags & SURF_PPLIGHT))
     {
 	glColorPointer(3, GL_UNSIGNED_BYTE, verts->colorstride, verts->colors);
 	glEnableClientState(GL_COLOR_ARRAY);
@@ -920,7 +925,7 @@ void ARB_drawTriangleListBase (vertexdef_t *verts, int *indecies,
 
 	glDisableClientState(GL_COLOR_ARRAY);
     }
-    else
+    else if (shader->flags & SURF_PPLIGHT)
     {
 	glColor3f(0,0,0);
 	glDisable(GL_TEXTURE_2D);
@@ -928,9 +933,15 @@ void ARB_drawTriangleListBase (vertexdef_t *verts, int *indecies,
 	glEnable(GL_TEXTURE_2D);
     }
 
+    if (!shader->cull)
+    { 
+	glEnable(GL_CULL_FACE); 
+    } 
+
     glDisableClientState(GL_TEXTURE_COORD_ARRAY);
     glDisableClientState(GL_VERTEX_ARRAY);
     glDisable(GL_BLEND);
+    glDisable(GL_ALPHA_TEST);
 }
 
 /*************************
