@@ -1661,36 +1661,6 @@ void Parhelia_drawSurfaceListBump (vertexdef_t *verts, msurface_t **surfs,
     glDisableClientState(GL_TEXTURE_COORD_ARRAY);
 }
 
-
-typedef struct allocchain_s
-{
-    struct allocchain_s* next;
-    char data[1];//variable sized
-} allocchain_t;
-
-static allocchain_t* allocChain = NULL;
-
-void* Parhelia_getDriverMem(size_t size, drivermem_t hint)
-{
-    allocchain_t *r = (allocchain_t *)malloc(size+sizeof(void *));
-    r->next = allocChain;
-    allocChain = r;
-    return &r->data[0];
-}
-
-void Parhelia_freeAllDriverMem(void)
-{
-    allocchain_t *r = allocChain;
-    allocchain_t *next;
-
-    while (r)
-    {
-	next = r->next;
-	free(r);
-	r = next;
-    }
-}
-
 void Parhelia_freeDriver(void)
 {
     //nothing here...
@@ -1711,7 +1681,5 @@ void BUMP_InitParhelia(void)
     gl_bumpdriver.drawSurfaceListBump = Parhelia_drawSurfaceListBump;
     gl_bumpdriver.drawTriangleListBase = Parhelia_drawTriangleListBase;
     gl_bumpdriver.drawTriangleListBump = Parhelia_drawTriangleListBump;
-    gl_bumpdriver.getDriverMem = Parhelia_getDriverMem;
-    gl_bumpdriver.freeAllDriverMem = Parhelia_freeAllDriverMem;
     gl_bumpdriver.freeDriver = Parhelia_freeDriver;
 }

@@ -47,6 +47,104 @@ void R_DrawLightEntitiesRadeon (shadowlight_t *l); //PA:
 void R_DrawLightEntitiesParhelia (shadowlight_t *l); //PA:
 void R_DrawLightEntitiesARB (shadowlight_t *l); //PA:
 
+/************************
+
+Shader utility routines: For use by drivers
+
+*************************/
+
+void SH_SetupTcMod(tcmod_t *tc)
+{
+	switch (tc->type)
+	{
+	case TCMOD_ROTATE:
+		glTranslatef(0.5,0.5,0.0);
+		glRotatef(realtime * tc->params[0],0,0,1);
+		glTranslatef(-0.5, -0.5, 0.0);
+		break;
+	case TCMOD_SCROLL:
+		glTranslatef(realtime * tc->params[0], realtime * tc->params[1], 0.0);
+		break;
+	case TCMOD_SCALE:
+		glScalef(tc->params[0],tc->params[1],1.0);
+		break;
+	case TCMOD_STRETCH:
+		//PENTA: fixme
+		glScalef(1.0, 1.0, 1.0);
+		break;
+	}
+}
+
+void SH_SetupTcMods(stage_t *s)
+{
+	int i;
+	for (i = 0; i < s->numtcmods; i++)
+		SH_SetupTcMod(&s->tcmods[i]);	
+}
+
+
+void SH_SetupSimpleStage(stage_t *s)
+{
+	tcmod_t *tc;
+	int i;
+
+	if (s->type != STAGE_SIMPLE)
+	{
+		Con_Printf("Non simple stage, in simple stage list");
+		return;
+	}
+
+	glMatrixMode(GL_TEXTURE);
+	glPushMatrix();
+
+	for (i=0; i<s->numtcmods; i++)
+	{
+		SH_SetupTcMod(&s->tcmods[i]);	
+	}
+
+	if (s->src_blend > -1)
+	{
+		glBlendFunc(s->src_blend, s->dst_blend);
+		glEnable(GL_BLEND);
+	}
+
+	if (s->alphatresh > 0)
+	{
+		glEnable(GL_ALPHA_TEST);
+		glAlphaFunc(GL_GREATER, s->alphatresh);
+	}
+
+	if ((s->numtextures > 0) && (s->texture[0]))
+		GL_BindAdvanced(s->texture[0]);
+}
+
+void SH_BindBumpmap(shader_t *shader, int index) {
+	if (shader->numbumpstages) {
+		if (shader->bumpstages[index].numtextures)
+			GL_BindAdvanced(shader->bumpstages[index].texture[0]);
+	}
+}
+
+void SH_BindColormap(shader_t *shader, int index) {
+	if (shader->numbumpstages) {
+		if (shader->colorstages[index].numtextures)
+			GL_BindAdvanced(shader->colorstages[index].texture[0]);
+	}
+}
+
+void SH_SetupAlphaTest(shader_t *shader) {
+	if (shader->numcolorstages)
+	{
+		if (shader->colorstages[0].alphatresh > 0)
+		{
+			glEnable(GL_ALPHA_TEST);
+			glAlphaFunc(GL_GEQUAL, shader->colorstages[0].alphatresh);
+		} else {
+			glDisable(GL_ALPHA_TEST);
+		}
+	}
+}
+
 /**
 
 	Draw tangent space for a vertexdef
@@ -61,7 +159,7 @@ void R_DrawTangents (vertexdef_t *def, int num)
 	int				vstr, nstr, tstr, bstr;
 	vec3_t			extr;
 	int				i;
-
+/*
 	vert = def->vertices;
 	normal = def->normals;
 	binormal = def->binormals;
@@ -95,6 +193,7 @@ void R_DrawTangents (vertexdef_t *def, int num)
 			glVertex3fv(&extr[0]);
 		glEnd();
 	}
+*/
 }
 
 
@@ -103,25 +202,25 @@ void R_DrawMeshAmbient(mesh_t *mesh) {
 	vertexdef_t def;
 	int	res;
 
-	def.vertices = &globalVertexTable[mesh->firstvertex].position[0];
+	def.vertices = mesh->vertices;
 	def.vertexstride = sizeof(mmvertex_t);
 
-	def.texcoords = &globalVertexTable[mesh->firstvertex].texture[0];
+	def.texcoords = GL_OffsetDriverPtr(mesh->vertices, 12);
 	def.texcoordstride = sizeof(mmvertex_t);
 
-	def.tangents = &mesh->tangents[0][0];
+	def.tangents = mesh->tangents;
 	def.tangentstride = 0;
 
-	def.binormals = &mesh->binormals[0][0];
+	def.binormals = mesh->binormals;
 	def.binormalstride = 0;
 
-	def.normals = &mesh->normals[0][0];
+	def.normals = mesh->normals;
 	def.normalstride = 0;
 
-	def.lightmapcoords = &globalVertexTable[mesh->firstvertex].lightmap[0]; // no lightmaps on aliasses
+	def.lightmapcoords = GL_OffsetDriverPtr(mesh->vertices, 20);
 	def.lightmapstride = sizeof(mmvertex_t);
 
-	def.colors = &globalVertexTable[mesh->firstvertex].color[0];
+	def.colors = GL_OffsetDriverPtr(mesh->vertices, 28);
 	def.colorstride = sizeof(mmvertex_t);
 
 	c_alias_polys += mesh->numtriangles;
@@ -152,22 +251,22 @@ void R_DrawMeshBumped(mesh_t *mesh) {
 	if (mesh->visframe != r_framecount)
 		return;
 
-	def.vertices = &globalVertexTable[mesh->firstvertex].position[0];
+	def.vertices = mesh->vertices;
 	def.vertexstride = sizeof(mmvertex_t);
 
-	def.texcoords = &globalVertexTable[mesh->firstvertex].texture[0];
+	def.texcoords = GL_OffsetDriverPtr(mesh->vertices, 12);
 	def.texcoordstride = sizeof(mmvertex_t);
 
-	def.tangents = &mesh->tangents[0][0];
+	def.tangents = mesh->tangents;
 	def.tangentstride = 0;
 
-	def.binormals = &mesh->binormals[0][0];
+	def.binormals = mesh->binormals;
 	def.binormalstride = 0;
 
-	def.normals = &mesh->normals[0][0];
+	def.normals = mesh->normals;
 	def.normalstride = 0;
 
-	def.lightmapcoords = NULL; // no lightmaps on aliasses
+	def.lightmapcoords = DRVNULL; // no lightmaps on aliasses
 
 	VectorCopy(currentshadowlight->origin, lo.objectorigin);
 	VectorCopy(r_refdef.vieworg, lo.objectvieworg);
@@ -181,18 +280,18 @@ void R_DrawAliasAmbient(aliashdr_t *paliashdr, aliasframeinstant_t *instant) {
 
 	vertexdef_t def;
 
-	def.vertices = &instant->vertices[0][0];
+	def.vertices = GL_WrapUserPointer(&instant->vertices[0][0]);
 	def.vertexstride = 0;
-	def.texcoords = (float *)((byte *)paliashdr + paliashdr->texcoords);
+	def.texcoords = GL_WrapUserPointer((byte *)paliashdr + paliashdr->texcoords);
 	def.texcoordstride = 0;
-	def.tangents = &instant->tangents[0][0];
+	def.tangents = GL_WrapUserPointer(&instant->tangents[0][0]);
 	def.tangentstride = 0;
-	def.binormals = &instant->binomials[0][0];
+	def.binormals = GL_WrapUserPointer(&instant->binomials[0][0]);
 	def.binormalstride = 0;
-	def.normals = &instant->normals[0][0];
+	def.normals = GL_WrapUserPointer(&instant->normals[0][0]);
 	def.normalstride = 0;
-	def.lightmapcoords = NULL; // no lightmaps on aliasses
-	def.colors = NULL;
+	def.lightmapcoords = DRVNULL; // no lightmaps on aliasses
+	def.colors = DRVNULL;
 	def.colorstride = 0;
 
 	c_alias_polys += paliashdr->numtris;
@@ -211,17 +310,17 @@ void R_DrawAliasBumped(aliashdr_t *paliashdr, aliasframeinstant_t *instant) {
 	aliaslightinstant_t *linstant = instant->lightinstant;
 	lightobject_t lo;
 
-	def.vertices = &instant->vertices[0][0];
+	def.vertices = GL_WrapUserPointer(&instant->vertices[0][0]);
 	def.vertexstride = 0;
-	def.texcoords = (float *)((byte *)paliashdr + paliashdr->texcoords);
+	def.texcoords = GL_WrapUserPointer((byte *)paliashdr + paliashdr->texcoords);
 	def.texcoordstride = 0;
-	def.tangents = &instant->tangents[0][0];
+	def.tangents = GL_WrapUserPointer(&instant->tangents[0][0]);
 	def.tangentstride = 0;
-	def.binormals = &instant->binomials[0][0];
+	def.binormals = GL_WrapUserPointer(&instant->binomials[0][0]);
 	def.binormalstride = 0;
-	def.normals = &instant->normals[0][0];
+	def.normals = GL_WrapUserPointer(&instant->normals[0][0]);
 	def.normalstride = 0;
-	def.colors = NULL;
+	def.colors = DRVNULL;
 	def.colorstride = 0;
 
 	VectorCopy(currententity->origin,trans.origin);
@@ -235,89 +334,64 @@ void R_DrawAliasBumped(aliashdr_t *paliashdr, aliasframeinstant_t *instant) {
 	gl_bumpdriver.drawTriangleListBump(&def,&linstant->indecies[0],linstant->numtris*3,paliashdr->shader, &trans, &lo);
 }
 
-void R_SetupWorldVertexDef(vertexdef_t *def) {
-
-	def->vertices = &globalVertexTable[0].position[0];
-	def->vertexstride = sizeof(mmvertex_t);
-	def->texcoords = &globalVertexTable[0].texture[0];
-	def->texcoordstride = sizeof(mmvertex_t);
-	def->tangents = NULL;
-	def->tangentstride = 0;
-	def->binormals = NULL;
-	def->binormalstride = 0;
-	def->normals = NULL;
-	def->normalstride = 0;
-	def->lightmapcoords = &globalVertexTable[0].lightmap[0];
-	def->lightmapstride = sizeof(mmvertex_t);
-
-}
-
-msurface_t *surfArray[1024];
+msurface_t	*lightmapSurfs[MAX_LIGHTMAPS];
+//Batches are almost never larger than about 300 indexes in a normal map
+#define MAX_BATCH_SIZE 512
+int indexList[MAX_BATCH_SIZE];
 
 void R_DrawBrushAmbient (entity_t *e) {
-
-	int runlength, i;
-	msurface_t *surf;
-	vertexdef_t def;
-	shader_t *runshader , *s;
+	int numsurf;
+	msurface_t *s;
+	glpoly_t *p;
+	int freeIndex, i;
+	shader_t *lastShader;
 	model_t	*model;
 
 	model = e->model;
-	R_SetupWorldVertexDef(&def);
-
-	runshader = NULL;
-	runlength = 0;
-	surf = &model->surfaces[model->firstmodelsurface];
-	glColor3f(sh_lightmapbright.value, sh_lightmapbright.value, sh_lightmapbright.value);
-	for (i=0; i<model->nummodelsurfaces; i++, surf++)
-	{
-		s = surf->shader->shader;
-		surf->visframe = r_framecount;
-		if (s != runshader) {
-			//a run has finished, draw it
-			if (runshader && runlength)
-				gl_bumpdriver.drawSurfaceListBase(&def, surfArray, runlength, runshader);	
-			
-			//start a new one
-			runshader = s;
-			runlength = 1;
-			surfArray[0] = surf;
-		} else {
-			if (runlength < 1024) {
-				surfArray[runlength] = surf;
-				runlength++;
-			}
-		}
+	memset(lightmapSurfs, 0, sizeof(msurface_t*)*cl.worldmodel->numlightmaps);
+	//Sort per lightmap
+	s =  &model->surfaces[model->firstmodelsurface];
+	for (i=0; i<model->nummodelsurfaces; i++, s++) {
+		if (!s->polys) { continue; }
+		s->lightmapchain = lightmapSurfs[s->lightmaptexturenum];
+		lightmapSurfs[s->lightmaptexturenum] = s;
 	}
-	if (runshader && runlength) {
-		c_brush_polys += runlength;
-		gl_bumpdriver.drawSurfaceListBase(&def, surfArray, runlength, runshader);
+
+	//Dump to index array
+	for (i=0; i<cl.worldmodel->numlightmaps; i++) {
+		s = lightmapSurfs[i];
+		freeIndex = 0;
+		if (!s) continue;
+		lastShader = s->shader->shader;
+		while (s) {
+			p = s->polys;
+			//Space left in this batch?
+			if (((freeIndex + p->numindecies) >= MAX_BATCH_SIZE) || (s->shader->shader != lastShader)) {
+				gl_bumpdriver.drawTriangleListBase(&worldVertexDef, indexList, freeIndex, lastShader, i);
+				freeIndex = 0;
+			}
+			memcpy(&indexList[freeIndex],p->indecies,sizeof(int)*p->numindecies);
+			freeIndex += p->numindecies;
+			lastShader = s->shader->shader;
+			s = s->lightmapchain;
+		}
+
+		//Draw the last batch
+		if (freeIndex) {
+			gl_bumpdriver.drawTriangleListBase(&worldVertexDef, indexList, freeIndex, lastShader, i);
+			//Con_Printf("DrawBatch %i\n", freeIndex/3);
+		}
 	}
 }
 
 void R_DrawBrushBumped (entity_t *e) {
-
-	int runlength, i;
-	msurface_t *surf;
-	vertexdef_t def;
-	shader_t *runshader , *s;
-	model_t	*model;
 	transform_t trans;
+	int freeIndex, i;
 	lightobject_t lo;
-
-	model = e->model;
-	R_SetupWorldVertexDef(&def);
-
-	runshader = NULL;
-	runlength = 0;
-	surf = &model->surfaces[model->firstmodelsurface];
-	for (i=0; i<model->nummodelsurfaces; i++, surf++)
-	{
-		if (runlength < 1024) {
-			surfArray[runlength] = surf;
-			runlength++;
-		}
-	}
+	shader_t *lastShader;
+	msurface_t *s;
+	glpoly_t *p;
+	model_t	*model;
 
 	VectorCopy(e->origin,trans.origin);
 	VectorCopy(e->angles,trans.angles);
@@ -326,48 +400,86 @@ void R_DrawBrushBumped (entity_t *e) {
 	VectorCopy(((brushlightinstant_t *)e->brushlightinstant)->lightpos, lo.objectorigin);
 	VectorCopy(((brushlightinstant_t *)e->brushlightinstant)->vieworg, lo.objectvieworg);
 
-	c_brush_polys += runlength;
-	gl_bumpdriver.drawSurfaceListBump(&def, surfArray, runlength, &trans, &lo);
+	model = e->model;
+	s = &model->surfaces[model->firstmodelsurface];
+	lastShader = s->shader->shader;
+	freeIndex = 0;
+	for (i=0; i<model->nummodelsurfaces; i++, s++) {
+		p = s->polys;
+		if (!p) continue;
+		//Shader has changed, end this batch and start a new one
+		if ((s->shader->shader != lastShader) || ((freeIndex + p->numindecies) >= MAX_BATCH_SIZE)) {
+			gl_bumpdriver.drawTriangleListBump(&worldVertexDef, indexList, freeIndex, lastShader, &trans, &lo);	
+			//Con_Printf("BumpDrawBatch %i\n", freeIndex/3);
+			freeIndex = 0;
+		}
+		lastShader = s->shader->shader;
+		memcpy(&indexList[freeIndex],p->indecies,sizeof(int)*p->numindecies);
+		freeIndex += p->numindecies;
+	}
+
+	if (freeIndex) {
+		gl_bumpdriver.drawTriangleListBump(&worldVertexDef, indexList, freeIndex, lastShader, &trans, &lo);	
+		//Con_Printf("BumpDrawBatch %i\n", freeIndex/3);
+	}
 }
 
+/**
+	All surfaces have the same shader but may have different lightmaps
+*/
 void R_DrawWorldAmbientChain(msurface_t *first) {
-
-	vertexdef_t def;
 	int numsurf;
 	msurface_t *s;
-	R_SetupWorldVertexDef(&def);
+	glpoly_t *p;
+	int freeIndex, i;
 
-	numsurf = 0;
+	memset(lightmapSurfs, 0, sizeof(msurface_t*)*cl.worldmodel->numlightmaps);
+	//Sort per lightmap
 	s = first;
 	while (s) {
-		if (numsurf < 1024) {
-			surfArray[numsurf] = s;
-			numsurf++;
-		} else {
-			gl_bumpdriver.drawSurfaceListBase(&def, surfArray, numsurf, first->shader->shader);
-			numsurf = 0;
-		}
+		if (!s->polys) { s = s->texturechain; continue; }
+		s->lightmapchain = lightmapSurfs[s->lightmaptexturenum];
+		lightmapSurfs[s->lightmaptexturenum] = s;
 		s = s->texturechain;
 	}
 
-	if (numsurf) {
-		c_brush_polys += numsurf;
-		gl_bumpdriver.drawSurfaceListBase(&def, surfArray, numsurf, first->shader->shader);
-		numsurf = 0;
+    //Dump to index array
+	for (i=0; i<cl.worldmodel->numlightmaps; i++) {
+		s = lightmapSurfs[i];
+		freeIndex = 0;
+		while (s) {
+			p = s->polys;
+			//Space left in this batch?
+			if ((freeIndex + p->numindecies) >= MAX_BATCH_SIZE) {
+				gl_bumpdriver.drawTriangleListBase(&worldVertexDef, indexList, freeIndex, first->shader->shader, i);
+				//Con_Printf("DrawBatch %i\n", freeIndex/3);
+				freeIndex = 0;
+			}
+			memcpy(&indexList[freeIndex],p->indecies,sizeof(int)*p->numindecies);
+			freeIndex += p->numindecies;
+			s = s->lightmapchain;
+		}
+
+		//Draw the last batch
+		if (freeIndex) {
+			gl_bumpdriver.drawTriangleListBase(&worldVertexDef, indexList, freeIndex, first->shader->shader, i);
+			//Con_Printf("DrawBatch %i\n", freeIndex/3);
+		}
 	}
 }
 
 void R_DrawWorldBumped() {
 
-	vertexdef_t def;
 	transform_t trans;
-	int i;
+	int freeIndex, i;
 	lightobject_t lo;
+	shader_t *lastShader;
+	msurface_t *s;
+	glpoly_t *p;
 
 	if (!currentshadowlight->visible)
 		return;
 
-	R_SetupWorldVertexDef(&def);
 
 	glDepthMask (0);
 	glShadeModel (GL_SMOOTH);
@@ -380,11 +492,30 @@ void R_DrawWorldBumped() {
 	VectorCopy(currentshadowlight->origin, lo.objectorigin);
 	VectorCopy(r_refdef.vieworg, lo.objectvieworg);
 
-	c_brush_polys += (currentshadowlight->numlightcmds-1);
-	gl_bumpdriver.drawSurfaceListBump(&def, (msurface_t **)(&currentshadowlight->lightCmds[0]), currentshadowlight->numlightcmds-1, &trans, &lo);
-
 	for (i=0; i<currentshadowlight->numlightcmdsmesh-1; i++) {
 		R_DrawMeshBumped((mesh_t *)currentshadowlight->lightCmdsMesh[i].asVoid);
+	}
+	
+	lastShader = ((msurface_t *)currentshadowlight->lightCmds[0].asVoid)->shader->shader;
+	freeIndex = 0;
+	for (i=0; i<currentshadowlight->numlightcmds-1; i++) {
+		s = (msurface_t *)currentshadowlight->lightCmds[i].asVoid;
+		p = s->polys;
+		if (!p) continue;
+		//Shader has changed, end this batch and start a new one
+		if ((s->shader->shader != lastShader) || ((freeIndex + p->numindecies) >= MAX_BATCH_SIZE)) {
+			gl_bumpdriver.drawTriangleListBump(&worldVertexDef, indexList, freeIndex, lastShader, &trans, &lo);	
+			//Con_Printf("BumpDrawBatch %i\n", freeIndex/3);
+			freeIndex = 0;
+		}
+		lastShader = s->shader->shader;
+		memcpy(&indexList[freeIndex],p->indecies,sizeof(int)*p->numindecies);
+		freeIndex += p->numindecies;
+	}
+
+	if (freeIndex) {
+		gl_bumpdriver.drawTriangleListBump(&worldVertexDef, indexList, freeIndex, lastShader, &trans, &lo);	
+		//Con_Printf("BumpDrawBatch %i\n", freeIndex/3);
 	}
 
 	glColor3f (1,1,1);

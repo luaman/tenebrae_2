@@ -1511,36 +1511,6 @@ void GL2_drawSurfaceListBump (vertexdef_t *verts, msurface_t **surfs,
     glDisableClientState(GL_TEXTURE_COORD_ARRAY);
 }
 
-
-typedef struct allocchain_s
-{
-    struct allocchain_s* next;
-    char data[1];//variable sized
-} allocchain_t;
-
-static allocchain_t* allocChain = NULL;
-
-void* GL2_getDriverMem(size_t size, drivermem_t hint)
-{
-    allocchain_t *r = (allocchain_t *)malloc(size+sizeof(void *));
-    r->next = allocChain;
-    allocChain = r;
-    return &r->data[0];
-}
-
-void GL2_freeAllDriverMem(void)
-{
-    allocchain_t *r = allocChain;
-    allocchain_t *next;
-
-    while (r)
-    {
-	next = r->next;
-	free(r);
-	r = next;
-    }
-}
-
 void GL2_freeDriver(void)
 {
     //nothing here...
@@ -1562,7 +1532,5 @@ void BUMP_InitGL2(void)
     gl_bumpdriver.drawSurfaceListBump = GL2_drawSurfaceListBump;
     gl_bumpdriver.drawTriangleListBase = GL2_drawTriangleListBase;
     gl_bumpdriver.drawTriangleListBump = GL2_drawTriangleListBump;
-    gl_bumpdriver.getDriverMem = GL2_getDriverMem;
-    gl_bumpdriver.freeAllDriverMem = GL2_freeAllDriverMem;
     gl_bumpdriver.freeDriver = GL2_freeDriver;
 }

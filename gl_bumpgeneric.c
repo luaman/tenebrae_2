@@ -645,7 +645,7 @@ void Generic_sendSurfacesBase(msurface_t **surfs, int numSurfaces,
 		
 		glBegin(GL_TRIANGLES);
 		for (j=0; j<surf->polys->numindecies; j++) {
-			v = (float *)(&globalVertexTable[surf->polys->indecies[j]]);
+			v = (float *)(&cl.worldmodel->userVerts[surf->polys->indecies[j]]);
 			qglMultiTexCoord2fvARB(GL_TEXTURE0_ARB, &v[3]);
 			qglMultiTexCoord3fvARB(GL_TEXTURE1_ARB, &v[5]);
 			glVertex3fv(&v[0]);
@@ -788,7 +788,7 @@ void Generic_sendSurfacesDiffuse(msurface_t **surfs, int numSurfaces)
 		
 		glBegin(GL_TRIANGLES);
 		for (j=0; j<surf->polys->numindecies; j++) {
-			v = (float *)(&globalVertexTable[surf->polys->indecies[j]]);
+			v = (float *)(&cl.worldmodel->userVerts[surf->polys->indecies[j]]);
 
 			VectorSubtract(currentshadowlight->origin, (&v[0]), lightDir);
 			if (surf->flags & SURF_PLANEBACK)	{
@@ -860,7 +860,7 @@ void Generic_sendSurfacesATT(msurface_t **surfs, int numSurfaces)
 	
 		glBegin(GL_TRIANGLES);
 		for (j=0; j<surf->polys->numindecies; j++) {
-			v = (float *)(&globalVertexTable[surf->polys->indecies[j]]);
+			v = (float *)(&cl.worldmodel->userVerts[surf->polys->indecies[j]]);
 
 			VectorSubtract (v, currentshadowlight->origin, nearToVert);
 
@@ -931,7 +931,7 @@ void Generic_sendSurfacesWV(msurface_t **surfs, int numSurfaces, qboolean specul
 
 		glBegin(GL_TRIANGLES);
 		for (j=0; j<surf->polys->numindecies; j++) {
-			v = (float *)(&globalVertexTable[surf->polys->indecies[j]]);
+			v = (float *)(&cl.worldmodel->userVerts[surf->polys->indecies[j]]);
 			glTexCoord3fv(&v[0]);
 			qglMultiTexCoord2fARB(GL_TEXTURE1_ARB, v[3], v[4]);
 			glVertex3fv(&v[0]);
@@ -1001,7 +1001,7 @@ void Generic_sendSurfacesTex(msurface_t **surfs, int numSurfaces)
 
 		glBegin(GL_TRIANGLES);
 		for (j=0; j<surf->polys->numindecies; j++) {
-			v = (float *)(&globalVertexTable[surf->polys->indecies[j]]);
+			v = (float *)(&cl.worldmodel->userVerts[surf->polys->indecies[j]]);
 			glTexCoord2fv(&v[3]);
 			glVertex3fv(&v[0]);
 		}
@@ -1117,35 +1117,6 @@ void Generic_drawSurfaceListBump (vertexdef_t *verts, msurface_t **surfs,
 }
 
 
-typedef struct allocchain_s
-{
-    struct allocchain_s* next;
-    char data[1];//variable sized
-} allocchain_t;
-
-static allocchain_t* allocChain = NULL;
-
-void* Generic_getDriverMem(size_t size, drivermem_t hint)
-{
-    allocchain_t *r = (allocchain_t *)malloc(size+sizeof(void *));
-    r->next = allocChain;
-    allocChain = r;
-    return &r->data[0];
-}
-
-void Generic_freeAllDriverMem(void)
-{
-    allocchain_t *r = allocChain;
-    allocchain_t *next;
-	
-    while (r)
-    {
-		next = r->next;
-		free(r);
-		r = next;
-    }
-}
-
 void Generic_freeDriver(void)
 {
     //nothing here...
@@ -1164,7 +1135,5 @@ void BUMP_InitGeneric(void)
     gl_bumpdriver.drawSurfaceListBump = Generic_drawSurfaceListBump;
     gl_bumpdriver.drawTriangleListBase = Generic_drawTriangleListBase;
     gl_bumpdriver.drawTriangleListBump = Generic_drawTriangleListBump;
-    gl_bumpdriver.getDriverMem = Generic_getDriverMem;
-    gl_bumpdriver.freeAllDriverMem = Generic_freeAllDriverMem;
     gl_bumpdriver.freeDriver = Generic_freeDriver;
 }

@@ -1573,32 +1573,6 @@ void GF3_drawSurfaceListBump (vertexdef_t *verts, msurface_t **surfs, int numSur
 
       "END";
 
-typedef struct allocchain_s {
-	struct allocchain_s *next;
-	char data[1];//variable sized
-} allocchain_t;
-
-static allocchain_t *allocChain = NULL;
-
-void *GF3_getDriverMem(size_t size, drivermem_t hint) {
-	allocchain_t *r = (allocchain_t *)malloc(size+sizeof(void *));
-	r->next = allocChain;
-	allocChain = r;
-	return &r->data[0];
-}
-
-void GF3_freeAllDriverMem(void) {
-
-	allocchain_t *r = allocChain;
-	allocchain_t *next;
-
-	while (r) {
-		next = r->next;
-		free(r);
-		r = next;
-	}
-}
-
 void GF3_freeDriver(void) {
 	//nothing here...
 }
@@ -1692,7 +1666,5 @@ void BUMP_InitGeforce3(void) {
 	gl_bumpdriver.drawSurfaceListBump = GF3_drawSurfaceListBump;
 	gl_bumpdriver.drawTriangleListBase = GF3_drawTriangleListBase;
 	gl_bumpdriver.drawTriangleListBump = GF3_drawTriangleListBump;
-	gl_bumpdriver.getDriverMem = GF3_getDriverMem;
-	gl_bumpdriver.freeAllDriverMem = GF3_freeAllDriverMem;
 	gl_bumpdriver.freeDriver = GF3_freeDriver;
 }
