@@ -87,7 +87,7 @@ entity_t	*CL_EntityNum (int num)
 			Host_Error ("CL_EntityNum: %i is an invalid number",num);
 		while (cl.num_entities<=num)
 		{
-			cl_entities[cl.num_entities].colormap = vid.colormap;
+			cl_entities[cl.num_entities].colormap = 0;
 			cl.num_entities++;
 		}
 	}
@@ -420,7 +420,7 @@ if (bits&(1<<i))
 	else
 		i = ent->baseline.colormap;
 	if (!i)
-		ent->colormap = vid.colormap;
+		ent->colormap = 0;
 	else
 	{
 		if (i > cl.maxclients)
@@ -663,56 +663,10 @@ void CL_ParseClientdata (int bits)
 
 	i = MSG_ReadByte ();
 
-	if (standard_quake)
+	if (cl.stats[STAT_ACTIVEWEAPON] != i)
 	{
-		if (cl.stats[STAT_ACTIVEWEAPON] != i)
-		{
-			cl.stats[STAT_ACTIVEWEAPON] = i;
-			Sbar_Changed ();
-		}
-	}
-	else
-	{
-		if (cl.stats[STAT_ACTIVEWEAPON] != (1<<i))
-		{
-			cl.stats[STAT_ACTIVEWEAPON] = (1<<i);
-			Sbar_Changed ();
-		}
-	}
-}
-
-/*
-=====================
-CL_NewTranslation
-=====================
-*/
-void CL_NewTranslation (int slot)
-{
-	int		i, j;
-	int		top, bottom;
-	byte	*dest, *source;
-	
-	if (slot > cl.maxclients)
-		Sys_Error ("CL_NewTranslation: slot > cl.maxclients");
-	dest = cl.scores[slot].translations;
-	source = vid.colormap;
-	memcpy (dest, vid.colormap, sizeof(cl.scores[slot].translations));
-	top = cl.scores[slot].colors & 0xf0;
-	bottom = (cl.scores[slot].colors &15)<<4;
-
-	for (i=0 ; i<VID_GRADES ; i++, dest += 256, source+=256)
-	{
-		if (top < 128)	// the artists made some backwards ranges.  sigh.
-			memcpy (dest + TOP_RANGE, source + top, 16);
-		else
-			for (j=0 ; j<16 ; j++)
-				dest[TOP_RANGE+j] = source[top+15-j];
-				
-		if (bottom < 128)
-			memcpy (dest + BOTTOM_RANGE, source + bottom, 16);
-		else
-			for (j=0 ; j<16 ; j++)
-				dest[BOTTOM_RANGE+j] = source[bottom+15-j];		
+		cl.stats[STAT_ACTIVEWEAPON] = i;
+		Sbar_Changed ();
 	}
 }
 
@@ -736,7 +690,7 @@ void CL_ParseStatic (void)
 // copy it to the current state
 	ent->model = cl.model_precache[ent->baseline.modelindex];
 	ent->frame = ent->baseline.frame;
-	ent->colormap = vid.colormap;
+	ent->colormap = 0;
 	ent->skinnum = ent->baseline.skin;
 	ent->effects = ent->baseline.effects;
 	VectorCopy(ent->baseline.color,ent->color);
@@ -930,7 +884,6 @@ void CL_ParseServerMessage (void)
 			if (i >= cl.maxclients)
 				Host_Error ("CL_ParseServerMessage: svc_updatecolors > MAX_SCOREBOARD");
 			cl.scores[i].colors = MSG_ReadByte ();
-			CL_NewTranslation (i);
 			break;
 			
 		case svc_particle:

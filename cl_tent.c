@@ -323,7 +323,7 @@ entity_t *CL_NewTempEntity (void)
 	cl_visedicts[cl_numvisedicts] = ent;
 	cl_numvisedicts++;
 
-	ent->colormap = vid.colormap;
+	ent->colormap = 0;
 	ent->pose1 = ent->pose2 = -1;
 	return ent;
 }
