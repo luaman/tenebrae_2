@@ -292,7 +292,7 @@ Loads the current matrix with a tranformation used for light filters
 =============
 */
 
-void GL_SetupCubeMapMatrix(qboolean world) {
+void GL_SetupCubeMapMatrix(const transform_t *tr) {
 
 	glLoadIdentity();
 
@@ -306,9 +306,13 @@ void GL_SetupCubeMapMatrix(qboolean world) {
 				-currentshadowlight->origin[1],
 				-currentshadowlight->origin[2]);
 
-	if (!world)
-		R_RotateForEntity(currententity);
+	//if (!world)
+	//	R_RotateForEntity(currententity);
+    glTranslatef (tr->origin[0],  tr->origin[1],  tr->origin[2]);
 
+    glRotatef (tr->angles[1],  0, 0, 1);
+    glRotatef (-tr->angles[0],  0, 1, 0);
+    glRotatef (tr->angles[2],  1, 0, 0);
 }
 /**************************************************************
 
@@ -339,7 +343,7 @@ void R_DrawWorldLLV(lightcmd_t *lightCmds) {
 	vec3_t lightOr;
 	msurface_t *surf;
 	float		*v;
-	texture_t	*t;//XYZ
+	shader_t	*s;//XYZ
 
 	//support flickering lights
 	VectorCopy(currentshadowlight->origin,lightOr);
@@ -361,8 +365,9 @@ void R_DrawWorldLLV(lightcmd_t *lightCmds) {
 
 
 		//XYZ
-		t = R_TextureAnimation (surf->texinfo->texture);
-		GL_Bind (t->gl_texturenum+1);
+		s = surf->shader->shader;
+		if (s->numbumpstages > 0)
+			GL_Bind(s->bumpstages[0].texture[0]->texnum);
 
 		glBegin(command);
 		//v = surf->polys->verts[0];
@@ -414,7 +419,7 @@ void R_DrawWorldHAV(lightcmd_t *lightCmds) {
 	msurface_t *surf;
 	float		*v,*lightP;
 	vec3_t		lightDir;
-	texture_t	*t;//XYZ
+	shader_t	*s;//XYZ
 
 	//support flickering lights
 	VectorCopy(currentshadowlight->origin,lightOr);
@@ -435,8 +440,9 @@ void R_DrawWorldHAV(lightcmd_t *lightCmds) {
 		lightPos+=4;//skip color
 
 		//XYZ
-		t = R_TextureAnimation (surf->texinfo->texture);
-		GL_Bind (t->gl_texturenum+1);
+		s = surf->shader->shader;
+		if (s->numbumpstages > 0)
+			GL_Bind(s->bumpstages[0].texture[0]->texnum);
 
 		glBegin(command);
 		//v = surf->polys->verts[0];
@@ -459,8 +465,8 @@ void R_DrawWorldHAV(lightcmd_t *lightCmds) {
 				tsH[2] = DotProduct(H,surf->plane->normal);
 			}
 
-			tsH[1] = -DotProduct(H,surf->texinfo->vecs[1]);
-			tsH[0] = DotProduct(H,surf->texinfo->vecs[0]);
+			tsH[1] = -DotProduct(H,surf->binormal);
+			tsH[0] = DotProduct(H,surf->tangent);
 
 			VectorAdd(lightDir,tsH,tsH);
 
@@ -546,7 +552,7 @@ void R_DrawWorldWV(lightcmd_t *lightCmds, qboolean specular) {
 	//edit: modulation of light maps
 	msurface_t *surf;
 	float		*v;
-	texture_t	*t;//XYZ
+	shader_t	*s;//XYZ
 
 	while (1) {
 		
@@ -565,11 +571,13 @@ void R_DrawWorldWV(lightcmd_t *lightCmds, qboolean specular) {
 		v = (float *)(&globalVertexTable[surf->polys->firstvertex]);
 
 		//XYZ
-		t = R_TextureAnimation (surf->texinfo->texture);
+		s = surf->shader->shader;
 		if ( specular )
-		    GL_Bind (t->gl_texturenum+1);
+			if (s->numbumpstages > 0)
+				GL_Bind(s->bumpstages[0].texture[0]->texnum);
 		else
-		    GL_Bind (t->gl_texturenum);
+			if (s->numcolorstages > 0)
+				GL_Bind(s->colorstages[0].texture[0]->texnum);
 
 		lightPos+=4;//no attent color
 
@@ -604,7 +612,7 @@ void R_DrawBrushLLV(entity_t *e) {
 	int		i, j, count;
 	brushlightinstant_t *ins = e->brushlightinstant;
 	float	*v;
-	texture_t	*t;
+	shader_t	*s;
 
 	count = 0;
 
@@ -616,8 +624,9 @@ void R_DrawBrushLLV(entity_t *e) {
 		poly = surf->polys;
 
 		//XYZ
-		t = R_TextureAnimation (surf->texinfo->texture);
-		GL_Bind (t->gl_texturenum+1);
+		s = surf->shader->shader;
+		if (s->numbumpstages > 0)
+			GL_Bind(s->bumpstages[0].texture[0]->texnum);
 
 		glBegin(GL_TRIANGLE_FAN);
 		//v = poly->verts[0];
@@ -650,7 +659,7 @@ void R_DrawBrushHAV(entity_t *e) {
 	int		i, j, count;
 	brushlightinstant_t *ins = e->brushlightinstant;
 	float	*v;
-	texture_t	*t;//XYZ
+	shader_t	*s;//XYZ
 
 	count = 0;
 
@@ -662,8 +671,9 @@ void R_DrawBrushHAV(entity_t *e) {
 		poly = surf->polys;
 
 		//XYZ
-		t = R_TextureAnimation (surf->texinfo->texture);
-		GL_Bind (t->gl_texturenum+1);
+		s = surf->shader->shader;
+			if (s->numbumpstages > 0)
+				GL_Bind(s->bumpstages[0].texture[0]->texnum);
 
 		glBegin(GL_TRIANGLE_FAN);
 		//v = poly->verts[0];
@@ -742,7 +752,7 @@ void R_DrawBrushWV(entity_t *e, qboolean specular) {
 	int		i, j, count;
 	brushlightinstant_t *ins = e->brushlightinstant;
 	float	*v;
-	texture_t	*t;
+	shader_t	*s;
 
 	count = 0;
 
@@ -754,11 +764,13 @@ void R_DrawBrushWV(entity_t *e, qboolean specular) {
 		poly = surf->polys;
 
 		//XYZ
-		t = R_TextureAnimation (surf->texinfo->texture);
+		s = surf->shader->shader;
 		if ( specular )
-		    GL_Bind (t->gl_texturenum+1);
+			if (s->numbumpstages > 0)
+				GL_Bind(s->bumpstages[0].texture[0]->texnum);
 		else
-		    GL_Bind (t->gl_texturenum);
+			if (s->numcolorstages > 0)
+				GL_Bind(s->colorstages[0].texture[0]->texnum);
 
 		glBegin(GL_TRIANGLE_FAN);
 		//v = poly->verts[0];
@@ -802,6 +814,7 @@ void R_DrawBrushObjectLight(entity_t *e,void (*BrushGeoSender) (entity_t *e)) {
 	R_RotateForEntity (e);
 	e->angles[0] = -e->angles[0];	// stupid quake bug
 	
+	VectorCopy(((brushlightinstant_t *)e->brushlightinstant)->lightpos,currentshadowlight->origin);
 	BrushGeoSender(e);
 	
 	VectorCopy(oldlightorigin,currentshadowlight->origin);
@@ -813,13 +826,17 @@ void R_DrawAliasFrameLLV (aliashdr_t *paliashdr, aliasframeinstant_t *instant)
 	fstvert_t	*texcoords;
 	int *indecies, anim;
 	aliaslightinstant_t *linstant = instant->lightinstant;
+	shader_t *s;
 
 	texcoords = (fstvert_t *)((byte *)paliashdr + paliashdr->texcoords);
 	indecies = (int *)((byte *)paliashdr + paliashdr->indecies);
 
 	//bind normal map
 	anim = (int)(cl.time*10) & 3;
-    GL_Bind(paliashdr->gl_texturenum[currententity->skinnum][anim]+1);
+
+	s = pheader->shader;
+	if (s->numbumpstages > 0)
+		GL_Bind(s->bumpstages[0].texture[0]->texnum);
 
 	glVertexPointer(3, GL_FLOAT, 0, instant->vertices);
 	glEnableClientState(GL_VERTEX_ARRAY);
@@ -851,13 +868,16 @@ void R_DrawAliasFrameHAV (aliashdr_t *paliashdr, aliasframeinstant_t *instant)
 	fstvert_t	*texcoords;
 	int			*indecies, anim;
 	aliaslightinstant_t *linstant = instant->lightinstant;
+	shader_t	*s;
 
 	texcoords = (fstvert_t *)((byte *)paliashdr + paliashdr->texcoords);
 	indecies = (int *)((byte *)paliashdr + paliashdr->indecies);
 
 	//bind normal map
 	anim = (int)(cl.time*10) & 3;
-    GL_Bind(paliashdr->gl_texturenum[currententity->skinnum][anim]+1);
+	s = pheader->shader;
+	if (s->numbumpstages > 0)
+		GL_Bind(s->bumpstages[0].texture[0]->texnum);
 
 	glVertexPointer(3, GL_FLOAT, 0, instant->vertices);
 	glEnableClientState(GL_VERTEX_ARRAY);
@@ -898,15 +918,19 @@ void R_DrawAliasFrameWV (aliashdr_t *paliashdr, aliasframeinstant_t *instant, qb
 	int *indecies, anim;
 	fstvert_t *texcoords;
 	aliaslightinstant_t *linstant = instant->lightinstant;
+	shader_t *s;
 
 	texcoords = (fstvert_t *)((byte *)paliashdr + paliashdr->texcoords);
 	indecies = (int *)((byte *)paliashdr + paliashdr->indecies);
 
 	anim = (int)(cl.time*10) & 3;
+	s = pheader->shader;
 	if ( specular )
-	    GL_Bind(paliashdr->gl_texturenum[currententity->skinnum][anim]+1);
+		if (s->numbumpstages > 0)
+			GL_Bind(s->bumpstages[0].texture[0]->texnum);
 	else
-	    GL_Bind(paliashdr->gl_texturenum[currententity->skinnum][anim]);
+		if (s->numcolorstages > 0)
+			GL_Bind(s->colorstages[0].texture[0]->texnum);
 
 	glVertexPointer(3, GL_FLOAT, 0, instant->vertices);
 	glEnableClientState(GL_VERTEX_ARRAY);
@@ -1017,6 +1041,7 @@ void R_DrawAliasObjectLight(entity_t *e,void (*AliasGeoSender) (aliashdr_t *pali
 		VectorCopy(currentshadowlight->origin,oldlightpos);
 		VectorCopy(currentshadowlight->origin,currentshadowlight->oldlightorigin);
 		
+		VectorCopy(aliasframeinstant->lightinstant->lightpos ,currentshadowlight->origin);
 		pose = paliashdr->frames[e->frame].firstpose;
 		numposes = paliashdr->frames[e->frame].numposes;
 		
@@ -1024,7 +1049,8 @@ void R_DrawAliasObjectLight(entity_t *e,void (*AliasGeoSender) (aliashdr_t *pali
 		AliasGeoSender(paliashdr,aliasframeinstant);
 		
 		aliasframeinstant = aliasframeinstant->_next;
-             
+        
+		VectorCopy(oldlightpos,currentshadowlight->origin);		
 	} /* for paliashdr */
 
 	glPopMatrix();
@@ -1246,7 +1272,7 @@ GL_DrawBrushBumped
 
 Draw a brush entity with bump maps
 =============
-*/
+*//*
 void R_DrawBrushBumped(entity_t *e) {
 
 	//	Diffuse bump mapping
@@ -1323,14 +1349,14 @@ void R_DrawBrushBumped(entity_t *e) {
 	glMatrixMode(GL_MODELVIEW);
 
 }
-
+*/
 /*
 =============
 R_DrawAliasBumped
 
 Draw a alias entity with bump maps
 =============
-*/
+*//*
 void R_DrawAliasBumped(aliashdr_t *paliashdr, aliasframeinstant_t *instant) {
 
      
@@ -1396,3 +1422,4 @@ glMatrixMode(GL_TEXTURE);
 	glMatrixMode(GL_MODELVIEW);
 
 }
+*/
