@@ -1236,39 +1236,72 @@ void GL_BuildLightmaps (void)
 	gl_lightmap_format = GL_RGB;
 	lightmap_bytes = 4;
 
+	if (!COM_CheckParm("-externallight")) {
+	//no lightmaps in bsp make everything black...
+		if (!cl.worldmodel->numlightmaps) {
+			int black = 0;
 
-	if (!cl.worldmodel->numlightmaps) {
-		int black = 0;
-		GL_Bind(lightmap_textures);
-		glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-		glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-		glTexImage2D (GL_TEXTURE_2D, 0, 3, 1, 1, 0, gl_lightmap_format, GL_UNSIGNED_BYTE, &black);
+			Con_Printf("No lightmaps in map, defaulting to black.\n");
 
-		for (i=0; i<cl.worldmodel->numsurfaces; i++) {
-			cl.worldmodel->surfaces[i].lightmaptexturenum = 0;
+			GL_Bind(lightmap_textures);
+			glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+			glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+			glTexImage2D (GL_TEXTURE_2D, 0, 3, 1, 1, 0, gl_lightmap_format, GL_UNSIGNED_BYTE, &black);
+
+			for (i=0; i<cl.worldmodel->numsurfaces; i++) {
+				cl.worldmodel->surfaces[i].lightmaptexturenum = 0;
+			}
+
+			for (i=0; i<numVertices; i++) {
+				globalVertexTable[i].color[0] = 0;
+				globalVertexTable[i].color[1] = 0;
+				globalVertexTable[i].color[2] = 0;
+				globalVertexTable[i].color[3] = 0;
+			}
+			return;
 		}
+	//Load lightmaps stored in the bsp lump
+		for (i=0 ; i<cl.worldmodel->numlightmaps ; i++)
+		{
 
-		for (i=0; i<numVertices; i++) {
-			globalVertexTable[i].color[0] = 0;
-			globalVertexTable[i].color[1] = 0;
-			globalVertexTable[i].color[2] = 0;
-			globalVertexTable[i].color[3] = 0;
+			//Con_Printf("Lightmap %i (texnum: %i)\n",i,lightmap_textures + i);
+			GL_Bind(lightmap_textures + i);
+			glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+			glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+			glTexImage2D (GL_TEXTURE_2D, 0, 3
+			, LIGHTMAP_WIDTH, LIGHTMAP_WIDTH, 0, 
+			gl_lightmap_format, GL_UNSIGNED_BYTE,
+			cl.worldmodel->lightdata+(i*LIGHTMAP_WIDTH*LIGHTMAP_WIDTH*3));
 		}
+	} else {
+	//Load externally stored lightmaps
+		int old_tex_ext;
+		char basename[1024];
+		char filename[1024];
+		
+		COM_StripExtension(cl.worldmodel->name, basename);
+		Con_Printf("Loading external lightmaps from %s\n", basename);
 
-		return;
-	}
+		//Hack: so we can use easy tga load
+		old_tex_ext = texture_extension_number;
+		texture_extension_number = lightmap_textures;
+		
+		i = 0;
+		while (true)
+		{
+			FILE *f;
+			sprintf(filename,"%s/lm_%04d.tga",basename,i);
+			Con_Printf("  Trying: %s\n", filename);
+			COM_FOpenFile(filename, &f);
+			if (!f) break;
+			fclose(f);
 
-	for (i=0 ; i<cl.worldmodel->numlightmaps ; i++)
-	{
-
-		//Con_Printf("Lightmap %i (texnum: %i)\n",i,lightmap_textures + i);
-		GL_Bind(lightmap_textures + i);
-		glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-		glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-		glTexImage2D (GL_TEXTURE_2D, 0, 3
-		, LIGHTMAP_WIDTH, LIGHTMAP_WIDTH, 0, 
-		gl_lightmap_format, GL_UNSIGNED_BYTE,
-		cl.worldmodel->lightdata+(i*LIGHTMAP_WIDTH*LIGHTMAP_WIDTH*3));
+			Con_Printf("  Lightmap: %s\n", filename);
+			EasyTgaLoad(filename);
+			i++;
+		}
+		texture_extension_number = old_tex_ext;
+		cl.worldmodel->numlightmaps = i;
 	}
 
 }
