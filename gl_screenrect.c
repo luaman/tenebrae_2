@@ -244,27 +244,28 @@ qboolean intersectsMinsMaxs(aabox_t *b1, vec3_t mins, vec3_t maxs) {
 	return true;
 }
 
-
-void vmax(vec3_t i1, vec3_t i2, vec3_t r) {
+/*
+void VectorMax(vec3_t i1, vec3_t i2, vec3_t r) {
 	r[0] = max(i1[0],i2[0]);
 	r[1] = max(i1[1],i2[1]);
 	r[2] = max(i1[2],i2[2]);
 }
 
 
-void vmin(vec3_t i1, vec3_t i2, vec3_t r) {
+void VectorMin(vec3_t i1, vec3_t i2, vec3_t r) {
 	r[0] = min(i1[0],i2[0]);
 	r[1] = min(i1[1],i2[1]);
 	r[2] = min(i1[2],i2[2]);
 }
+*/
 
 aabox_t intersectBoxes(aabox_t *b1, aabox_t *b2) {
 	aabox_t result;
 	float temp;
 	int i;
 
-	vmax(b1->mins,b2->mins,result.mins);
-	vmin(b1->maxs,b2->maxs,result.maxs);
+	VectorMax(b1->mins,b2->mins,result.mins);
+	VectorMin(b1->maxs,b2->maxs,result.maxs);
 
 	for (i=0;i<3;i++) {
 		if (result.mins[i]>result.maxs[i]) {
@@ -282,8 +283,8 @@ aabox_t intersectBoxes(aabox_t *b1, aabox_t *b2) {
 
 aabox_t addBoxes(aabox_t *b1, aabox_t *b2) {
 	aabox_t result;
-	vmin(b1->mins,b2->mins,result.mins);
-	vmax(b1->maxs,b2->maxs,result.maxs);
+	VectorMin(b1->mins,b2->mins,result.mins);
+	VectorMax(b1->maxs,b2->maxs,result.maxs);
 	return result;
 }
 

@@ -940,6 +940,8 @@ void R_RecursiveWorldNode (mnode_t *node)
 			if (mesh->visframe == r_framecount) continue;
 			mesh->visframe = r_framecount;
 
+			if (R_CullBox(mesh->mins, mesh->maxs)) continue;
+
 			mesh->next = mesh->shader->meshchain;
 			mesh->shader->meshchain = mesh; 
 			//Con_Printf("AddCurve\n");
