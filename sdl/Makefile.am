@@ -11,10 +11,10 @@ tenebrae_sdl_CFLAGS = @CFLAGS@ -DGLQUAKE -DBASEDIR=@GAMEDIR@ -I$(MASTER_DIR)
 
 tenebrae_sdl_SOURCES =			\
 	$(MASTER_DIR)/adivtab.h		\
-	$(MASTER_DIR)/anorm_dots.h		\
+	$(MASTER_DIR)/anorm_dots.h	\
 	$(MASTER_DIR)/anorms.h		\
-	$(MASTER_DIR)/asm_draw.h		\
-	$(MASTER_DIR)/asm_i386.h		\
+	$(MASTER_DIR)/asm_draw.h	\
+	$(MASTER_DIR)/asm_i386.h	\
 	$(MASTER_DIR)/block16.h		\
 	$(MASTER_DIR)/block8.h		\
 	$(MASTER_DIR)/bspfile.h		\
@@ -22,90 +22,94 @@ tenebrae_sdl_SOURCES =			\
 	$(MASTER_DIR)/cdaudio.h		\
 	$(MASTER_DIR)/chase.c		\
 	$(MASTER_DIR)/cl_demo.c		\
-	$(MASTER_DIR)/cl_input.c		\
+	$(MASTER_DIR)/cl_input.c	\
 	$(MASTER_DIR)/cl_main.c		\
-	$(MASTER_DIR)/cl_parse.c		\
+	$(MASTER_DIR)/cl_parse.c	\
 	$(MASTER_DIR)/cl_tent.c		\
 	$(MASTER_DIR)/client.h		\
-	$(MASTER_DIR)/cmd.c			\
-	$(MASTER_DIR)/cmd.h			\
+	$(MASTER_DIR)/cmd.c		\
+	$(MASTER_DIR)/cmd.h		\
 	$(MASTER_DIR)/common.c		\
 	$(MASTER_DIR)/common.h		\
 	$(MASTER_DIR)/conproc.h		\
 	$(MASTER_DIR)/console.c		\
 	$(MASTER_DIR)/console.h		\
-	$(MASTER_DIR)/crc.c			\
-	$(MASTER_DIR)/crc.h			\
-	$(MASTER_DIR)/cvar.c			\
-	$(MASTER_DIR)/cvar.h			\
-	$(MASTER_DIR)/draw.h			\
-	$(MASTER_DIR)/host.c			\
-	$(MASTER_DIR)/host_cmd.c		\
+	$(MASTER_DIR)/crc.c		\
+	$(MASTER_DIR)/crc.h		\
+	$(MASTER_DIR)/cvar.c		\
+	$(MASTER_DIR)/cvar.h		\
+	$(MASTER_DIR)/draw.h		\
+	$(MASTER_DIR)/host.c		\
+	$(MASTER_DIR)/host_cmd.c	\
 	$(MASTER_DIR)/input.h		\
-	$(MASTER_DIR)/keys.c			\
-	$(MASTER_DIR)/keys.h			\
+	$(MASTER_DIR)/keys.c		\
+	$(MASTER_DIR)/keys.h		\
 	$(MASTER_DIR)/mathlib.c		\
 	$(MASTER_DIR)/mathlib.h		\
-	$(MASTER_DIR)/menu.c			\
-	$(MASTER_DIR)/menu.h			\
-	$(MASTER_DIR)/modelgen.h		\
-	$(MASTER_DIR)/mpdosock.h		\
-	$(MASTER_DIR)/net.h			\
+	$(MASTER_DIR)/xmlmenu.c		\
+	$(MASTER_DIR)/xmlmenu.h		\
+	$(MASTER_DIR)/modelgen.h	\
+	$(MASTER_DIR)/mpdosock.h	\
+	$(MASTER_DIR)/net.h		\
 	$(MASTER_DIR)/net_bsd.c		\
 	$(MASTER_DIR)/net_bw.h		\
-	$(MASTER_DIR)/net_dgrm.c		\
-	$(MASTER_DIR)/net_dgrm.h		\
-	$(MASTER_DIR)/net_loop.c		\
-	$(MASTER_DIR)/net_loop.h		\
-	$(MASTER_DIR)/net_main.c		\
+	$(MASTER_DIR)/net_dgrm.c	\
+	$(MASTER_DIR)/net_dgrm.h	\
+	$(MASTER_DIR)/net_loop.c	\
+	$(MASTER_DIR)/net_loop.h	\
+	$(MASTER_DIR)/net_main.c	\
 	$(MASTER_DIR)/net_udp.c		\
 	$(MASTER_DIR)/net_udp.h		\
 	$(MASTER_DIR)/net_vcr.c		\
 	$(MASTER_DIR)/net_vcr.h		\
 	$(MASTER_DIR)/pr_cmds.c		\
 	$(MASTER_DIR)/pr_comp.h		\
-	$(MASTER_DIR)/pr_edict.c		\
+	$(MASTER_DIR)/pr_edict.c	\
 	$(MASTER_DIR)/pr_exec.c		\
-	$(MASTER_DIR)/progdefs.h		\
-	$(MASTER_DIR)/progs.h			\
-	$(MASTER_DIR)/protocol.h		\
-	$(MASTER_DIR)/quakeasm.h		\
-	$(MASTER_DIR)/quakedef.h		\
+	$(MASTER_DIR)/progdefs.h	\
+	$(MASTER_DIR)/progs.h		\
+	$(MASTER_DIR)/protocol.h	\
+	$(MASTER_DIR)/quakeasm.h	\
+	$(MASTER_DIR)/quakedef.h	\
 	$(MASTER_DIR)/r_part.c		\
 	$(MASTER_DIR)/r_local.h		\
-	$(MASTER_DIR)/r_shared.h		\
+	$(MASTER_DIR)/r_shared.h	\
 	$(MASTER_DIR)/render.h		\
-	$(MASTER_DIR)/resource.h		\
-	$(MASTER_DIR)/sbar.c			\
-	$(MASTER_DIR)/sbar.h			\
+	$(MASTER_DIR)/resource.h	\
+	$(MASTER_DIR)/sbar.c		\
+	$(MASTER_DIR)/sbar.h		\
 	$(MASTER_DIR)/screen.h		\
 	$(MASTER_DIR)/server.h		\
+	$(MASTER_DIR)/shaders.c		\
 	$(MASTER_DIR)/snd_dma.c		\
 	$(MASTER_DIR)/snd_mem.c		\
 	$(MASTER_DIR)/snd_mix.c		\
 	$(MASTER_DIR)/snd_sdl.c		\
 	$(MASTER_DIR)/sound.h		\
-	$(MASTER_DIR)/spritegn.h		\
+	$(MASTER_DIR)/spritegn.h	\
 	$(MASTER_DIR)/sv_main.c		\
 	$(MASTER_DIR)/sv_move.c		\
 	$(MASTER_DIR)/sv_phys.c		\
+	$(MASTER_DIR)/sv_q3support.c	\
 	$(MASTER_DIR)/sv_user.c		\
-	$(MASTER_DIR)/sys.h			\
+	$(MASTER_DIR)/sys.h		\
+	$(MASTER_DIR)/sys_uxfindfirst.c \
 	$(MASTER_DIR)/sys_sdl.c		\
-	$(MASTER_DIR)/te_scripts.c		\
-	$(MASTER_DIR)/te_scripts.h		\
-	$(MASTER_DIR)/vgamodes.h		\
-	$(MASTER_DIR)/vid.h			\
-	$(MASTER_DIR)/gl_vidsdl.c		\
-	$(MASTER_DIR)/view.c			\
-	$(MASTER_DIR)/view.h			\
-	$(MASTER_DIR)/wad.c			\
-	$(MASTER_DIR)/wad.h			\
-	$(MASTER_DIR)/winquake.h		\
+	$(MASTER_DIR)/te_scripts.c	\
+	$(MASTER_DIR)/te_scripts.h	\
+	$(MASTER_DIR)/vgamodes.h	\
+	$(MASTER_DIR)/vid.h		\
+	$(MASTER_DIR)/gl_vidsdl.c	\
+	$(MASTER_DIR)/view.c		\
+	$(MASTER_DIR)/view.h		\
+	$(MASTER_DIR)/wad.c		\
+	$(MASTER_DIR)/wad.h		\
+	$(MASTER_DIR)/winquake.h	\
 	$(MASTER_DIR)/world.c		\
 	$(MASTER_DIR)/world.h		\
-	$(MASTER_DIR)/zone.c			\
-	$(MASTER_DIR)/zone.h			\
+	$(MASTER_DIR)/zone.c		\
+	$(MASTER_DIR)/zone.h		\
+	$(MASTER_DIR)/textures.c	\
 	$(GL_SRCS)			\
 	$(GL_TENEBRAE_SRCS)		\
 	$(LEX_TENEBRAE_SRCS)
@@ -237,8 +241,8 @@ NEXT_SRCS =			\
 
 GL_SRCS =			\
 	$(MASTER_DIR)/gl_decals.c		\
-	$(MASTER_DIR)/gl_draw.c		\
-	$(MASTER_DIR)/gl_mesh.c		\
+	$(MASTER_DIR)/gl_draw.c			\
+	$(MASTER_DIR)/gl_mesh.c			\
 	$(MASTER_DIR)/gl_model.c		\
 	$(MASTER_DIR)/gl_model.h		\
 	$(MASTER_DIR)/gl_refrag.c		\
@@ -247,10 +251,10 @@ GL_SRCS =			\
 	$(MASTER_DIR)/gl_rmisc.c		\
 	$(MASTER_DIR)/gl_rsurf.c		\
 	$(MASTER_DIR)/gl_screen.c		\
-	$(MASTER_DIR)/gl_test.c		\
-	$(MASTER_DIR)/gl_warp.c		\
+	$(MASTER_DIR)/gl_test.c			\
+	$(MASTER_DIR)/gl_warp.c			\
 	$(MASTER_DIR)/gl_warp_sin.h		\
-	$(MASTER_DIR)/glquake.h		\
+	$(MASTER_DIR)/glquake.h			\
 	$(MASTER_DIR)/glquake2.h
 
 GL_TENEBRAE_SRCS =		\
@@ -264,8 +268,10 @@ GL_TENEBRAE_SRCS =		\
 	$(MASTER_DIR)/gl_bumpparhelia.c		\
 	$(MASTER_DIR)/gl_bumpradeon.c		\
 	$(MASTER_DIR)/gl_common.c		\
+	$(MASTER_DIR)/gl_curves.c		\
 	$(MASTER_DIR)/gl_glare.c		\
 	$(MASTER_DIR)/gl_md3.c		\
+	$(MASTER_DIR)/gl_q3bsp.c		\
 	$(MASTER_DIR)/gl_screenrect.c		\
 	$(MASTER_DIR)/gl_shadow.c		\
 	$(MASTER_DIR)/gl_svbsp.c		

@@ -88,17 +88,30 @@ PNG_VERSION=1.2.0
 
 # AC_CHECK_PROG (variable, prog-to-check-for, value-if-found, [value-if-not-found], [path], [reject])
 
-AC_CHECK_PROG(PNGLIBS,libpng-config,`libpng-config --libs`, )
+AC_CHECK_PROG(PNG_LIBS,libpng-config,`libpng-config --libs`, )
 
-if test x"$PNGLIBS" = x; then
+if test x"$PNG_LIBS" = x; then
 	AC_MSG_ERROR([*** libpng not found!])
+else 
+	AC_CHECK_PROG(PNG_CFLAGS,libpng-config,`libpng-config --cflags`, )
 fi
 
-AC_SUBST(PNGLIBS)
+AC_SUBST(PNG_CFLAGS)
+AC_SUBST(PNG_LIBS)
 
+AC_CHECK_PROG(XML_LIBS,xml2-config,`xml2-config --libs`, )
 
-CFLAGS="$CFLAGS $SDL_CFLAGS -DSDL $PNG_FLAGS"
-LIBS="$LIBS $SDL_LIBS $PNGLIBS"
+if test x"$XML_LIBS" = x; then
+        AC_MSG_ERROR([*** libxml2 not found!])
+else
+	AC_CHECK_PROG(XML_CFLAGS,xml2-config,`xml2-config --cflags`, )
+fi
+
+AC_SUBST(XML_LIBS)
+AC_SUBST(XML_CFLAGS)
+
+CFLAGS="$CFLAGS $SDL_CFLAGS -DSDL $PNG_CFLAGS $XML_CFLAGS"
+LIBS="$LIBS $SDL_LIBS $PNG_LIBS $XML_LIBS"
 
 # Game data 
 

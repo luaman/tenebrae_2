@@ -117,6 +117,8 @@ GLQUAKE_OBJS= \
 	$(BUILDDIR)/glquake/gl_svbsp.o \
 	$(BUILDDIR)/glquake/gl_test.o \
 	$(BUILDDIR)/glquake/gl_warp.o \
+	$(BUILDDIR)/glquake/shaders.o \
+	$(BUILDDIR)/glquake/textures.o \
 	\
 	$(BUILDDIR)/glquake/host.o \
 	$(BUILDDIR)/glquake/host_cmd.o \
@@ -144,6 +146,7 @@ GLQUAKE_OBJS= \
 	$(BUILDDIR)/glquake/wad.o \
 	$(BUILDDIR)/glquake/world.o \
 	$(BUILDDIR)/glquake/cd_linux.o \
+	$(BUILDDIR)/glquake/sys_uxfindfirst.o \
 	$(BUILDDIR)/glquake/sys_linux.o \
 	$(BUILDDIR)/glquake/snd_dma.o \
 	$(BUILDDIR)/glquake/snd_mem.o \
@@ -284,6 +287,12 @@ $(BUILDDIR)/glquake/gl_vidlinuxglx.o :  $(MOUNT_DIR)/gl_vidlinuxglx.c
 $(BUILDDIR)/glquake/gl_warp.o :      $(MOUNT_DIR)/gl_warp.c
 	$(DO_GL_CC)
 
+$(BUILDDIR)/glquake/shaders.o :      $(MOUNT_DIR)/shaders.c
+	$(DO_GL_CC)
+
+$(BUILDDIR)/glquake/textures.o :      $(MOUNT_DIR)/textures.c
+	$(DO_GL_CC)
+
 $(BUILDDIR)/glquake/host.o :         $(MOUNT_DIR)/host.c
 	$(DO_GL_CC)
 
@@ -293,7 +302,7 @@ $(BUILDDIR)/glquake/host_cmd.o :     $(MOUNT_DIR)/host_cmd.c
 $(BUILDDIR)/glquake/keys.o :         $(MOUNT_DIR)/keys.c
 	$(DO_GL_CC)
 
-$(BUILDDIR)/glquake/menu.o :         $(MOUNT_DIR)/menu.c
+$(BUILDDIR)/glquake/menu.o :         $(MOUNT_DIR)/xmlmenu.c
 	$(DO_GL_CC)
 
 $(BUILDDIR)/glquake/mathlib.o :      $(MOUNT_DIR)/mathlib.c
@@ -360,6 +369,9 @@ $(BUILDDIR)/glquake/world.o :        $(MOUNT_DIR)/world.c
 	$(DO_GL_CC)
 
 $(BUILDDIR)/glquake/cd_linux.o :     $(MOUNT_DIR)/cd_linux.c
+	$(DO_GL_CC)
+
+$(BUILDDIR)/glquake/sys_uxfindfirst.o :    $(MOUNT_DIR)/sys_uxfindfirst.c
 	$(DO_GL_CC)
 
 $(BUILDDIR)/glquake/sys_linux.o :    $(MOUNT_DIR)/sys_linux.c

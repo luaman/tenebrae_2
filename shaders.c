@@ -465,7 +465,7 @@ void R_InitShaders() {
 	Con_Printf("=================================\n");
 }
 
-#ifndef _WIN32
+#if !defined(_WIN32) && !defined(SDL) && !defined(__glx__)
 //warn non win32 devs they should free the memory...
 #error Call this routine from vid shutdown!
 #endif

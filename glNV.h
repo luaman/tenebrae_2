@@ -1,4 +1,29 @@
-// - DC - 
+/*
+Quake code is Copyright (C) 1996-1997 Id Software, Inc.
+
+Tenebrae code is Copyright (C) 2002-2003 Tenebrae Team
+
+portions of OpenGL APIs declarations included herein are 
+the property of Copyright (C) Nvidia Corporation and Ati Technologies Inc.
+
+This program is free software; you can redistribute it and/or
+modify it under the terms of the GNU General Public License
+as published by the Free Software Foundation; either version 2
+of the License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  
+
+See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+
+*/
+// NVidia defines
+
 #ifndef GLNV_H
 
 #define GLNV_H
@@ -28,12 +53,13 @@ typedef void (APIENTRY * PFNGLGETCOMBINEROUTPUTPARAMETERIVNVPROC) (GLenum stage,
 typedef void (APIENTRY * PFNGLGETFINALCOMBINERINPUTPARAMETERFVNVPROC) (GLenum variable, GLenum pname, GLfloat *params);
 typedef void (APIENTRY * PFNGLGETFINALCOMBINERINPUTPARAMETERIVNVPROC) (GLenum variable, GLenum pname, GLint *params);
 
+
+#endif
+
 /* NV_register_combiners2 */
 typedef void (APIENTRY * PFNGLCOMBINERSTAGEPARAMETERFVNVPROC) (GLenum stage, GLenum pname, const GLfloat *params);
 typedef void (APIENTRY * PFNGLGETCOMBINERSTAGEPARAMETERFVNVPROC) (GLenum stage, GLenum pname, GLfloat *params);
 
-
-#endif
 
 extern PFNGLCOMBINERPARAMETERFVNVPROC qglCombinerParameterfvNV;
 extern PFNGLCOMBINERPARAMETERIVNVPROC qglCombinerParameterivNV;
@@ -148,4 +174,4 @@ extern PFNGLGETCOMBINERSTAGEPARAMETERFVNVPROC qglGetCombinerStageParameterfvNV;
 }
 #endif
 
-#endif GLNV_H
+#endif /* GLNV_H */
