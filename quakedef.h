@@ -253,7 +253,7 @@ typedef struct
 	int		pflags;
 } entity_state_t;
 
-
+#include "targa.h"
 #include "wad.h"
 #include "draw.h"
 #include "cvar.h"
