@@ -987,6 +987,7 @@ GL_Upload8
 */
 	//XYZ
 static	unsigned	trans[1024*1024];		// FIXME, temporary
+static	unsigned char	glosspix[1024*1024];
 
 #define RED_MASK 0x00FF0000
 #define GREEN_MASK 0x0000FF00
@@ -996,7 +997,7 @@ void GL_Upload8 (byte *data,char *identifier, int width, int height,  qboolean m
 {
 	//XYZ
 static	unsigned char	bumppix[1024*1024];	// PENTA: bumped texture (it seems the previous one never got fixed anyway)
-static	unsigned char	glosspix[1024*1024];	// PENTA: bumped texture (it seems the previous one never got fixed anyway)
+//static	unsigned char	glosspix[1024*1024];	// PENTA: bumped texture (it seems the previous one never got fixed anyway)
 
 	int			i, s;
 	qboolean	noalpha;
@@ -1214,15 +1215,18 @@ GL_CacheTexture
 */
 gltexture_t *GL_CacheTexture (char *filename,  qboolean mipmap, int type)
 {
-	int			i, width, height;
+	int			i, width, height , gwidth, gheight;
 	gltexture_t	*glt;
+	char filenameext[MAX_OSPATH];
+	char glossfilenameext[MAX_OSPATH];
+	char buff[MAX_OSPATH];
 
 	// see if the texture is allready present
 	if (filename[0])
 	{
 		for (i=0, glt=gltextures ; i<numgltextures ; i++, glt++)
 		{
-			if (!strcmp (filename, glt->identifier))
+			if (!strcmp (filename, glt->identifier) && (glt->mipmap == mipmap))
 			{
 				//found one, return it...
 				return &gltextures[i];
@@ -1239,11 +1243,6 @@ gltexture_t *GL_CacheTexture (char *filename,  qboolean mipmap, int type)
 	glt->texnum = texture_extension_number;
 	glt->mipmap = mipmap;
 
-	
-
-	GL_Bind(texture_extension_number );
-	texture_extension_number++;
-
 	if (!strcmp(filename,"$white")) {
 		//a uniform white texture
 		trans[0] = LittleLong ((255 << 24)|(255 << 16)|(255 << 8)|(255));
@@ -1253,9 +1252,47 @@ gltexture_t *GL_CacheTexture (char *filename,  qboolean mipmap, int type)
 		trans[0] = LittleLong ((0 << 24)|(127 << 16)|(255 << 8)|(127));
 		width = height = 1;
 	} else {
-		LoadTextureInPlace(filename, 4, (unsigned char*)&trans[0], &width, &height);
+		int rez;
+		qboolean hasgloss = false;
+		//has it a packed gloss too?
+		if (type == TEXTURE_NORMAL && strstr(filename,"|")) {
+			//uck hacky, string code from penta!
+			//but strtok kills the buffer it works on!
+			char b[MAX_QPATH*2+1];
+			strcpy(b,filename);
+			strcpy(filenameext,strtok(b,"|"));
+			strcpy(glossfilenameext,strtok(NULL,"|"));
+
+			//load the gloss
+			rez = LoadTextureInPlace(glossfilenameext, 1, (unsigned char*)&glosspix[0], &gwidth, &gheight);
+			if (!rez) {
+				trans[0] = LittleLong ((255 << 24)|(255 << 16)|(255 << 8)|(255));
+				width = height = 1;
+				Con_Printf("Texture not found %s\n",glossfilenameext);
+			} else hasgloss = true;
+		} else {
+			strcpy(filenameext,filename);
+		}
+		
+		rez = LoadTextureInPlace(filenameext, 4, (unsigned char*)&trans[0], &width, &height);
+		if (!rez) {
+			trans[0] = LittleLong ((255 << 24)|(255 << 16)|(255 << 8)|(255));
+			width = height = 1;
+			Con_Printf("Texture not found %s\n",filenameext);
+		}
+
+		if (hasgloss) {
+			if ((gwidth != width) || (gheight != height)) {
+				Con_Printf("\002Warning: %s Gray gloss map must have same size as normal map\n",glossfilenameext);
+			}
+			GL_PackGloss(glosspix, trans, width*height);
+		}
 	}
 
+	GL_Bind(texture_extension_number );
+	texture_extension_number++;
+
+	//
 	glt->width = width;
 	glt->height = height;
 
