@@ -97,29 +97,19 @@ cvar_t	cg_showentities = {"cg_showentities","1"};
 cvar_t	cg_showviewmodel = {"cg_showviewmodel","1"};
 cvar_t	r_fullbright = {"r_fullbright","0"};
 cvar_t	r_lightmap = {"r_lightmap","0"};
-cvar_t	r_shadows = {"r_shadows","0"};
 //cvar_t	r_mirroralpha = {"r_mirroralpha","1"};
 cvar_t	r_wateralpha = {"r_wateralpha","0.5"};//PENTA: different default
-cvar_t	r_dynamic = {"r_dynamic","1"};
 cvar_t	r_novis = {"r_novis","0"};
 
 cvar_t	gl_finish = {"gl_finish","0"};
 cvar_t	gl_clear = {"gl_clear","0"};
-cvar_t	gl_cull = {"gl_cull","1"};
+
 //cvar_t	gl_texsort = {"gl_texsort","1"};
 cvar_t	gl_polyblend = {"gl_polyblend","1"};
-cvar_t	gl_flashblend = {"gl_flashblend","1"};
-cvar_t	gl_playermip = {"gl_playermip","0"};
-cvar_t	gl_nocolors = {"gl_nocolors","0"};
-//cvar_t	gl_keeptjunctions = {"gl_keeptjunctions","0"}; PENTA: Don't remove t-junctions
-cvar_t	gl_reporttjunctions = {"gl_reporttjunctions","0"};
-cvar_t	gl_doubleeyes = {"gl_doubleeys", "1"};
 
-cvar_t	gl_watershader = {"gl_watershader","1"};//PENTA: water shaders ON/OFF
 cvar_t	gl_calcdepth = {"gl_calcdepth","0"};
 
 cvar_t	sh_lightmapbright = {"sh_lightmapbright","1.0"};//PENTA: brightness of lightmaps
-cvar_t	sh_radiusscale = {"sh_radiusscale","0.0"};//PENTA: brightness of lightmaps
 cvar_t	sh_visiblevolumes = {"sh_visiblevolumes","0"};//PENTA: draw shadow volumes on/off
 cvar_t  sh_entityshadows = {"sh_entityshadows","1"};//PENTA: entities cast shadows on/off
 cvar_t  sh_meshshadows = {"sh_meshshadows","1"};//PENTA: entities cast shadows on/off
@@ -137,7 +127,6 @@ cvar_t  sh_infinitevolumes = {"sh_infinitevolumes","0", true};//PENTA: Nvidia in
 cvar_t  sh_noscissor = {"sh_noscissor","0"};//PENTA: no scissoring
 cvar_t	sh_nocleversave = {"sh_nocleversave","0"};//PENTA: don't change light drawing order to reduce stencil clears
 cvar_t	sh_bumpmaps = {"sh_bumpmaps","1"};//PENTA: enable disable bump mapping
-cvar_t	sh_colormaps = {"sh_colormaps","1"};//PENTA: enable disable textures on the world (light will remain)
 cvar_t	sh_playershadow = {"sh_playershadow","1"};//PENTA: the player casts a shadow (the one YOU are playing with, others always cast shadows)
 cvar_t	sh_nocache = {"sh_nocache","0"};
 cvar_t	sh_glares = {"sh_glares","0",true};
@@ -916,15 +905,6 @@ void R_DrawAliasSurface (aliashdr_t *paliashdr, float bright, aliasframeinstant_
 		anim = (int)(cl.time*10) & 3;
 		if (paliashdr->shader->numcolorstages > 0)
 			GL_BindAdvanced(paliashdr->shader->colorstages[0].texture[0]);
-
-		// we can't dynamically colormap textures, so they are cached
-		// seperately for the players.  Heads are just uncolored.
-		if (currententity->colormap != vid.colormap && !gl_nocolors.value)
-		{
-			i = currententity - cl_entities;
-			if (i >= 1 && i<=cl.maxclients /* && !strcmp (currententity->model->name, "progs/player.mdl") */)
-				GL_Bind(playertextures - 1 + i);
-		}
 	}
 
 	//XYZ
@@ -1612,7 +1592,7 @@ qboolean R_ShouldDrawViewModel (void)
 	return true;
 }
 
-extern	cvar_t		v_gamma;
+extern	cvar_t		r_intensity;
 /*
 ============
 R_AdjustGamma
@@ -1620,16 +1600,16 @@ R_AdjustGamma
 */
 void R_AdjustGamma(void) //Gamma - Eradicator
 {
-	if (v_gamma.value < 0.2f)
-		v_gamma.value = 0.2f;
-	if (v_gamma.value >= 1)
+	if (r_intensity.value < 0.2f)
+		r_intensity.value = 0.2f;
+	if (r_intensity.value >= 1)
 	{
-		v_gamma.value = 1;
+		r_intensity.value = 1;
 		return;
 	}
 
 	glBlendFunc (GL_DST_COLOR, GL_ONE_MINUS_SRC_ALPHA);
-	glColor4f (1, 1, 1, v_gamma.value );
+	glColor4f (1, 1, 1, r_intensity.value );
 	glBegin (GL_QUADS);
 	glVertex3f (10, 100, 100);
 	glVertex3f (10, -100, 100);
@@ -1681,7 +1661,7 @@ void R_PolyBlend (void)
 
 	}
 
-	if (v_gamma.value != 1) //Gamma - Eradicator
+	if (r_intensity.value != 1) //Gamma - Eradicator
 		R_AdjustGamma(); 
 
 	glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -2057,13 +2037,6 @@ void R_SetupGL (void)
 	glGetDoublev (GL_PROJECTION_MATRIX, r_Dproject_matrix);
 	glGetIntegerv (GL_VIEWPORT, (GLint *) r_Iviewport);	// <AWE> added cast.
 	ExtractFrustum();
-	//
-	// set drawing parms
-	//
-	if (gl_cull.value)
-		glEnable(GL_CULL_FACE);
-	else
-		glDisable(GL_CULL_FACE);
 
 	glDisable(GL_BLEND);
 	glDisable(GL_ALPHA_TEST);
