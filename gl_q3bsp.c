@@ -33,6 +33,8 @@ qboolean is_q3map;
 int		*meshVerts;
 int		ExtraPlanes;
 
+marea_t		map_areas[MAX_MAP_AREAS];
+
 /*
 =================
 ModQ3_LoadTextures
@@ -252,12 +254,167 @@ void ModQ3_LoadSubmodels (lump_t *l)
 	}
 }
 
-void fillNeighbours(glpoly_t *poly) {
+qboolean vertexEqual(mmvertex_t *v1, mmvertex_t *v2) {
+	vec3_t r;
+	//VectorSubtract(v1->position,v2->position,r);
+	//return (DotProduct(r,r) < 0.01);
+	return (v1->position[0] == v2->position[0]) &&
+		   (v1->position[1] == v2->position[1]) &&
+		   (v1->position[2] == v2->position[2]);
+}
+
+int numnaughty;
+int numnormal;
+int noneighbour;
+/**
+* Find a polygon who shares and edge with the given edge.
+* Note: Q3 maps seem to share edges between 3 poly's sometimes, we use the same
+* solution as with meshes and let noone have the edge.
+*/
+void findNeighbourForEdge(glpoly_t *poly, int eindex) {
+	int i,j, eindex2;
+	glpoly_t *p, *found = NULL;
+	int foundj;
+	qboolean dup = false;
+
+	if (poly->numverts == 0) return;
+	eindex2 = (eindex + 1) % poly->numverts;
+
+	if (poly->neighbours[eindex] != NULL) return;
+	for (i=0; i<loadmodel->numsurfaces; i++) {
+		p = loadmodel->surfaces[i].polys;
+
+		//check if it has a shared vertex
+		for (j=0; j<p->numverts; j++) {
+			if ((vertexEqual(&tempVertices[p->firstvertex+j],&tempVertices[poly->firstvertex+eindex]) 
+				&& vertexEqual(&tempVertices[p->firstvertex+(j+1)%p->numverts],&tempVertices[poly->firstvertex+eindex2])
+				)
+				||
+			   (vertexEqual(&tempVertices[p->firstvertex+(j+1)%p->numverts],&tempVertices[poly->firstvertex+eindex])
+			   && vertexEqual(&tempVertices[p->firstvertex+j],&tempVertices[poly->firstvertex+eindex2])))
+			{
+
+				if (poly == p) {
+					if (j != eindex) {
+						Con_Printf("Panic! polygons has self matching edges\n");
+					}
+		
+					continue;
+				}
+
+				/*
+				if (p->neighbours[j]) {
+					int k;
+					//p already has a neighbour!
+					//a 3 edger this is, kill it
+
+
+					//take it away from it's old mate
+					found = p->neighbours[j];
+
+					if( p->neighbours[j] != &threeEdge) {
+						for (k=0; k<found->numverts; k++) {
+							if (found->neighbours[k] == p) {
+								found->neighbours[k] = &threeEdge;
+								break;
+							}
+						}
+					}
+
+					//take it away from p
+					p->neighbours[j] = &threeEdge;
+
+					//take it away from the new mate
+					poly->neighbours[eindex] = &threeEdge;
+				}
+
+				poly->neighbours[eindex] = p;
+				p->neighbours[j] = poly;
+				return;
+				*/
+				
+				//no edge for this model found yet?
+				if (found == NULL) {
+					found = p;
+					foundj = j;
+				}
+				//the three edges story
+				else
+					dup = true;
+					break;
+				
+			}
+		}
+
+		if (dup) break;
+	}
+
+	
+	//normal edge, setup neighbour pointers
+	if (!dup) {
+		numnormal++;
+		if (found) {
+			found->neighbours[foundj] = poly;
+		} else {
+			noneighbour++;
+		}
+		poly->neighbours[eindex] = found;
+
+	} else {
+		//naughty egde let no-one have the neighbour
+		poly->neighbours[eindex] = NULL;
+		numnaughty++;
+	}
+	
+}
+
+void findNeighbours(glpoly_t *poly) {
+	int j;
+
+	if (poly->numverts == 0) return;
+
+	for (j=0; j<poly->numverts; j++) {
+		findNeighbourForEdge(poly,j);
+	}
+
+}
+
+void nullNeighbours(glpoly_t *poly) {
 	int i;
 	for (i=0; i<poly->numverts; i++) {
 		poly->neighbours[i] = NULL;
 	}
 }
+
+/**
+* Q3map sometimes adds a center vertex when the polygon can't be
+* drawn as a tristrip (see SurfaceAsTriFan in surface.c of the q3 map source)
+* we detect this (since we always draw as a fan) and fix it...
+*//*
+void checkHasCenterSplit(glpoly_t *poly) {
+	int i, firstindex;
+	mmvertex_t newfirst;
+	if (poly->numverts < 5) return;
+
+	//if the first vertex of every triangle is the same => we have a fan
+	firstindex = poly->indecies[0];
+	for (i=3; i<poly->numindecies; i+=3) {
+		if (poly->indecies[i] != firstindex)
+			//no fan, do nothing
+			return;
+	}
+
+	poly->numverts--;
+	//a fan q3map added a center vertex then, and it's the last one
+	//move it to the first and move the rest
+
+//	newfirst = tempVertices[poly->firstvertex+poly->numverts-1];
+//	for (i=poly->numverts-2; i>=0; i--) {
+//		tempVertices[poly->firstvertex+i+1] = tempVertices[poly->firstvertex+i];
+//	}
+//	tempVertices[poly->firstvertex] = newfirst;
+
+}*/
 
 float absf(float f) {
 	
@@ -312,6 +469,51 @@ int FindPlane(vec3_t normal, vec3_t vertex) {
 }
 
 
+
+void TangentForPoly(int *index, mmvertex_t *vertices,vec3_t Tangent, vec3_t Binormal) {
+//see:
+//http://members.rogers.com/deseric/tangentspace.htm
+	vec3_t stvecs [3];
+	float *v0, *v1, *v2;
+	float *st0, *st1, *st2;
+	vec3_t vec1, vec2;
+	vec3_t planes[3];
+	int i;
+
+	v0 = &vertices[index[0]].position[0];
+	v1 = &vertices[index[1]].position[0];
+	v2 = &vertices[index[2]].position[0];
+	st0 = &vertices[index[0]].texture[0];
+	st1 = &vertices[index[1]].texture[0];
+	st2 = &vertices[index[2]].texture[0];
+
+	for (i=0; i<3; i++) {
+		vec1[0] = v1[i]-v0[i];
+		vec1[1] = st1[0]-st0[0];
+		vec1[2] = st1[1]-st0[1];
+		vec2[0] = v2[i]-v0[i];
+		vec2[1] = st2[0]-st0[0];
+		vec2[2] = st2[1]-st0[1];
+		VectorNormalize(vec1);
+		VectorNormalize(vec2);
+		CrossProduct(vec1,vec2,planes[i]);
+	}
+
+	//Tangent = (-planes[B][x]/plane[A][x], -planes[B][y]/planes[A][y], - planes[B][z]/planes[A][z] )
+	//Binormal = (-planes[C][x]/planes[A][x], -planes[C][y]/planes[A][y], -planes[C][z]/planes[A][z] )
+	Tangent[0] = -planes[0][1]/planes[0][0];
+	Tangent[1] = -planes[1][1]/planes[1][0];
+	Tangent[2] = -planes[2][1]/planes[2][0];
+	Binormal[0] = -planes[0][2]/planes[0][0];
+	Binormal[1] = -planes[1][2]/planes[1][0];
+	Binormal[2] = -planes[2][2]/planes[2][0];
+	VectorNormalize(Tangent); //is this needed?
+	VectorNormalize(Binormal);
+}
+
+
+
+
 /*
 =================
 ModQ3_LoadFaces
@@ -329,6 +531,7 @@ void ModQ3_LoadFaces (lump_t *l)
 	int			i, count, surfnum;
 	int			planenum, side;
 	glpoly_t	*poly;
+	vec3_t		cross;
 
 	in = (void *)(mod_base + l->fileofs);
 	if (l->filelen % sizeof(*in))
@@ -351,7 +554,7 @@ void ModQ3_LoadFaces (lump_t *l)
 		out->numedges = 0;
 		out->flags = 0;
 
-		planenum = FindPlane(in->normal,tempVertices[in->firstvertex].position);	
+		planenum = FindPlane(in->normal,tempVertices[in->firstvertex].position); //ENDIAN bug!! flip in->normal	
 		out->plane = loadmodel->planes + planenum;
 		out->texinfo = loadmodel->texinfo + surfnum;
 				
@@ -400,7 +603,7 @@ void ModQ3_LoadFaces (lump_t *l)
 		//Con_Printf("Surface Type %i NumVert: %i NumIndex: %i\n",in->type,in->numvertices,in->nummeshvertices);
 		
 		//fill in the glpoly
-		poly = Hunk_Alloc (sizeof(glpoly_t)+(in->nummeshvertices-1)*sizeof(int));
+		poly = Hunk_Alloc (sizeof(glpoly_t)+(LittleLong(in->nummeshvertices)-1)*sizeof(int));
 		poly->numverts = in->numvertices;
 		poly->numindecies = in->nummeshvertices;
 		poly->firstvertex = in->firstvertex;
@@ -421,16 +624,153 @@ void ModQ3_LoadFaces (lump_t *l)
 		}
 
 		//fill in the index lists
-		for (i=0; i<in->nummeshvertices; i++) {
-			poly->indecies[i] = poly->firstvertex+meshVerts[i+in->firstmeshvertex];
+		for (i=0; i<LittleLong(in->nummeshvertices); i++) {
+			poly->indecies[i] = poly->firstvertex+meshVerts[i+LittleLong(in->firstmeshvertex)];
 		}
 
 		out->polys = poly;
-		fillNeighbours(poly);
+		nullNeighbours(poly);
 		out->numedges = poly->numverts;
 	}
 }
 
+
+/*
+=================
+ModQ3_SetupFaces
+
+Does some post load face setup, this is calculating tangent space and doing neighbour finding
+as they require everything to be loaded.
+=================
+*/
+void ModQ3_SetupFaces (void)
+{
+	int surfnum;	
+	msurface_t 	*s;
+	mtexinfo_t	*info;
+	glpoly_t	*poly;
+	FILE	*f;
+	char	cache[MAX_QPATH], fullpath[MAX_OSPATH];
+	int mod = loadmodel->numsurfaces / 10;
+	int progress = 0;
+	numnaughty = 0;
+	numnormal = 0;
+	noneighbour = 0;
+	for (surfnum=0; surfnum<loadmodel->numsurfaces; surfnum++)
+	{
+		if ((surfnum % mod) == 0) {
+			if (progress < 11)
+				progress++;
+			Con_Printf("  %i%%\n",(progress-1)*10);
+		}
+
+		s = &loadmodel->surfaces[surfnum];
+		info = s->texinfo;
+		poly = s->polys;
+
+		if (poly->numverts == 0)
+			continue;
+		
+		//checkHasCenterSplit(poly);
+
+		//fill in the glpoly
+		TangentForPoly(poly->indecies,&tempVertices[0],info->vecs[0],info->vecs[1]);
+		//Scale up the tangent space a bit while this is a bit hacky it makes the bump look
+		//much better, "more deep".
+		VectorScale(info->vecs[0],r_tangentscale.value,info->vecs[0]);
+		VectorScale(info->vecs[1],r_tangentscale.value,info->vecs[1]);
+		findNeighbours(poly);
+
+	}
+	Con_Printf("  Checked %i edges\n",numnormal);
+	Con_Printf("  %i single edges\n",noneighbour);
+	Con_Printf("  Ignored %i manyfold edges\n",numnaughty);
+/*
+	// look for a cached version of the neighbour pointers
+	sprintf(cache,"cache/%s.con",loadname);
+	COM_FOpenFile (cache, &f);	
+	if (f)
+	{
+		uLong adler, original_adler;
+
+		fread(&original_adler,4,1,f);
+		adler = adler32(0L, Z_NULL, 0);
+		adler = adler32(adler, loadmodel->vertices, (loadmodel->numvertexes*sizeof(mmvertex_t)));
+		if (adler != original_adler) error();
+
+		Con_Printf("Loading edges...\n");
+		for (surfnum=0; surfnum<loadmodel->numsurfaces; surfnum++)
+		{
+			int i;
+			s = &loadmodel->surfaces[surfnum];
+			poly = s->polys;
+
+			if (poly->numverts == 0)
+				continue;
+
+			for (i=0; i<poly->numverts; i++) {
+				int neigh;
+				fread(&neigh,4,1,f);
+				if (neigh == -1)
+					poly->neighbours[i] = NULL;
+				else
+					poly->neighbours[i] = (loadmodel->surfaces+neigh)->polys;
+			}
+		}
+		fclose (f);
+	// none calculate and save it
+	} else {
+
+		Con_Printf("Calculating edges...\n");
+		for (surfnum=0; surfnum<loadmodel->numsurfaces; surfnum++)
+		{
+			s = &loadmodel->surfaces[surfnum];
+			poly = s->polys;
+
+			if (poly->numverts == 0)
+				continue;
+
+			findNeighbours(poly);
+		}
+
+		// save out the cached version
+		Con_Printf("Saving edges...\n");
+		sprintf (fullpath, "%s/%s", com_gamedir, cache);
+		f = fopen (fullpath, "wb");
+		if (f)
+		{
+			for (surfnum=0; surfnum<loadmodel->numsurfaces; surfnum++)
+			{
+				int i;
+				s = &loadmodel->surfaces[surfnum];
+				poly = s->polys;
+
+				if (poly->numverts == 0)
+					continue;
+
+				for (i=0; i<poly->numverts; i++) {
+					int index;
+					if (poly->neighbours[i] == NULL) {
+						index = -1;
+						fwrite (&index, 4, 1, f);
+					} else {
+						int k;
+						for (k=0; k<loadmodel->numsurfaces; k++)
+						{
+							if (loadmodel->surfaces[k].polys == poly)
+								break;
+						}
+						index = k;
+						fwrite (&index, 4, 1, f);
+					}
+				}
+			}
+		}
+		fclose (f);
+	}
+*/
+
+}
 
 /*
 =================
@@ -440,7 +780,7 @@ ModQ3_SetParent
 void ModQ3_SetParent (mnode_t *node, mnode_t *parent)
 {
 	node->parent = parent;
-	if (node->contents < 0)
+	if (node->contents & CONTENTS_LEAF)
 		return;
 	ModQ3_SetParent (node->children[0], node);
 	ModQ3_SetParent (node->children[1], node);
@@ -550,7 +890,7 @@ void ModQ3_LoadLeafs (lump_t *l, lump_t *sl, lump_t *ss)
 		//if (i == 0)
 		//	out->contents = -2;
 		//else
-		out->contents = -1; //not determined per leaf anymore, use leaf brushes instead...
+		out->contents = CONTENTS_LEAF; //not determined per leaf anymore, use leaf brushes instead...
 
 		out->firstmarksurface = loadmodel->marksurfaces +
 			LittleLong(in->firstmarksurface);
@@ -558,7 +898,12 @@ void ModQ3_LoadLeafs (lump_t *l, lump_t *sl, lump_t *ss)
 
 		out->firstbrush = LittleLong(in->firstmarkbrush);
 		out->numbrushes = LittleLong(in->nummakbrushes);
-		out->area = LittleLong(in->areaportal);
+		out->area = LittleLong(in->areaportal) + 1;
+
+		if ( out->area >= loadmodel->numareas ) {
+			loadmodel->numareas = out->area + 1;
+		}
+
 		out->cluster = LittleLong(in->cluster);
 
 		//Create the leafcurves by going over all surfaces in this leaf
@@ -625,7 +970,7 @@ void ModQ3_MakeHull0(void)
 		for (j=0 ; j<2 ; j++)
 		{
 			child = in->children[j];
-			if (child->contents < 0)
+			if (child->contents & CONTENTS_LEAF)
 				out->children[j] = child->contents;
 			else
 				out->children[j] = child - loadmodel->nodes;
@@ -701,6 +1046,28 @@ void ModQ3_LoadMarksurfaces (lump_t *l)
 //darn q3 map 
 #define EXTRA_PLANES 240
 
+int	calcPlaneType(vec3_t normal) {
+	vec_t	ax, ay, az;
+		
+	if (normal[0] >= 1.0f)
+		return PLANE_X;
+	if (normal[1] >= 1.0f)
+		return PLANE_Y;
+	if (normal[2] >= 1.0f)
+		return PLANE_Z;
+		
+	ax = fabs(normal[0]);
+	ay = fabs(normal[1]);
+	az = fabs(normal[2]);
+
+	if (ax >= ay && ax >= az)
+		return PLANE_ANYX;
+	if (ay >= ax && ay >= az)
+		return PLANE_ANYY;
+	return PLANE_ANYZ;
+}
+
+
 /*
 =================
 ModQ3_LoadPlanes
@@ -735,7 +1102,7 @@ void ModQ3_LoadPlanes (lump_t *l)
 		}
 
 		out->dist = LittleFloat (in->dist);
-		out->type = 4;//LittleLong (in->type);
+		out->type = calcPlaneType(out->normal);
 		out->signbits = bits;
 	}
 }
@@ -774,9 +1141,10 @@ ModQ3_LoadBrushes
 For collision detection
 =================
 */
-void ModQ3_LoadBrushes (lump_t *l)
+void ModQ3_LoadBrushes (lump_t *l, lump_t *texturelump)
 {
 	dq3brush_t		*in;
+	dq3texture_t	*textures;
 	mbrush_t		*out;
 	int				count, i;
 
@@ -785,16 +1153,17 @@ void ModQ3_LoadBrushes (lump_t *l)
 		Sys_Error ("MOD_LoadBmodel: funny lump size in %s",loadmodel->name);
 	count = l->filelen / sizeof(*in);
 	out = Hunk_AllocName ( (count+1)*sizeof(*out), loadname); //add the const to allocate space for the bounding box
-	
+	textures = (void *)(mod_base + texturelump->fileofs);	
+
 	loadmodel->brushes = out;
 	loadmodel->numbrushes = count;
-
 	for ( i=0 ; i<count ; i++, in++, out++)
 	{
 		out->firstbrushside = LittleLong(in->firstbrushside);
 		out->numsides = LittleLong(in->numbrushsides);
 		out->checkcount = 0;
-		out->contents = -2; //ContentsForTexture(loadmodel->textures+in->texture);
+		out->contents = textures[LittleLong(in->texture)].contents;
+		//out->contents = //0; //ContentsForTexture(loadmodel->textures+in->texture);
 	}
 }
 
@@ -837,6 +1206,12 @@ void ModQ3_AllocCurves (void)
 	loadmodel->curves = Hunk_Alloc(MAX_MAP_CURVES*sizeof(mcurve_t));
 }
 
+void ModQ3_InitAreas(void) {
+	loadmodel->numareas = 1;
+	loadmodel->areas = &map_areas[0];
+	memset(map_areas,0,sizeof(map_areas));
+}
+
 void ModQ3_LoadBrushModel (model_t *mod, void *buffer)
 {
 	int			i, j;
@@ -863,6 +1238,7 @@ void ModQ3_LoadBrushModel (model_t *mod, void *buffer)
 // load into heap
 	ModQ3_AllocLeafCurves ();
 	ModQ3_AllocCurves ();
+	ModQ3_InitAreas ();
 
 	Con_Printf("Loading vertices...\n");
 	ModQ3_LoadVertexes (&header->lumps[Q3_LUMP_VERTEXES]);
@@ -891,13 +1267,17 @@ void ModQ3_LoadBrushModel (model_t *mod, void *buffer)
 	Con_Printf("Loading brushsides...\n");
 	ModQ3_LoadBrushSides (&header->lumps[Q3_LUMP_BRUSHSIDES]);
 	Con_Printf("Loading brushes...\n");
-	ModQ3_LoadBrushes (&header->lumps[Q3_LUMP_BRUSHES]);
+	ModQ3_LoadBrushes (&header->lumps[Q3_LUMP_BRUSHES], &header->lumps[Q3_LUMP_TEXTURES]);
 	Con_Printf("Loading leafbrushes...\n");
 	ModQ3_LoadLeafBrushes (&header->lumps[Q3_LUMP_LEAFBRUSHES]);
 
 	ModQ3_MakeHull0 ();
 	ModQ3_DuplicateHulls();
-	
+
+	Con_Printf("Configuring faces...\n");
+	ModQ3_SetupFaces ();
+
+
 	mod->numframes = 2;		// regular and alternate animation
 
 	for (i=1 ; i<mod->numsubmodels ; i++)
