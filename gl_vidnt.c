@@ -545,6 +545,8 @@ void	VID_Shutdown (void)
 		wglFreeMemoryNV(AGP_Buffer);		
 	}
 
+	R_ShutdownShaders();
+
 	if (vid_initialized)
 	{
 		vid_canalttab = false;

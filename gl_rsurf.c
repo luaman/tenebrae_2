@@ -28,7 +28,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 int		lightmap_bytes;		// 1, 2, or 4
 
-int		lightmap_textures;
+int		lightmap_textures = 0;
 
 unsigned		blocklights[18*18];
 
@@ -110,6 +110,8 @@ int R_AllocateVertexInTemp(vec3_t pos, float texture [2], float lightmap[2], byt
 	for (i=0; i<4; i++) {
 		tempVertices[numTempVertices].color[i] = color[i];
 	}
+
+	globalVertexTable = tempVertices;
 
 	numTempVertices++;
 	return numTempVertices-1;
@@ -337,7 +339,7 @@ R_TextureAnimation
 
 Returns the proper texture for a given time and base texture
 ===============
-*/
+*//*
 texture_t *R_TextureAnimation (texture_t *base)
 {
 	int		reletive;
@@ -366,7 +368,7 @@ texture_t *R_TextureAnimation (texture_t *base)
 
 	return base;
 }
-
+*/
 
 /*
 =============================================================
@@ -403,7 +405,8 @@ PFNGLGETCOMBINEROUTPUTPARAMETERFVNVPROC qglGetCombinerOutputParameterfvNV = NULL
 PFNGLGETCOMBINEROUTPUTPARAMETERIVNVPROC qglGetCombinerOutputParameterivNV = NULL;
 PFNGLGETFINALCOMBINERINPUTPARAMETERFVNVPROC qglGetFinalCombinerInputParameterfvNV = NULL;
 PFNGLGETFINALCOMBINERINPUTPARAMETERIVNVPROC qglGetFinalCombinerInputParameterivNV = NULL;
-
+PFNGLCOMBINERSTAGEPARAMETERFVNVPROC qglCombinerStageParameterfvNV = NULL;
+PFNGLGETCOMBINERSTAGEPARAMETERFVNVPROC qglGetCombinerStageParameterfvNV = NULL;
 
 PFNGLTEXIMAGE3DEXT qglTexImage3DEXT = NULL;
 
@@ -950,7 +953,7 @@ PENTA: Modifications
 */
 void R_RenderBrushPoly (msurface_t *fa)
 {
-	texture_t	*t;
+	shader_t	*s;
 	glpoly_t	*p;
 	int		i;
 	float	*v;
@@ -961,10 +964,12 @@ void R_RenderBrushPoly (msurface_t *fa)
 		return;
 	}
 	
-	/*if (!busy_caustics)*/ {
-		t = R_TextureAnimation (fa->texinfo->texture);
+	//if (!busy_caustics)
+	{
+		s = fa->shader->shader;
 		GL_SelectTexture(GL_TEXTURE0_ARB);
-		GL_Bind (t->gl_texturenum);
+		if (s->numcolorstages > 0)
+			GL_Bind(s->colorstages[0].texture[0]->texnum);
 	}
 
 	if (fa->flags & SURF_DRAWTURB)
@@ -980,7 +985,8 @@ void R_RenderBrushPoly (msurface_t *fa)
 		glNormal3fv(&fa->plane->normal[0]);
 	}
 
-	/*if (!busy_caustics)*/ {
+	//if (!busy_caustics)
+	{
 		GL_SelectTexture(GL_TEXTURE1_ARB);
 		GL_Bind (lightmap_textures + fa->lightmaptexturenum);
 	}
@@ -1004,7 +1010,7 @@ R_RenderBrushPoly
 
 PENTA:
 ================
-*/
+*//*
 void R_RenderBrushPolyLuma (msurface_t *fa)
 {
 	int		i;
@@ -1034,7 +1040,7 @@ void R_RenderBrushPolyLuma (msurface_t *fa)
 	glEnd ();
 }
 
-
+*/
 
 /*
 
@@ -1182,13 +1188,13 @@ void R_MirrorChain (msurface_t *s)
 }
 
 
-#if 0
+//#if 0
 /*
 ================
 R_DrawWaterSurfaces
 PENTA: Modifications
 ================
-*/
+*//*
 void R_DrawWaterSurfaces (void)
 {
 	int			i;
@@ -1229,25 +1235,25 @@ void R_DrawWaterSurfaces (void)
 	glColor4f (1,1,1,1);
 	glDisable (GL_BLEND);
 }
-#else
+#else*/
 /*
 ================
 R_DrawWaterSurfaces
 
 PENTA: Modifications
 ================
-*/
+*//*
 void R_DrawWaterSurfaces (void)
 {
 	int			i;
 	msurface_t	*s;
 	texture_t	*t;
 
-	/*
-	/*PENTA:  we always draw water at the end of the frame
-	if (r_wateralpha.value == 1.0 && gl_texsort.value)
-		return;
-	*/
+	
+	//PENTA:  we always draw water at the end of the frame
+	//if (r_wateralpha.value == 1.0 && gl_texsort.value)
+	//	return;
+	
 
 	//
 	// go back to the world matrix
@@ -1275,17 +1281,17 @@ void R_DrawWaterSurfaces (void)
 		glColor4f (1,1,1,1);
 	}
 
-	/*if (!gl_texsort.value) {
-		if (!waterchain)
-			return;
-
-		for ( s = waterchain ; s ; s=s->texturechain) {
-			GL_Bind (s->texinfo->texture->gl_texturenum);
-			EmitWaterPolys (s);
-		}
-		
-		waterchain = NULL;
-	} else */{
+	///*if (!gl_texsort.value) {
+	//	if (!waterchain)
+	//		return;
+//
+//		for ( s = waterchain ; s ; s=s->texturechain) {
+//			GL_Bind (s->texinfo->texture->gl_texturenum);
+//			EmitWaterPolys (s);
+//		}
+//		
+//		waterchain = NULL;
+//	} else {
 
 		for (i=0 ; i<cl.worldmodel->numtextures ; i++)
 		{
@@ -1347,7 +1353,7 @@ void R_DrawWaterSurfaces (void)
 }
 
 #endif
-
+*/
 /*
 ================
 DrawTextureChains
@@ -1360,9 +1366,10 @@ void DrawTextureChains (void)
 {
 	int		i;
 	msurface_t	*s;
-	texture_t	*t, *tani;
+	mapshader_t	*sh;
+	shader_t	*shani;
 	qboolean	found = false;
-	mcurve_t	*curve;
+	mesh_t		*mesh;
 
 	//glBlendFunc(GL_ZERO,GL_SRC_COLOR);
 	//glEnable(GL_BLEND);
@@ -1371,7 +1378,7 @@ void DrawTextureChains (void)
 	glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
 	glColor3f(sh_lightmapbright.value,sh_lightmapbright.value,sh_lightmapbright.value);
 
-	GL_EnableMultitexture();
+/*	GL_EnableMultitexture();
 	if (sh_colormaps.value) {
 		glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
 	} else {
@@ -1386,7 +1393,7 @@ void DrawTextureChains (void)
 		glTexEnvf (GL_TEXTURE_ENV, GL_SOURCE1_RGB_ARB, GL_TEXTURE);
 		glTexEnvf (GL_TEXTURE_ENV, GL_COMBINE_RGB_ARB, GL_MODULATE);
 	}
-
+*/
 
 
 	if (gl_wireframe.value) {
@@ -1398,41 +1405,42 @@ void DrawTextureChains (void)
 
 	causticschain = NULL; //clear chain here
 
-	R_EnableVertexTable(VERTEX_TEXTURE | VERTEX_LIGHTMAP);
+	//R_EnableVertexTable(VERTEX_TEXTURE | VERTEX_LIGHTMAP);
 
-	for (i=0 ; i<cl.worldmodel->numtextures ; i++)
+	for (i=0 ; i<cl.worldmodel->nummapshaders ; i++)
 	{
-		t = cl.worldmodel->textures[i];
-		if (!t)
+		sh = &cl.worldmodel->mapshaders[i];
+		if (!sh)
 			continue;
 
-		s = t->texturechain;
+		s = sh->texturechain;
 		if (!s)
 			continue;
-
+/*
 		found = true;
 
-		if (i == skytexturenum) {
+		if (i == skyshadernum) {
 			continue;
 			//R_DrawSkyChain (s);
 		}
-		/*
-		else if (i == mirrortexturenum && r_mirroralpha.value != 1.0)
-		{
-			R_MirrorChain (s);
-			continue;
-		}
 		*/
+		//else if (i == mirrortexturenum && r_mirroralpha.value != 1.0)
+		//{
+		//	R_MirrorChain (s);
+		//	continue;
+		//}
+		
 		//else
-		{
+	/*	{
 
 			//PENTA: water at end of frame
 			if (s->flags & SURF_DRAWTURB)
 				continue;
 
 			GL_SelectTexture(GL_TEXTURE0_ARB);			
-			tani = R_TextureAnimation (s->texinfo->texture);
-			GL_Bind (tani->gl_texturenum);
+			shani = s->shader->shader;
+			if (shani->numcolorstages > 0)
+				GL_Bind(shani->colorstages[0].texture[0]->texnum);
 
 			//Do the ambient pass
 			//now with arrays!
@@ -1447,7 +1455,7 @@ void DrawTextureChains (void)
 			GL_SelectTexture(GL_TEXTURE0_ARB);
 			
 			//Has this texture a luma texture then add it
-
+/*
 			if (t->gl_lumitex) {
 				//vec3_t color_black = {0.0, 0.0, 0.0};
 				glFogfv(GL_FOG_COLOR, color_black);
@@ -1474,8 +1482,8 @@ void DrawTextureChains (void)
 				glDisable(GL_BLEND);
 				glFogfv(GL_FOG_COLOR, fog_color);
 			}
-
-			s = t->texturechain;
+*/
+	/*		s = sh->texturechain;
 			//Make cauistics list
 			while (s) {
 				msurface_t *olds;
@@ -1489,25 +1497,105 @@ void DrawTextureChains (void)
 			}
 
 		}
-
-		t->texturechain = NULL;
+*/
+		//if (!(s->flags & (SURF_DRAWSKY | SURF_DRAWTURB)))
+		if (!IsShaderBlended(sh->shader)) {
+			R_DrawWorldAmbientChain(sh->texturechain);
+			sh->texturechain = NULL;
+		}
 	}
-	R_DisableVertexTable(VERTEX_TEXTURE | VERTEX_LIGHTMAP);
+
+
+	for (i=0 ; i<cl.worldmodel->nummapshaders ; i++)
+	{
+		sh = &cl.worldmodel->mapshaders[i];
+		mesh = sh->meshchain;
+
+		if (!mesh)
+			continue;
+
+		if (!IsShaderBlended(mesh->shader->shader)) {
+			while (mesh) {
+				R_DrawMeshAmbient(mesh);
+				mesh = mesh->next;
+			}
+			sh->meshchain = NULL;
+		}
+	}
+
+	//R_DisableVertexTable(VERTEX_TEXTURE | VERTEX_LIGHTMAP);
 	GL_SelectTexture(GL_TEXTURE1_ARB);
 	GL_DisableMultitexture();
 	//glDisable(GL_BLEND);
 	glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	glDepthMask (1);
+}
 
-	curve = curvechain;
-	i = 0;
-	while (curve) {
-		CS_DrawAmbient(curve);
-		curve = curve->next;
-		i++;
-		if (i > 1000) { Con_Printf("Badloop\n"); break; }
+void DrawBlendedTextureChains (void)
+{
+	int		i;
+	msurface_t	*s;
+	mapshader_t	*sh;
+	shader_t	*shani;
+	qboolean	found = false;
+	mesh_t		*mesh;
+
+	glDepthMask (1);
+	//GL_DisableMultitexture();
+	/*glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+	glColor3f(sh_lightmapbright.value,sh_lightmapbright.value,sh_lightmapbright.value);
+
+	if (gl_wireframe.value) {
+		GL_SelectTexture(GL_TEXTURE0_ARB);
+		glDisable(GL_TEXTURE_2D);
+		GL_SelectTexture(GL_TEXTURE1_ARB);
+		glDisable(GL_TEXTURE_2D);
 	}
-	curvechain = NULL;
+	*/
+
+	causticschain = NULL; //clear chain here
+
+	//R_EnableVertexTable(VERTEX_TEXTURE | VERTEX_LIGHTMAP);
+
+	for (i=0 ; i<cl.worldmodel->nummapshaders ; i++)
+	{
+		sh = &cl.worldmodel->mapshaders[i];
+		if (!sh)
+			continue;
+
+		s = sh->texturechain;
+		if (!s)
+			continue;
+
+		
+		if (IsShaderBlended(sh->shader)) {
+			R_DrawWorldAmbientChain(sh->texturechain);
+			sh->texturechain = NULL;
+		}
+	}
+
+	for (i=0 ; i<cl.worldmodel->nummapshaders ; i++)
+	{
+		sh = &cl.worldmodel->mapshaders[i];
+		mesh = sh->meshchain;
+
+		if (!mesh)
+			continue;
+
+		if (IsShaderBlended(mesh->shader->shader)) {
+			while (mesh) {
+				R_DrawMeshAmbient(mesh);
+				mesh = mesh->next;
+			}
+			sh->meshchain = NULL;
+		}
+	}
+	//R_DisableVertexTable(VERTEX_TEXTURE | VERTEX_LIGHTMAP);
+	//GL_SelectTexture(GL_TEXTURE1_ARB);
+	//GL_DisableMultitexture();
+	glDisable(GL_BLEND);
+	glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	glDepthMask (1);
 }
 
 void R_DrawBrushModelCaustics (entity_t *e);
@@ -1574,7 +1662,7 @@ void R_DrawCaustics(void) {
 			continue;
 
 		//quick hack! check if ent is below water
-		if ((CL_PointContents(mins) != CONTENTS_WATER) && (CL_PointContents(maxs) != CONTENTS_WATER))
+		if ((!(CL_PointContents(mins) & CONTENTS_WATER)) && (!(CL_PointContents(maxs) & CONTENTS_WATER)))
 			continue;
 
 		if (mirror) {
@@ -1617,7 +1705,7 @@ R_DrawBrushModel
 
 PENTA: Modifications
 =================
-*/
+*//*
 void R_DrawBrushModel (entity_t *e)
 {
     vec3_t		mins, maxs;
@@ -1626,7 +1714,7 @@ void R_DrawBrushModel (entity_t *e)
     mplane_t	*pplane;
     model_t		*clmodel;
     qboolean	rotated;
-    texture_t *t;
+    shader_t *s;
 
     //bright = 1;
 
@@ -1725,19 +1813,20 @@ void R_DrawBrushModel (entity_t *e)
     //
     for (i=0 ; i<clmodel->nummodelsurfaces ; i++, psurf++)
     {
-	// find which side of the node we are on
-	pplane = psurf->plane;
+		// find which side of the node we are on
+		pplane = psurf->plane;
 
-	//dot = DotProduct (modelorg, pplane->normal) - pplane->dist;
+		//dot = DotProduct (modelorg, pplane->normal) - pplane->dist;
 
-	// draw the polygon
-	//if (((psurf->flags & SURF_PLANEBACK) && (dot < -BACKFACE_EPSILON)) ||
-	//	(!(psurf->flags & SURF_PLANEBACK) && (dot > BACKFACE_EPSILON)))
-	//{
-	R_RenderBrushPoly (psurf);
-	//}
+		// draw the polygon
+		//if (((psurf->flags & SURF_PLANEBACK) && (dot < -BACKFACE_EPSILON)) ||
+		//	(!(psurf->flags & SURF_PLANEBACK) && (dot > BACKFACE_EPSILON)))
+		//{
+		R_RenderBrushPoly (psurf);
+		//}
     }
-
+	*/
+/*
     // if luma, draw it too
     psurf = &clmodel->surfaces[clmodel->firstmodelsurface];
     //vec3_t color_black = {0.0, 0.0, 0.0};
@@ -1751,9 +1840,9 @@ void R_DrawBrushModel (entity_t *e)
 
     for (i=0 ; i<clmodel->nummodelsurfaces ; i++, psurf++)
     {
-	t = R_TextureAnimation (psurf->texinfo->texture);
-	if ( t->gl_lumitex )
-	    R_RenderBrushPolyLuma (psurf);
+		t = R_TextureAnimation (psurf->texinfo->texture);
+		if ( t->gl_lumitex )
+			R_RenderBrushPolyLuma (psurf);
     }
 
     glColor3f(sh_lightmapbright.value,sh_lightmapbright.value,sh_lightmapbright.value);
@@ -1763,11 +1852,11 @@ void R_DrawBrushModel (entity_t *e)
     GL_SelectTexture(GL_TEXTURE1_ARB);
     glDisable(GL_BLEND);
     glFogfv(GL_FOG_COLOR, fog_color);
-
+*//*
     GL_DisableMultitexture();
     glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
     glPopMatrix ();
-}
+}*/
 
 /*
 =================
@@ -1917,7 +2006,9 @@ e->angles[0] = -e->angles[0];	// stupid quake bug
 	R_RotateForEntity (e);
 e->angles[0] = -e->angles[0];	// stupid quake bug
 
-	//Draw model with specified ambient color
+	R_DrawBrushAmbient(e);
+
+/*	//Draw model with specified ambient color
 	glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
 
 	//
@@ -1940,6 +2031,7 @@ e->angles[0] = -e->angles[0];	// stupid quake bug
 
 	//R_BlendLightmaps (); nope no lightmaps 
 	glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
+*/
 	glPopMatrix ();
 }
 
@@ -1967,7 +2059,7 @@ void R_RecursiveWorldNode (mnode_t *node)
 	mplane_t	*plane;
 	msurface_t	*surf, **mark;
 	mleaf_t		*pleaf;
-	mcurve_t	*curve;
+	mesh_t		*mesh;
 	double		dot;
 
 	if (node->contents == CONTENTS_SOLID)
@@ -1994,7 +2086,7 @@ void R_RecursiveWorldNode (mnode_t *node)
 
 
 // if a leaf node, draw stuff
-	if (node->contents < 0)
+	if (node->contents & CONTENTS_LEAF)
 	{
 
 /*		
@@ -2043,7 +2135,7 @@ void R_RecursiveWorldNode (mnode_t *node)
 					mark++;
 					continue;
 				}
-
+/*
 				if (((*mark)->flags & SURF_DRAWTURB) && ((*mark)->flags & SURF_MIRROR)) {
 					mark++;
 					continue;
@@ -2053,9 +2145,9 @@ void R_RecursiveWorldNode (mnode_t *node)
 					mark++;
 					continue;
 				}
-
-				(*mark)->texturechain = (*mark)->texinfo->texture->texturechain;
-				(*mark)->texinfo->texture->texturechain = (*mark);
+*/
+				(*mark)->texturechain = (*mark)->shader->texturechain;
+				(*mark)->shader->texturechain = (*mark);
 				
 					if (!((*mark)->flags & (SURF_DRAWSKY | SURF_DRAWTURB))) {
 						(*mark)->polys->chain = lightmap_polys[(*mark)->lightmaptexturenum];
@@ -2068,16 +2160,16 @@ void R_RecursiveWorldNode (mnode_t *node)
 			} while (--c);
 		}
 
-		c = pleaf->firstcurve;
+		c = pleaf->firstmesh;
 		//if (pleaf->numcurves) Con_Printf("Numcurves %i\n",pleaf->numcurves);
-		for (i=0; i<pleaf->numcurves; i++) {
-			curve = &cl.worldmodel->curves[cl.worldmodel->leafcurves[c+i]];
+		for (i=0; i<pleaf->nummeshes; i++) {
+			mesh = &cl.worldmodel->meshes[cl.worldmodel->leafmeshes[c+i]];
 
-			if (curve->visframe == r_framecount) continue;
-			curve->visframe = r_framecount;
+			if (mesh->visframe == r_framecount) continue;
+			mesh->visframe = r_framecount;
 
-			curve->next = curvechain;
-			curvechain = curve; 
+			mesh->next = mesh->shader->meshchain;
+			mesh->shader->meshchain = mesh; 
 			//Con_Printf("AddCurve\n");
 		}
 
@@ -2118,7 +2210,9 @@ void R_RecursiveWorldNode (mnode_t *node)
 
 // recurse down the children, front side first
 	R_RecursiveWorldNode (node->children[side]);
+	R_RecursiveWorldNode (node->children[!side]);
 
+/*
 // draw stuff
 	c = node->numsurfaces;
 
@@ -2140,9 +2234,10 @@ void R_RecursiveWorldNode (mnode_t *node)
 
 				// don't backface underwater surfaces, because they warp
 				
-				if ( (dot < 0) ^ !!(surf->flags & SURF_PLANEBACK))
-					continue;		// wrong side
+					if ( (dot < 0) ^ !!(surf->flags & SURF_PLANEBACK))
+						continue;		// wrong side
 				
+
 
 				
 				if (surf->flags & SURF_MIRROR) {
@@ -2167,15 +2262,15 @@ void R_RecursiveWorldNode (mnode_t *node)
 				}
 
 				// if sorting by texture, just store it out
-				/*if (gl_texsort.value)
-				{*/
+				//if (gl_texsort.value)
+				//{
 
 					// add the surface to the proper texture chain 
 					//if (!mirror
 					//|| surf->texinfo->texture != cl.worldmodel->textures[mirrortexturenum])
 					//{
-						surf->texturechain = surf->texinfo->texture->texturechain;
-						surf->texinfo->texture->texturechain = surf;
+						surf->texturechain = surf->shader->texturechain;
+						surf->shader->texturechain = surf;
 					//}
 					
 
@@ -2189,24 +2284,24 @@ void R_RecursiveWorldNode (mnode_t *node)
 						lightmap_polys[surf->lightmaptexturenum] = surf->polys;
 					}
 
-				/*
-				} else if (surf->flags & SURF_DRAWSKY) {
-					surf->texturechain = skychain;
-					skychain = surf;
-				} else if (surf->flags & SURF_DRAWTURB) {
-					surf->texturechain = waterchain;
-					waterchain = surf;
-				} else
-					R_DrawSequentialPoly (surf);
-				*/
+				
+				//} else if (surf->flags & SURF_DRAWSKY) {
+				//	surf->texturechain = skychain;
+				//	skychain = surf;
+				//} else if (surf->flags & SURF_DRAWTURB) {
+				//	surf->texturechain = waterchain;
+				//	waterchain = surf;
+				//} else
+				//	R_DrawSequentialPoly (surf);
+				//
 
 			}
 		}
 
 	}
-
+*/
 // recurse down the back side
-	R_RecursiveWorldNode (node->children[!side]);
+	//R_RecursiveWorldNode (node->children[!side]);
 }
 
 
@@ -2324,6 +2419,11 @@ void R_MarkLeaves (void)
 		leaf = cl.worldmodel->leafs+i;
 		if (vis[leaf->cluster>>3] & (1<<(leaf->cluster&7))) // staat leaf i's vis bit op true ?
 		{
+			// check area portals
+			if (! (r_refdef.areabits[leaf->area>>3] & (1<<(leaf->area&7)) ) ) {
+				continue;		// not visible
+			}
+
 			node = (mnode_t *)leaf;
 			do
 			{
@@ -2395,13 +2495,14 @@ model_t		*currentmodel;
 int	nColinElim;
 
 //PENTA: temporaly storage for polygons that use an edge
+/*
 typedef struct {
 	int used;				//how many polygons use this edge
 	glpoly_t	*poly[2];	//pointer to the polygons who use this edge
 } temp_connect_t;
 
 temp_connect_t *tempEdges;
-
+*/
 
 /*
 ================
@@ -2410,7 +2511,7 @@ SetupSurfaceConnectivity
 
 Setup the neighour pointers of this surface's polygon.
 ================
-*/
+*//*
 void SetupSurfaceConnectivity(msurface_t *surf)
 {
 	int i,j,lindex;
@@ -2433,14 +2534,14 @@ void SetupSurfaceConnectivity(msurface_t *surf)
 		}
 	}
 }
-
+*/
 /*
 ================
 PENTA:
 PrintTempEdges
 
 ================
-*/
+*//*
 void PrintTempEdges()
 {
 	int i;
@@ -2453,7 +2554,7 @@ void PrintTempEdges()
 		Con_Printf("moord en brand %d\n",tempEdge->used);
 	}
 }
-
+*/
 /*
 ================
 BuildPolyFromSurface
@@ -2461,7 +2562,7 @@ BuildPolyFromSurface
 Creer polygons van de lijst van surfaces om
 gemakkelijk aan opengl te geven
 ================
-*/
+*//*
 void BuildPolyFromSurface (msurface_t *fa)
 {
 	int			i, lindex, lnumverts;
@@ -2549,7 +2650,7 @@ void BuildPolyFromSurface (msurface_t *fa)
 	poly->numverts = lnumverts;
 
 }
-
+*/
 /*
 ========================
 GL_CreateSurfaceLightmap
@@ -2604,138 +2705,9 @@ void GL_BuildLightmaps (void)
 	gl_lightmap_format = GL_RGB;
 	lightmap_bytes = 4;
 
-	/*
-	gl_lightmap_format = GL_LUMINANCE;
-
-	// default differently on the Permedia
-	if (isPermedia)
-		gl_lightmap_format = GL_RGBA;
-
-	if (COM_CheckParm ("-lm_1"))
-		gl_lightmap_format = GL_LUMINANCE;
-	if (COM_CheckParm ("-lm_a"))
-		gl_lightmap_format = GL_ALPHA;
-	if (COM_CheckParm ("-lm_i"))
-		gl_lightmap_format = GL_INTENSITY;
-	if (COM_CheckParm ("-lm_2"))
-		gl_lightmap_format = GL_RGBA4;
-	if (COM_CheckParm ("-lm_4"))
-		gl_lightmap_format = GL_RGBA;
-
-	switch (gl_lightmap_format)
-	{
-	case GL_RGBA:
-		lightmap_bytes = 4;
-		break;
-	case GL_RGBA4:
-		lightmap_bytes = 2;
-		break;
-	case GL_LUMINANCE:
-	case GL_INTENSITY:
-	case GL_ALPHA:
-		lightmap_bytes = 1;
-		break;
-	}
-	*/
-/*
-	for (j=1 ; j<MAX_MODELS ; j++)
-	{
-		m = cl.model_precache[j];
-		if (!m)
-			break;
-		if (m->name[0] == '*')
-			continue;
-
-		r_pcurrentvertbase = m->vertexes;
-		currentmodel = m;
-		
-		//PENTA: Allocate storage for our edge table
-		tempEdges = Hunk_TempAlloc(m->numedges * sizeof(temp_connect_t));
-
-		//clear tempedges
-		for (i=0; i<m->numedges; i++) {
-			tempEdges[i].used = 0;
-			tempEdges[i].poly[0] = NULL;
-			tempEdges[i].poly[1] = NULL;
-		}
-
-
-
-		for (i=0 ; i<m->numsurfaces ; i++)
-		{
-			//GL_CreateSurfaceLightmap (m->surfaces + i);
-			if ( m->surfaces[i].flags & SURF_DRAWTURB )
-				continue;
-#ifndef QUAKE2
-			if ( m->surfaces[i].flags & SURF_DRAWSKY )
-				continue;
-#endif
-		//	BuildPolyFromSurface (m->surfaces + i);
-		}
-
-		//PENTA: we now have the connectivity in tempEdges now store it in the polygons
-		for (i=0 ; i<m->numsurfaces ; i++)
-		{
-			if ( m->surfaces[i].flags & SURF_DRAWTURB )
-				continue;
-#ifndef QUAKE2
-			if ( m->surfaces[i].flags & SURF_DRAWSKY )
-				continue;
-#endif
-		//	SetupSurfaceConnectivity (m->surfaces + i);
-		}
-
-	}
-	Con_Printf("Connectivity calculated\n");
-*/
-
-	/*
-	PENTA: Normalize texture coordinate s/t's since we now use them as tangent space
-	*/
-	for (j=1 ; j<MAX_MODELS ; j++)
-	{
-		mtexinfo_t *texinfos;
-
-		m = cl.model_precache[j];
-		if (!m)
-			break;
-		if (m->name[0] == '*')
-			continue;
-
-		texinfos = m->texinfo;
-		for (i=0; i<m->numtexinfo; i++) {
-			VectorNormalize(texinfos[i].vecs[0]);
-			VectorNormalize(texinfos[i].vecs[1]);
-		}
-	}
-
-
-	/*
- 	if (!gl_texsort.value)
- 		GL_SelectTexture(GL_TEXTURE1_ARB);
-	*/
-
-	//
-	// upload all lightmaps that were filled
-	//
 	for (i=0 ; i<cl.worldmodel->numlightmaps ; i++)
 	{
-		/*
-		if (!allocated[i][0])
-			break;		// no more used
-		lightmap_modified[i] = false;
-		lightmap_rectchange[i].l = BLOCK_WIDTH;
-		lightmap_rectchange[i].t = BLOCK_HEIGHT;
-		lightmap_rectchange[i].w = 0;
-		lightmap_rectchange[i].h = 0;
-		GL_Bind(lightmap_textures + i);
-		glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-		glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-		glTexImage2D (GL_TEXTURE_2D, 0, lightmap_bytes
-		, BLOCK_WIDTH, BLOCK_HEIGHT, 0, 
-		gl_lightmap_format, GL_UNSIGNED_BYTE, lightmaps+i*BLOCK_WIDTH*BLOCK_HEIGHT*lightmap_bytes);
-		*/
-		Con_Printf("Loadlightmap %i\n",i);
+		Con_Printf("Lightmap %i\n",i);
 		GL_Bind(lightmap_textures + i);
 		glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 		glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
@@ -2744,11 +2716,6 @@ void GL_BuildLightmaps (void)
 		gl_lightmap_format, GL_UNSIGNED_BYTE,
 		cl.worldmodel->lightdata+(i*LIGHTMAP_WIDTH*LIGHTMAP_WIDTH*3));
 	}
-
-	/*
- 	if (!gl_texsort.value)
- 		GL_SelectTexture(GL_TEXTURE0_ARB);
-	*/
 
 }
 

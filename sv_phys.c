@@ -924,21 +924,21 @@ qboolean SV_CheckWater (edict_t *ent)
 	ent->v.waterlevel = 0;
 	ent->v.watertype = CONTENTS_EMPTY;
 	cont = SV_PointContents (point);
-	if (cont <= CONTENTS_WATER)
+	if (cont & CONTENTS_LIQUID)
 	{
 #ifdef QUAKE2
 		truecont = SV_TruePointContents (point);
 #endif
-		ent->v.watertype = cont;
+		ent->v.watertype = SV_SimplePointContents(cont);
 		ent->v.waterlevel = 1;
 		point[2] = ent->v.origin[2] + (ent->v.mins[2] + ent->v.maxs[2])*0.5;
 		cont = SV_PointContents (point);
-		if (cont <= CONTENTS_WATER)
+		if (cont & CONTENTS_LIQUID)
 		{
 			ent->v.waterlevel = 2;
 			point[2] = ent->v.origin[2] + ent->v.view_ofs[2];
 			cont = SV_PointContents (point);
-			if (cont <= CONTENTS_WATER)
+			if (cont & CONTENTS_LIQUID)
 				ent->v.waterlevel = 3;
 		}
 #ifdef QUAKE2
@@ -1118,6 +1118,7 @@ void SV_WalkMove (edict_t *ent)
 
 // check for stuckness, possibly due to the limited precision of floats
 // in the clipping hulls
+
 	if (clip)
 	{
 		if ( fabs(oldorg[1] - ent->v.origin[1]) < 0.03125
@@ -1315,18 +1316,18 @@ void SV_CheckWaterTransition (edict_t *ent)
 #endif
 	if (!ent->v.watertype)
 	{	// just spawned here
-		ent->v.watertype = cont;
+		ent->v.watertype = SV_SimplePointContents(cont);
 		ent->v.waterlevel = 1;
 		return;
 	}
 	
-	if (cont <= CONTENTS_WATER)
+	if (cont & CONTENTS_LIQUID)
 	{
 		if (ent->v.watertype == CONTENTS_EMPTY)
 		{	// just crossed into water
 			SV_StartSound (ent, 0, "misc/h2ohit1.wav", 255, 1);
 		}		
-		ent->v.watertype = cont;
+		ent->v.watertype = SV_SimplePointContents(cont);
 		ent->v.waterlevel = 1;
 	}
 	else
@@ -1337,7 +1338,7 @@ void SV_CheckWaterTransition (edict_t *ent)
 			SV_StartSound (ent, 0, "misc/h2ohit1.wav", 255, 1);
 		}		
 		ent->v.watertype = CONTENTS_EMPTY;
-		ent->v.waterlevel = cont;
+		ent->v.waterlevel = SV_SimplePointContents(cont);
 	}
 }
 

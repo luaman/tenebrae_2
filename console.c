@@ -592,7 +592,7 @@ void Con_DrawNotify (void)
 	for (x = 0 ; x < con_linewidth ; x++)
 	    Draw_Character ( (x+1)<<3, v, text[x]);
 
-	v += 8;
+	v += 16;
     }
 
 

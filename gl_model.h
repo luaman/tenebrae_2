@@ -89,19 +89,95 @@ typedef struct mplane_s
 	byte	pad[2];
 } mplane_t;
 
-typedef struct texture_s
+
+//Textures
+#define TEXTURE_RGB 1
+#define TEXTURE_NORMAL 2
+#define TEXTURE_CUBEMAP 3
+
+typedef struct
 {
-	char		name[64];				//PENTA: Increased for q3 compatibility
-	unsigned	width, height;
-	int			gl_texturenum;
-	int			gl_lumitex;
+	int		texnum;
+	char	identifier[MAX_OSPATH*2+1];
+	int		width, height;
+	qboolean	mipmap;
+	int		type;
+} gltexture_t;
+
+#define SHADER_MAX_NAME 128
+#define SHADER_MAX_STAGES 8
+#define SHADER_MAX_BUMP_STAGES 4
+#define SHADER_MAX_TCMOD 8
+#define SHADER_MAX_STATUSES 8
+
+typedef enum {STAGE_SIMPLE, STAGE_COLOR, STAGE_BUMP, STAGE_GLOSS, STAGE_GRAYGLOSS} stagetype_t;
+typedef enum {TCMOD_ROTATE, TCMOD_SCROLL, TCMOD_SCALE, TCMOD_STRETCH} tcmodtype_t;
+
+typedef struct tcmod_s {
+	float params[7];
+	tcmodtype_t type;
+} tcmod_t;
+
+/**
+* A single stage in the shader,
+* a stage is one block { } in a shader definition
+* this corresponds to a single pass for simple shaders
+* or a single texture definition for bumpmapping.
+*/
+typedef struct stage_s {
+	stagetype_t type;
+	int			numtcmods;
+	tcmod_t		tcmods[SHADER_MAX_TCMOD];	
+	int			numtextures;
+	gltexture_t *texture[8];  //animations
+	int			src_blend, dst_blend; //have special values for bumpmap passes
+	int			alphatresh;
+	char		filename[MAX_QPATH*2+1];
+} stage_t;
+
+#define	SURF_NOSHADOW		0x40000	//don't cast stencil shadows
+#define	SURF_BUMP			0x80000	//do diffuse bumpmapping and gloss if gloss is enabled too
+#define	SURF_GLOSS			0x100000//do gloss
+#define	SURF_PPLIGHT		0x200000//do per pixel lighting...
+									//if bump is unset it uses a flat bumpmap and no gloss
+									//if bump is set and gloss unet it does only diffuse bumps
+#define	SURF_TRANSLUCENT	0x400000//surface is translucent
+
+/**
+* A shader, holds the stages and the general info for that shader.
+*/
+typedef struct shader_s {
+	char		name[SHADER_MAX_NAME];
+	int			flags;
+	int			contents;
+	int			numstages;
+	stage_t		stages[SHADER_MAX_STAGES];
+	int			numcolorstages;
+	stage_t		colorstages[SHADER_MAX_BUMP_STAGES];//these ase a bit special, so separate them
+	int			numbumpstages;
+	stage_t		bumpstages[SHADER_MAX_BUMP_STAGES];
+	int			numglossstages;
+	stage_t		glossstages[SHADER_MAX_BUMP_STAGES];
+	vec3_t		fog_color;
+	float		fog_dist;
+	int			numstatus;
+	struct shader_s	*status[SHADER_MAX_STATUSES]; //if the object the shader is on it's status is > 0 this shader will be used insead of the base shader...
+	struct shader_s	*next;	//in the shader linked list
+	qboolean	mipmap;
+	qboolean	cull;
+} shader_t;
+
+//2048 triangles for shader
+#define MAX_SHADER_INCECIES 6144
+
+typedef struct mapshader_s
+{
+	shader_t	*shader;
 	struct msurface_s	*texturechain;	// for gl_texsort drawing
-	int			anim_total;				// total tenths in sequence ( 0 = no)
-	int			anim_min, anim_max;		// time for this frame min <=time< max
-	struct texture_s *anim_next;		// in the animation sequence
-	struct texture_s *alternate_anims;	// bmodels in frmae 1 use these
-	unsigned	offsets[MIPLEVELS];		// four mip maps stored
-} texture_t;
+	struct mesh_s *meshchain;
+	int numindecies;
+	int	indecies[MAX_SHADER_INCECIES];
+} mapshader_t;
 
 
 #define	SURF_PLANEBACK		2
@@ -124,13 +200,6 @@ typedef struct
 	unsigned int	cachededgeoffset;
 } medge_t;
 
-typedef struct
-{
-	float		vecs[2][4];
-	float		mipadjust;
-	texture_t	*texture;
-	int			flags;
-} mtexinfo_t;
 
 //size in floats...
 #define	VERTEXSIZE	8
@@ -145,11 +214,18 @@ typedef struct glpoly_s
 	int		flags;			// for SURF_UNDERWATER
 	int			lightTimestamp;	//PENTA: timestamp of last light that
 								//this polygon was visible to
-	struct	glpoly_s	**neighbours;
+	struct	mneighbour_s *neighbours;
 	int		firstvertex;
 	int		numindecies;	//number of polygons indexes
+	int		numneighbours;
 	int		indecies[1];	//polygon indexes... variable sized
 } glpoly_t;
+
+
+typedef struct mneighbour_s {
+	int		p1, p2;
+	glpoly_t *n;
+} mneighbour_t;
 
 typedef struct msurface_s
 {
@@ -161,38 +237,58 @@ typedef struct msurface_s
 	int			firstedge;	// look up in model->surfedges[], negative numbers
 	int			numedges;	// are backwards edges
 	
-	short		texturemins[2];
-	short		extents[2];
+	//short		texturemins[2];
+	//short		extents[2];
 
-	int			light_s, light_t;	// gl lightmap coordinates
+	//int			light_s, light_t;	// gl lightmap coordinates
 
 	glpoly_t	*polys;				// multiple if warped
 	struct	msurface_s	*texturechain;
 	struct	msurface_s	*shadowchain;
 
-	mtexinfo_t	*texinfo;
+	mapshader_t	*shader;
+	vec3_t		tangent;
+	vec3_t		binormal;
 	
-// lighting info
-	int			dlightframe;
-	int			dlightbits;
-
 	int			lightmaptexturenum;
+
+	//used still?
 	byte		styles[MAXLIGHTMAPS];
 	int			cached_light[MAXLIGHTMAPS];	// values currently used in lightmap
 	qboolean	cached_dlight;				// true if dynamic light in cache
 	byte		*samples;		// [numstyles*surfsize]
 } msurface_t;
 
-typedef struct mcurve_s
+//FIXME: use a matrix instead??
+typedef struct {
+	vec3_t angles;
+	vec3_t origin;
+	vec3_t scale;
+} transform_t;
+
+typedef struct mesh_s
 {
-	int firstcontrol;
-	int firstvertex;
-	int controlwidth, controlheight;
-	int width, height;
-	struct mcurve_s *next;
+	int firstvertex; //in world vertex list
+	vec3_t *tangents;
+	vec3_t *binormals;
+	vec3_t *normals;
+	int	numvertices;
+
+	int *indecies;
+	int numindecies;
+
+	int numtriangles;
+	int *neighbours; //numtriangles*3 neighbour triangle indexes
+
+	transform_t trans;
+
 	int	visframe;
-	texture_t	*texture;
-} mcurve_t;
+	int lightTimestamp;
+	mapshader_t	*shader;
+
+	struct mesh_s *next; //for the texture chains
+	struct mesh_s *shadowchain;
+} mesh_t;
 
 typedef struct mnode_s
 {
@@ -232,8 +328,8 @@ typedef struct mleaf_s
 	msurface_t	**firstmarksurface;
 	int			nummarksurfaces;
 
-	int			firstcurve;
-	int			numcurves;
+	int			firstmesh;
+	int			nummeshes;
 	
 	int			firstbrush;
 	int			numbrushes;
@@ -259,7 +355,7 @@ typedef struct
 typedef struct
 {
 	mplane_t	*plane;
-	texture_t	*texture;
+	mapshader_t	*shader;
 } mbrushside_t;
 
 typedef struct
@@ -269,6 +365,11 @@ typedef struct
 	int			firstbrushside;
 	int			checkcount;		// to avoid repeated testings
 } mbrush_t;
+
+typedef struct
+{
+	int			numareaportals[MAX_MAP_AREAS];
+} marea_t;
 
 /*
 ==============================================================================
@@ -384,9 +485,8 @@ typedef struct {
 	int					planes;		//PENTA: Plane eq's for every triangle for every frame
 	int					tangents;	//PENTA: Tangent for every vertex for every frame
 	int					texcoords;	//PENTA: For every triangle the 3 texture coords
-	int					indecies; //PENTA: indecies for gl vertex arrays
-	int					gl_texturenum[MAX_SKINS][4];
-        int                                     gl_lumatex[MAX_SKINS][4]; // duh
+	int					indecies;	//PENTA: indecies for gl vertex arrays
+	shader_t			*shader;
 	int					texels[MAX_SKINS];	// only for player skins
 	maliasframedesc_t	frames[1];	// variable sized
 } aliashdr_t;
@@ -466,9 +566,6 @@ typedef struct model_s
 	int			numnodes;
 	mnode_t		*nodes;
 
-	int			numtexinfo;
-	mtexinfo_t	*texinfo;
-
 	int			numsurfaces;
 	msurface_t	*surfaces;
 
@@ -490,16 +587,19 @@ typedef struct model_s
 	int			numleafbrushes;
 	int			*leafbrushes;
 
-	int			numleafcurves;
-	int			*leafcurves;
+	int			numleafmeshes;
+	int			*leafmeshes;
 
-	int			numcurves;
-	mcurve_t	*curves;
+	int			numareas;
+	marea_t		*areas;
+
+	int			nummeshes;
+	mesh_t		*meshes;
 
 	hull_t		hulls[MAX_MAP_HULLS];
 
-	int			numtextures;
-	texture_t	**textures;
+	int			nummapshaders;
+	mapshader_t	*mapshaders;
 
 	int			numclusters;
 	int			clusterlen;

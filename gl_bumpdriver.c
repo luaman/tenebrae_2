@@ -30,8 +30,9 @@ DrawLightEntities, draws lit bumpmapped entities, calls apropriate function for 
 NOTE:  This should not draw sprites, sprites are drawn separately.
 
 */
-
 #include "quakedef.h"
+
+bumpdriver_t gl_bumpdriver;
 
 /* Some material definitions. */
 float gl_Light_Ambience2[4] = {0.03,0.03,0.03,0.03};
@@ -46,35 +47,287 @@ void R_DrawLightEntitiesRadeon (shadowlight_t *l); //PA:
 void R_DrawLightEntitiesParhelia (shadowlight_t *l); //PA:
 void R_DrawLightEntitiesARB (shadowlight_t *l); //PA:
 
-void R_DrawWorldBumped (/* shadowlight_t *l */)  // <AWE> Function should not have parameters.
+/*************************
+
+Temp backwards compatibility
+
+**************************/
+
+void R_DrawMeshAmbient(mesh_t *mesh) {
+
+	vertexdef_t def;
+	transform_t trans;
+
+	def.vertices = &globalVertexTable[mesh->firstvertex].position[0];
+	def.vertexstride = sizeof(mmvertex_t);
+
+	def.texcoords = &globalVertexTable[mesh->firstvertex].texture[0];
+	def.texcoordstride = sizeof(mmvertex_t);
+
+	def.tangents = NULL;
+	def.tangentstride = 0;
+	def.binormals = NULL;
+	def.binormalstride = 0;
+	def.normals = NULL;
+	def.normalstride = 0;
+	def.lightmapcoords = NULL; // no lightmaps on aliasses
+
+	def.colors = &globalVertexTable[mesh->firstvertex].color[0];
+	def.colorstride = sizeof(mmvertex_t);
+
+	gl_bumpdriver.drawTriangleListBase(&def, mesh->indecies, mesh->numindecies, mesh->shader->shader);
+}
+
+void R_DrawMeshBumped(mesh_t *mesh) {
+
+	vertexdef_t def;
+
+	if (mesh->visframe != r_framecount)
+		return;
+
+	def.vertices = &globalVertexTable[mesh->firstvertex].position[0];
+	def.vertexstride = sizeof(mmvertex_t);
+
+	def.texcoords = &globalVertexTable[mesh->firstvertex].texture[0];
+	def.texcoordstride = sizeof(mmvertex_t);
+
+	def.tangents = &mesh->tangents[0][0];
+	def.tangentstride = 0;
+
+	def.binormals = &mesh->binormals[0][0];
+	def.binormalstride = 0;
+
+	def.normals = &mesh->normals[0][0];
+	def.normalstride = 0;
+
+	def.lightmapcoords = NULL; // no lightmaps on aliasses
+
+	gl_bumpdriver.drawTriangleListBump(&def, mesh->indecies, mesh->numindecies, mesh->shader->shader, &mesh->trans);
+}
+
+void R_DrawAliasAmbient(aliashdr_t *paliashdr, aliasframeinstant_t *instant) {
+
+	vertexdef_t def;
+	transform_t trans;
+
+	def.vertices = &instant->vertices[0][0];
+	def.vertexstride = 0;
+	def.texcoords = (float *)((byte *)paliashdr + paliashdr->texcoords);
+	def.texcoordstride = 0;
+	def.tangents = &instant->tangents[0][0];
+	def.tangentstride = 0;
+	def.binormals = &instant->binomials[0][0];
+	def.binormalstride = 0;
+	def.normals = &instant->normals[0][0];
+	def.normalstride = 0;
+	def.lightmapcoords = NULL; // no lightmaps on aliasses
+	def.colors = NULL;
+	def.colorstride = 0;
+
+	gl_bumpdriver.drawTriangleListBase(&def, (int *)((byte *)paliashdr + paliashdr->indecies),paliashdr->numtris*3,paliashdr->shader);
+}
+
+void R_DrawAliasBumped(aliashdr_t *paliashdr, aliasframeinstant_t *instant) {
+
+	vertexdef_t def;
+	transform_t trans;
+	aliaslightinstant_t *linstant = instant->lightinstant;
+
+	def.vertices = &instant->vertices[0][0];
+	def.vertexstride = 0;
+	def.texcoords = (float *)((byte *)paliashdr + paliashdr->texcoords);
+	def.texcoordstride = 0;
+	def.tangents = &instant->tangents[0][0];
+	def.tangentstride = 0;
+	def.binormals = &instant->binomials[0][0];
+	def.binormalstride = 0;
+	def.normals = &instant->normals[0][0];
+	def.normalstride = 0;
+	def.colors = NULL;
+	def.colorstride = 0;
+
+	VectorCopy(currententity->origin,trans.origin);
+	VectorCopy(currententity->angles,trans.angles);
+	trans.scale[0] = trans.scale[1] = trans.scale[2] = 1.0f;
+	gl_bumpdriver.drawTriangleListBump(&def,&linstant->indecies[0],linstant->numtris*3,paliashdr->shader, &trans);
+}
+
+void R_SetupWorldVertexDef(vertexdef_t *def) {
+
+	def->vertices = &globalVertexTable[0].position[0];
+	def->vertexstride = sizeof(mmvertex_t);
+	def->texcoords = &globalVertexTable[0].texture[0];
+	def->texcoordstride = sizeof(mmvertex_t);
+	def->tangents = NULL;
+	def->tangentstride = 0;
+	def->binormals = NULL;
+	def->binormalstride = 0;
+	def->normals = NULL;
+	def->normalstride = 0;
+	def->lightmapcoords = &globalVertexTable[0].lightmap[0];
+	def->lightmapstride = sizeof(mmvertex_t);
+
+}
+
+msurface_t *surfArray[1024];
+
+void R_DrawBrushAmbient (entity_t *e) {
+
+	int runlength, i;
+	msurface_t *surf;
+	vertexdef_t def;
+	shader_t *runshader , *s;
+	model_t	*model;
+
+	model = e->model;
+	R_SetupWorldVertexDef(&def);
+
+	runshader = NULL;
+	runlength = 0;
+	surf = &model->surfaces[model->firstmodelsurface];
+	glColor3f(sh_lightmapbright.value, sh_lightmapbright.value, sh_lightmapbright.value);
+	for (i=0; i<model->nummodelsurfaces; i++, surf++)
+	{
+		s = surf->shader->shader;
+		surf->visframe = r_framecount;
+		if (s != runshader) {
+			//a run has finished, draw it
+			if (runshader && runlength)
+				gl_bumpdriver.drawSurfaceListBase(&def, surfArray, runlength, runshader);	
+			
+			//start a new one
+			runshader = s;
+			runlength = 1;
+			surfArray[0] = surf;
+		} else {
+			if (runlength < 1024) {
+				surfArray[runlength] = surf;
+				runlength++;
+			}
+		}
+	}
+	if (runshader && runlength) {
+		gl_bumpdriver.drawSurfaceListBase(&def, surfArray, runlength, runshader);
+	}
+}
+
+void R_DrawBrushBumped (entity_t *e) {
+
+	int runlength, i;
+	msurface_t *surf;
+	vertexdef_t def;
+	shader_t *runshader , *s;
+	model_t	*model;
+	transform_t trans;
+
+	model = e->model;
+	R_SetupWorldVertexDef(&def);
+
+	runshader = NULL;
+	runlength = 0;
+	surf = &model->surfaces[model->firstmodelsurface];
+	for (i=0; i<model->nummodelsurfaces; i++, surf++)
+	{
+		if (runlength < 1024) {
+			surfArray[runlength] = surf;
+			runlength++;
+		}
+	}
+
+	VectorCopy(e->origin,trans.origin);
+	VectorCopy(e->angles,trans.angles);
+	trans.scale[0] = trans.scale[1] = trans.scale[2] = 1.0f;
+	gl_bumpdriver.drawSurfaceListBump(&def, surfArray, runlength, &trans);
+}
+
+void R_DrawWorldAmbientChain(msurface_t *first) {
+
+	vertexdef_t def;
+	int numsurf;
+	msurface_t *s;
+	R_SetupWorldVertexDef(&def);
+
+	numsurf = 0;
+	s = first;
+	while (s) {
+		if (numsurf < 1024) {
+			surfArray[numsurf] = s;
+			numsurf++;
+		} else {
+			gl_bumpdriver.drawSurfaceListBase(&def, surfArray, numsurf, first->shader->shader);
+			numsurf = 0;
+		}
+		s = s->texturechain;
+	}
+
+	if (numsurf) {
+		gl_bumpdriver.drawSurfaceListBase(&def, surfArray, numsurf, first->shader->shader);
+		numsurf = 0;
+	}
+}
+
+void R_DrawWorldBumped() {
+
+	vertexdef_t def;
+	transform_t trans;
+	int i;
+
+	if (!currentshadowlight->visible)
+		return;
+
+	R_SetupWorldVertexDef(&def);
+
+	glDepthMask (0);
+	glShadeModel (GL_SMOOTH);
+	glDepthFunc(GL_EQUAL);
+
+	trans.angles[0] = trans.angles[1]  = trans.angles[2] = 0.0f;
+	trans.origin[0] = trans.origin[1]  = trans.origin[2] = 0.0f;
+	trans.scale[0] = trans.scale[1] = trans.scale[2] = 1.0f;
+
+	gl_bumpdriver.drawSurfaceListBump(&def, (msurface_t **)(&currentshadowlight->lightCmds[0]), currentshadowlight->numlightcmds-1, &trans);
+
+	for (i=0; i<currentshadowlight->numlightcmdsmesh-1; i++) {
+		R_DrawMeshBumped((mesh_t *)currentshadowlight->lightCmdsMesh[i].asVoid);
+	}
+
+	glColor3f (1,1,1);
+	glDisable (GL_BLEND);
+	glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	glDepthFunc(GL_LEQUAL);
+	glDepthMask (1);
+}
+
+/*
+void R_DrawWorldBumped ()  // <AWE> Function should not have parameters.
 {
     switch(gl_cardtype )
     {
     case GEFORCE3:
-	R_DrawWorldBumpedGF3(/* l */);	// <AWE> Function has no parameters.
+	R_DrawWorldBumpedGF3();	// <AWE> Function has no parameters.
 	break;
 
     case GEFORCE:
-	R_DrawWorldBumpedGF(/* l */);	// <AWE> Function has no parameters.
+	R_DrawWorldBumpedGF();	// <AWE> Function has no parameters.
 	break;
 
     case RADEON:
-	R_DrawWorldBumpedRadeon(/* l */);
+	R_DrawWorldBumpedRadeon();
 	break;
 #ifndef __glx__
     case PARHELIA:
-	R_DrawWorldBumpedParhelia(/* l */);
+	R_DrawWorldBumpedParhelia();
 	break;
 #endif
     case ARB:
-	R_DrawWorldBumpedARB(/* l */);
+	R_DrawWorldBumpedARB();
 	break;
     default:
-	R_DrawWorldBumpedGEN(/* l */);
+	R_DrawWorldBumpedGEN();
 	break;
     }
 }
-
+*//*
 void R_DrawLightEntities (shadowlight_t *l)
 {
     switch(gl_cardtype )
@@ -103,8 +356,8 @@ void R_DrawLightEntities (shadowlight_t *l)
 	break;
     }
 }
-
-
+*/
+/*
 void R_DrawLightEntitiesGF (shadowlight_t *l)
 {
     int		i;
@@ -160,9 +413,9 @@ void R_DrawLightEntitiesGF (shadowlight_t *l)
     glDisable(GL_LIGHTING);
     glDisable(GL_LIGHT0);
 
-    /*
-      Brushes: we use the same thecnique as the world
-    */
+    
+    //  Brushes: we use the same thecnique as the world
+    
 	
     //glEnable(GL_TEXTURE_2D);
     //GL_Bind(glow_texture_object);
@@ -199,8 +452,8 @@ void R_DrawLightEntitiesGEN (shadowlight_t *l)
     //Currently this is merged with the geforce2 path
     R_DrawLightEntitiesGF(l);
 }
-
-void R_DrawLightEntitiesGF3 (shadowlight_t *l)
+*/
+void R_DrawLightEntities (shadowlight_t *l)
 {
     int		i;
 
@@ -217,35 +470,34 @@ void R_DrawLightEntitiesGF3 (shadowlight_t *l)
 
     for (i=0 ; i<cl_numlightvisedicts ; i++)
     {
-	currententity = cl_lightvisedicts[i];
+		currententity = cl_lightvisedicts[i];
 
-	if (currententity->model->type == mod_alias)
-	{
-	    //these models are full bright 
-	    if (currententity->model->flags & EF_FULLBRIGHT) continue;
-	    if (!currententity->aliasframeinstant) continue;
-	    if ( ((aliasframeinstant_t *)currententity->aliasframeinstant)->shadowonly) continue;
+		if (currententity->model->type == mod_alias)
+		{
+			//these models are full bright 
+			if (currententity->model->flags & EF_FULLBRIGHT) continue;
+			if (!currententity->aliasframeinstant) continue;
+			if ( ((aliasframeinstant_t *)currententity->aliasframeinstant)->shadowonly) continue;
 
-	    R_DrawAliasObjectLight(currententity, R_DrawAliasBumpedGF3);
-	}
+			R_DrawAliasObjectLight(currententity, R_DrawAliasBumped);
+		}
     }
 
     if (R_ShouldDrawViewModel()) {
-	R_DrawAliasObjectLight(&cl.viewent, R_DrawAliasBumpedGF3);
+		R_DrawAliasObjectLight(&cl.viewent, R_DrawAliasBumped);
     }
 
     //Brush models
     for (i=0 ; i<cl_numlightvisedicts ; i++)
     {
-	currententity = cl_lightvisedicts[i];
+		currententity = cl_lightvisedicts[i];
 
-	if (currententity->model->type == mod_brush)
-	{
-	    if (!currententity->brushlightinstant) continue;
-	    if ( ((brushlightinstant_t *)currententity->brushlightinstant)->shadowonly) continue;
-	    R_DrawBrushObjectLight(currententity, R_DrawBrushBumpedGF3);
-	}
-
+		if (currententity->model->type == mod_brush)
+		{
+			if (!currententity->brushlightinstant) continue;
+			if ( ((brushlightinstant_t *)currententity->brushlightinstant)->shadowonly) continue;
+			R_DrawBrushObjectLight(currententity, R_DrawBrushBumped);
+		}
     }
 
     //Cleanup state
@@ -255,7 +507,7 @@ void R_DrawLightEntitiesGF3 (shadowlight_t *l)
     glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glDepthMask (1);
 }
-
+/*
 //PA:
 void R_DrawLightEntitiesRadeon (shadowlight_t *l)
 {
@@ -431,3 +683,4 @@ void R_DrawLightEntitiesARB (shadowlight_t *l)
     glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glDepthMask (1);
 }
+*/

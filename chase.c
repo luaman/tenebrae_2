@@ -21,10 +21,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "quakedef.h"
 
-cvar_t	cg_thridpersonrange = {"cg_thridpersonrange", "100"};
-cvar_t	cg_thridpersonangle2 = {"cg_thridpersonangle2", "16"};
-cvar_t	cg_thridpersonangle = {"cg_thridpersonangle", "0"};
-cvar_t	cg_thridperson = {"cg_thridperson", "0"};
+cvar_t	cg_thirdpersonrange = {"cg_thirdpersonrange", "100"};
+cvar_t	cg_thirdpersonangle2 = {"cg_thirdpersonangle2", "16"};
+cvar_t	cg_thirdpersonangle = {"cg_thirdpersonangle", "0"};
+cvar_t	cg_thirdperson = {"cg_thirdperson", "0"};
 
 vec3_t	chase_pos;
 vec3_t	chase_angles;
@@ -33,14 +33,14 @@ vec3_t	chase_dest;
 vec3_t	chase_dest_angles;
 
 // <AWE> missing prototypes
-extern qboolean SV_RecursiveHullCheck (hull_t *hull, int num, float p1f, float p2f, vec3_t p1, vec3_t p2, trace_t *trace);
+extern qboolean SV_RecursiveHullCheck (model_t *m, int num, float p1f, float p2f, vec3_t p1, vec3_t p2, trace_t *trace);
 
 void Chase_Init (void)
 {
-	Cvar_RegisterVariable (&cg_thridpersonrange);
-	Cvar_RegisterVariable (&cg_thridpersonangle2);
-	Cvar_RegisterVariable (&cg_thridpersonangle);
-	Cvar_RegisterVariable (&cg_thridperson);
+	Cvar_RegisterVariable (&cg_thirdpersonrange);
+	Cvar_RegisterVariable (&cg_thirdpersonangle2);
+	Cvar_RegisterVariable (&cg_thirdpersonangle);
+	Cvar_RegisterVariable (&cg_thirdperson);
 }
 
 void Chase_Reset (void)
@@ -54,7 +54,7 @@ void TraceLine (vec3_t start, vec3_t end, vec3_t impact)
 	trace_t	trace;
 
 	memset (&trace, 0, sizeof(trace));
-	SV_RecursiveHullCheck (cl.worldmodel->hulls, 0, 0, 1, start, end, &trace);
+	SV_RecursiveHullCheck (cl.worldmodel, 0, 0, 1, start, end, &trace);
 
 	VectorCopy (trace.endpos, impact);
 }
@@ -73,9 +73,9 @@ void Chase_Update (void)
 	// calc exact destination
 	for (i=0 ; i<3 ; i++)
 		chase_dest[i] = r_refdef.vieworg[i] 
-		- forward[i]*cg_thridpersonrange.value
-		- right[i]*cg_thridpersonangle.value;
-	chase_dest[2] = r_refdef.vieworg[2] + cg_thridpersonangle2.value;
+		- forward[i]*cg_thirdpersonrange.value
+		- right[i]*cg_thirdpersonangle.value;
+	chase_dest[2] = r_refdef.vieworg[2] + cg_thirdpersonangle2.value;
 
 	// find the spot the player is looking at
 	VectorMA (r_refdef.vieworg, 4096, forward, dest);

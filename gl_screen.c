@@ -526,7 +526,7 @@ void SCR_DrawFPS (void)
 	{
 		sprintf(st, "FPS: %d NumLights: %d ClearsSaved %d\n", lastfps,numUsedShadowLights,numClearsSaved);
 		x = 16;
-		y = 0 ;
+		y = vid.height-64 ;
 		Draw_String(x, y, st);
 	}
 	else
@@ -542,17 +542,17 @@ void SCR_DrawFPS (void)
 
 	sprintf(st, "Alias Cache: %d Requests, %d Full Hits,  %d Partial Hits\n", aliasCacheRequests,aliasFullCacheHits,aliasPartialCacheHits);
 	x = 16;
-	y = 16;
+	y = vid.height-16;
 	Draw_String(x, y, st);
 
 	sprintf(st, "Brush Cache: %d Requests, %d Full Hits,  %d Partial Hits\n", brushCacheRequests,brushFullCacheHits,brushPartialCacheHits);
 	x = 16;
-	y = 32;
+	y = vid.height-32;
 	Draw_String(x, y, st);
 
 	sprintf(st, "Poly counts: %d Alias polys, %d Brush polys\n", c_alias_polys, c_brush_polys);
 	x = 16;
-	y = 48;
+	y = vid.height-48;
 	Draw_String(x, y, st);
 }
 
@@ -655,14 +655,6 @@ void SCR_DrawConsole (void)
  
 ============================================================================== 
 */ 
-
-typedef struct _TargaHeader {
-	unsigned char 	id_length, colormap_type, image_type;
-	unsigned short	colormap_index, colormap_length;
-	unsigned char	colormap_size;
-	unsigned short	x_origin, y_origin, width, height;
-	unsigned char	pixel_size, attributes;
-} TargaHeader;
 
 
 /* 

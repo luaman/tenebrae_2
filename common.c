@@ -1132,8 +1132,19 @@ skipwhite:
 	return data;
 }
 
+/*
+==============
+COM_SkipLine
 
-
+PENTA:
+Skip until the next newline
+==============
+*/
+char *COM_SkipLine(char *data) {
+	while (*data && *data != '\n')
+		data++;
+	return data;
+}
 
 /*
 ================
@@ -2115,25 +2126,12 @@ COM_AddGameFS
 void COM_AddGameFS (char *basedir)
 {
   int i;
+
 //
-// start up with GAMENAME by default (id1)
+// start up with GAMENAME by default (tenebrae)
 //
 	COM_AddGameDirectory (va("%s/"GAMENAME, basedir) );
 	
-//PENTA: Make mods possible by making tenebrae part of the game
-
-
-	COM_AddGameDirectory (va("%s/tenebrae", basedir) );
-
-
-	if (COM_CheckParm ("-rogue")){
-		COM_AddGameDirectory (va("%s/rogue", basedir) );
-	}
-	if (COM_CheckParm ("-hipnotic")){
-		COM_AddGameDirectory (va("%s/hipnotic", basedir) );
-	}
-
-
 //
 // -game <gamedir>
 // Adds basedir/gamedir as an override game

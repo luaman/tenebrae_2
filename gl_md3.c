@@ -591,17 +591,11 @@ for (surfcount = 0; surfcount < pinmodel->numSurfaces; ++surfcount) {
 	if (!shader->name[0]) {
 		Q_strcpy(shader->name,"unnamed");
 	}
+	
+	COM_StripExtension (shader->name, shadername);
+	pheader->shader = GL_ShaderForName(shadername);
 
-	COM_FileBase (shader->name, shadername);
-	pheader->gl_texturenum[0][0] =
-	pheader->gl_texturenum[0][1] =
-	pheader->gl_texturenum[0][2] =
-	pheader->gl_texturenum[0][3] = GL_LoadTexture (shadername, 4, 4, &fake[0], true, false, true);
 
-	pheader->gl_lumatex[0][0] =
-	pheader->gl_lumatex[0][1] =
-	pheader->gl_lumatex[0][2] =
-	pheader->gl_lumatex[0][3] = GL_LoadLuma(shadername, true);
 #ifdef MD3DEBUG
 	Con_Printf("Load shader %s\n",shadername);
 #endif

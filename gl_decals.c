@@ -226,7 +226,7 @@ void DecalWalkBsp_R(decal_t *dec, mnode_t *node)
 	float		dist;
 	mleaf_t		*leaf;
 
-	if (node->contents < 0) {
+	if (node->contents & CONTENTS_LEAF) {
 
 		//we are in a leaf
 		leaf = (mleaf_t *)node;
@@ -309,10 +309,9 @@ void DecalClipLeaf(decal_t *dec, mleaf_t *leaf)
 		float *v;
 	
 		poly = (*surf)->polys;
-
-		v = (float *)(&globalVertexTable[poly->firstvertex]);
-		for (i=0 ; i<poly->numverts ; i++, v+= VERTEXSIZE)
+		for (i=0 ; i<poly->numverts ; i++)
 		{
+			v = (float *)(&globalVertexTable[poly->firstvertex+i]);
 			newVertex[i][0] = v[0];
 			newVertex[i][1] = v[1];
 			newVertex[i][2] = v[2];

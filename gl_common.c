@@ -282,6 +282,13 @@ void CheckSpecularBumpMappingExtensions(void)
           SAFE_GET_PROC (qglGetFinalCombinerInputParameterfvNV,PFNGLGETFINALCOMBINERINPUTPARAMETERFVNVPROC,"glGetFinalCombinerInputfvNV"); 
           SAFE_GET_PROC (qglGetFinalCombinerInputParameterivNV,PFNGLGETFINALCOMBINERINPUTPARAMETERIVNVPROC,"glGetFinalCombinerInputivNV"); 
      } 
+
+	 //PENTA: Cg uses register combiners2 also, they only add some constant registers tough...
+	 if (strstr(gl_extensions, "GL_NV_register_combiners2")) {
+          SAFE_GET_PROC (qglCombinerStageParameterfvNV,PFNGLCOMBINERSTAGEPARAMETERFVNVPROC,"glCombinerStageParameterfvNV"); 
+          SAFE_GET_PROC (qglGetCombinerStageParameterfvNV,PFNGLGETCOMBINERSTAGEPARAMETERFVNVPROC,"glGetCombinerStageParameterfvNV"); 
+
+	 }
 }
 
 /*
@@ -373,6 +380,7 @@ void CheckVertexArrayRange(void)
 /*
   PA: if we have these we draw optimized
 */
+
 void CheckRadeonExtensions(void)
 {
      int supportedTmu;
@@ -534,25 +542,33 @@ void GL_Init (void)
      Con_Printf ("Checking TC\n");
      CheckTextureCompressionExtension ();
 
+     //if something goes wrong here throw an sys_error as we don't want to end up
+     //having invalid function pointers called...
      switch (gl_cardtype)
      {
      case GENERIC:
           Con_Printf ("Using generic path.\n");
+	  Sys_Error("No generic path yet\n");
           break;
      case GEFORCE:
           Con_Printf ("Using GeForce 1/2/4-MX path\n");
+	  Sys_Error("No geforce2 path yet\n");
           break;
      case GEFORCE3:
           Con_Printf ("Using GeForce 3/4 path\n");
+          BUMP_InitGeforce3();
           break;
      case RADEON:
           Con_Printf ("Using Radeon path.\n");
+	  BUMP_InitRadeon();
           break;
      case PARHELIA:
           Con_Printf ("Using Parhelia path.\n");
+	  BUMP_InitParhelia();
           break;
      case ARB:
           Con_Printf ("Using ARB_fragment_program path.\n");
+          BUMP_InitARB();
           break;
      }
             
@@ -560,7 +576,7 @@ void GL_Init (void)
      Con_Printf ("%i texture units\n",supportedTmu);
         
      //PENTA: enable mlook by default, people kept mailing me about how to do mlook
-     Cbuf_AddText ("+mlook");
+     Cbuf_AddText ("+mlook\n");
 
      glClearColor (0.5,0.5,0.5,0.5);
      glCullFace (GL_FRONT);
@@ -608,10 +624,14 @@ void VID_Init8bitPalette(void)
           return;
      
      
+
      SAFE_GET_PROC (qglColorTableEXT,GLCOLORTABLEEXTPFN,"glColorTableEXT");
 
+
      if (strstr (gl_extensions, "GL_EXT_shared_texture_palette") && qglColorTableEXT )
+
      {
+
           char thePalette[256*3];
           char *oldPalette, *newPalette;
           
@@ -627,6 +647,7 @@ void VID_Init8bitPalette(void)
           }
           qglColorTableEXT(GL_SHARED_TEXTURE_PALETTE_EXT, GL_RGB, 256, GL_RGB, GL_UNSIGNED_BYTE, (void *) thePalette);
           is8bit = true;
+
      }
      /*
      // 3DFX stuff 

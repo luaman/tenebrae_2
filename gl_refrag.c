@@ -101,7 +101,7 @@ void R_SplitEntityOnNode (mnode_t *node)
 	
 // add an efrag if the node is a leaf
 
-	if ( node->contents < 0)
+	if (node->contents & CONTENTS_LEAF)
 	{
 		if (!r_pefragtopnode)
 			r_pefragtopnode = node;
@@ -260,7 +260,7 @@ void R_SplitEntityOnNodePenta (mnode_t *node)
 	
 // add an efrag if the node is a leaf
 
-	if ( node->contents < 0)
+	if (node->contents & CONTENTS_LEAF)
 	{
 		leaf = (mleaf_t *)node;
 		
@@ -309,7 +309,7 @@ void R_SplitEntityOnNodePenta (entity_t *ent, mnode_t *node)
 	
 // add an efrag if the node is a leaf
 
-	if ( node->contents < 0)
+	if (node->contents & CONTENTS_LEAF)
 	{
 		if (ent->numleafs == MAX_CLIENT_ENT_LEAFS) {
 			//Con_Printf("Max ent leafs reached\n");

@@ -1,0 +1,46 @@
+/**
+* Geforce 4 diffuse bumpmapping program
+* This compiles under the fp20 profile.
+* compile with "-profile fp20"
+*/
+
+struct inputVertex {
+    float4 lightVec : COLOR0;
+    float4 texCoord0 : TEXCOORD0;
+    float4 texCoord1 : TEXCOORD1;
+    float4 texCoord2 : TEXCOORD2;
+    float4 texCoord3 : TEXCOORD3;        
+};
+
+float4 main(inputVertex I, uniform sampler2D colorMap, uniform sampler2D normalMap, uniform samplerCUBE filter, uniform sampler3D atten) : COLOR
+{
+	//normalize light vector (talyor series around 1)
+    float3 lightVector = 2 * (I.lightVec.xyz - 0.5);	
+	float3 normLight = 1-(lightVector-1)/2;
+
+    // Get the normal from normal map lookup
+    float4 normal = 2 * (tex2D(normalMap, I.texCoord1.xy) - 0.5);
+    	
+    // Lookup the colorMap texture
+    float4 texColor = tex2D(colorMap, I.texCoord0.xy);
+
+    // N dot L
+    float4 dot_result = saturate(dot(normLight, normal.xyz).xxxx);
+
+	//selfshadow term, ok we just do a mul with 8 but the compiler doesn't recognize that
+	//so we teach it a bit of math :)
+	float selfShadow = (lightVector.z*4)+(lightVector.z*4);
+
+	//Lookup the attenuation factor
+	float4 attenv = tex3D(atten, I.texCoord2.xyz);
+	
+	//Lookup the filter color
+	float3 filterv = texCUBE(filter, I.texCoord3.xyz).xyz;
+
+    // Modulate color with N dot L
+    float4 res;
+    res.xyz = dot_result.xyz * texColor.xyz * attenv.xyz * filterv.xyz * selfShadow * attenv.xyz * texColor.xyz;
+    res.w = attenv.w * selfShadow;
+    return res;
+}
+

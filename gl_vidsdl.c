@@ -207,6 +207,7 @@ void    VID_Init (unsigned char *palette)
 
 void    VID_Shutdown (void)
 {
+    R_ShutdownShaders();
     SDL_Quit();
 }
 

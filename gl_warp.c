@@ -28,7 +28,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 extern	model_t	*loadmodel;
 
-int		skytexturenum;
+int		skyshadernum;
 
 int		solidskytexture;
 int		alphaskytexture;
@@ -141,8 +141,8 @@ void SubdividePolygon (int numverts, float *verts)
 
     for (i=0 ; i<numverts ; i++, verts+= 3)
     {
-	tex[0] = DotProduct (verts, warpface->texinfo->vecs[0]);
-	tex[1] = DotProduct (verts, warpface->texinfo->vecs[1]);
+	//tex[0] = DotProduct (verts, warpface->texinfo->vecs[0]);
+	//tex[1] = DotProduct (verts, warpface->texinfo->vecs[1]);
 	//Penta: lighmap coords are ignored...
 	R_AllocateVertexInTemp(verts,tex,tex,color);
     }
@@ -628,15 +628,7 @@ TARGA LOADING
 =========================================================
 */
 
-typedef struct _TargaHeader
-{
-    unsigned char 	id_length, colormap_type, image_type;
-    unsigned short	colormap_index, colormap_length;
-    unsigned char	colormap_size;
-    unsigned short	x_origin, y_origin, width, height;
-    unsigned char	pixel_size, attributes;
-} TargaHeader;
-
+/* -DC- moved typedef to targa.h  */
 
 TargaHeader		targa_header;
 byte			*targa_rgba;
@@ -1071,7 +1063,7 @@ void LoadColorTGA (FILE *fin, byte *pixels, int *width, int *height)
 
     if (targa_header.image_type!=2 
 	&& targa_header.image_type!=10 && targa_header.image_type!=1) 
-	Sys_Error ("LoadTGA: Only type 1, 2 and 10 targa images supported\n");
+	Sys_Error ("LoadColorTGA: Only type 1, 2 and 10 targa images supported, type was %i\n",targa_header.image_type);
 
     /*
       if (targa_header.colormap_type !=0 
@@ -1688,7 +1680,7 @@ R_DrawSkyChain
 */
 void R_DrawSkyChain (msurface_t *s)
 {
-    msurface_t	*fa;
+ /*   msurface_t	*fa;
 
     int		i;
     vec3_t	verts[MAX_CLIP_VERTS];
@@ -1697,10 +1689,10 @@ void R_DrawSkyChain (msurface_t *s)
 
     c_sky = 0;
     GL_Bind(solidskytexture);
-
+*/
     // calculate vertex values for sky box
 
-
+/*
     for (fa=s ; fa ; fa=fa->texturechain)
     {
 	for (p=fa->polys ; p ; p=p->next)
@@ -1713,7 +1705,7 @@ void R_DrawSkyChain (msurface_t *s)
 	    }
 	    ClipSkyPolygon (p->numverts, v, 0);
 	}
-    }
+    }*/
 }
 
 
@@ -1783,11 +1775,11 @@ void R_DrawSkyBox (void)
     vec3_t	v;
     float	s, t;
 
-    if (skytexturenum >= 0) {
+    if (skyshadernum >= 0) {
 	//	glColor3f(1,1,1);
-	if (!cl.worldmodel->textures[skytexturenum]->texturechain) return;
+	if (!cl.worldmodel->mapshaders[skyshadernum].texturechain) return;
 	//	R_DrawSkyChain (cl.worldmodel->textures[skytexturenum]->texturechain);
-	cl.worldmodel->textures[skytexturenum]->texturechain = NULL;
+	cl.worldmodel->mapshaders[skyshadernum].texturechain = NULL;
     }
 
     glDepthMask(0);
@@ -1891,7 +1883,7 @@ R_InitSky
 
 A sky texture is 256*128, with the right side being a masked overlay
 ==============
-*/
+*//*
 void R_InitSky (texture_t *mt)
 {
     int		i, j, p;
@@ -1950,3 +1942,4 @@ void R_InitSky (texture_t *mt)
     glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 }
 
+*/

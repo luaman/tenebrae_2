@@ -65,6 +65,9 @@ char *svc_strings[] =
 	"svc_cdtrack",			// [byte] track [byte] looptrack
 	"svc_sellscreen",
 	"svc_cutscene",
+	"svc_basicemitter",
+	"svc_extendedemitter",
+	"svc_areaportalstate",
 };
 
 //=============================================================================
@@ -1026,6 +1029,12 @@ void CL_ParseServerMessage (void)
 
 		case svc_sellscreen:
 			Cmd_ExecuteString ("help", src_command);
+			break;
+
+		case svc_areaportalstate:
+			r_refdef.areabytes = MSG_ReadByte();
+			for (i=0; i<r_refdef.areabytes; i++) 
+				r_refdef.areabits[i] = MSG_ReadByte();
 			break;
 		}
 	}

@@ -34,11 +34,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 //define	PARANOID			// speed sapping error checking
 
-#ifdef QUAKE2
-#define	GAMENAME	"id1"		// directory to look in by default
-#else
-#define	GAMENAME	"id1"
-#endif
+#define	GAMENAME	"base"		// directory to look in by default
 
 #include <math.h>
 #include <string.h>
@@ -253,7 +249,7 @@ typedef struct
 	int		pflags;
 } entity_state_t;
 
-
+#include "targa.h"
 #include "wad.h"
 #include "draw.h"
 #include "cvar.h"
@@ -311,19 +307,6 @@ typedef struct
 //=============================================================================
 
 
-/* -DC -
- * directory entry parsing
- */
-
-typedef struct 
-{
-  char entry[MAX_OSPATH];         // current entry in the list
-  void *internal;      // system internal data
-} dirdata_t;
-
-dirdata_t *Sys_Findfirst (char *dir, char *filter, dirdata_t *dirdata);
-dirdata_t *Sys_Findnext (dirdata_t *dirdata);
-
 extern qboolean noclip_anglehack;
 
 
@@ -366,11 +349,12 @@ extern qboolean		isDedicated;
 
 extern int			minimum_memory;
 
+
 extern qboolean fullsbardraw;
 //
 // chase
 //
-extern	cvar_t	cg_thridperson;
+extern	cvar_t	cg_thirdperson;
 
 void Chase_Init (void);
 void Chase_Reset (void);

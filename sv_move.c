@@ -53,7 +53,7 @@ qboolean SV_CheckBottom (edict_t *ent)
 		{
 			start[0] = x ? maxs[0] : mins[0];
 			start[1] = y ? maxs[1] : mins[1];
-			if (SV_PointContents (start) != CONTENTS_SOLID)
+			if (!(SV_PointContents (start) & CONTENTS_SOLID))
 				goto realcheck;
 		}
 

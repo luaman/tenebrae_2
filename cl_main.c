@@ -180,6 +180,7 @@ An svc_signonnum has been received, perform a client side setup
 */
 void CL_SignonReply (void)
 {
+	int i;
 	char 	str[8192];
 
 Con_DPrintf ("CL_SignonReply: %i\n", cls.signon);
@@ -213,6 +214,12 @@ Con_DPrintf ("CL_SignonReply: %i\n", cls.signon);
 		SCR_EndLoadingPlaque ();		// allow normal screen updates
 		//PENTA:  Is this the right place to call stuff like this?
 		R_AutomaticLightPos();
+		
+		//We do this here since automaticlightpos can change the lightmapbright 
+		for (i=0; i<cl.worldmodel->nummeshes; i++) {
+			 MESH_SetupMeshColors(&cl.worldmodel->meshes[i]);
+		}
+
 		R_LoadSkys();
 		break;
 	}
@@ -736,7 +743,7 @@ void CL_RelinkEntities (void)
 
 		ent->forcelink = false;
 
-		if (i == cl.viewentity && !cg_thridperson.value)
+		if (i == cl.viewentity && !cg_thirdperson.value)
 			continue;
 
 #ifdef QUAKE2

@@ -55,7 +55,7 @@ plane_t	*HitPlane (vec3_t start, vec3_t end)
 	trace.allsolid = true;
 	VectorCopy (end, trace.endpos);
 
-	SV_RecursiveHullCheck (cl.worldmodel->hulls, 0, 0, 1, start, end, &trace);
+	SV_RecursiveHullCheck (cl.worldmodel, 0, 0, 1, start, end, &trace);
 
 	junk = trace.plane;
 	return &junk;

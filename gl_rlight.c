@@ -22,6 +22,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "quakedef.h"
 
 int	r_dlightframecount;
+int		d_lightstylevalue[256];	// 8.8 fraction of base light value
 
 //PENTA: Math utitity's
 void ProjectVector(const vec3_t b,const vec3_t a,vec3_t c) {
@@ -79,7 +80,7 @@ void R_AnimateLight (void)
 LIGHT SAMPLING
 
 =============================================================================
-*/
+*//*
 
 mplane_t		*lightplane;
 vec3_t			lightspot;
@@ -99,7 +100,7 @@ int RecursiveLightPoint (mnode_t *node, vec3_t start, vec3_t end)
 	unsigned	scale;
 	int			maps;
 
-	if (node->contents < 0)
+	if (node->contents & CONTENTS_LEAF)
 		return -1;		// didn't hit anything
 	
 // calculate mid point
@@ -182,10 +183,13 @@ int RecursiveLightPoint (mnode_t *node, vec3_t start, vec3_t end)
 // go down back side
 	return RecursiveLightPoint (node->children[!side], mid, end);
 }
-
+*/
 int R_LightPoint (vec3_t p)
 {
-	vec3_t		end;
+	//PENTA: use the lightgrid for this
+	return 255;
+
+/*	vec3_t		end;
 	int			r;
 	
 	if (!cl.worldmodel->lightdata)
@@ -200,6 +204,6 @@ int R_LightPoint (vec3_t p)
 	if (r == -1)
 		r = 0;
 
-	return r;
+	return r;*/
 }
 

@@ -27,7 +27,7 @@ int nostdout = 0;
 // user preference directory
 
 #if defined (USERPREF_DIR)
-char *prefdir=  ".quake";
+char *prefdir=  ".tenebrae";
 #endif
 
 #if defined (BASEDIR)
@@ -219,68 +219,6 @@ void Sys_Strtime(char *buf)
 }
 
 
-// directory entry list internal data
-#include <glob.h>
-
-typedef struct {
-  glob_t globbuf;
-  size_t count;
-} uxdirdata_t;
-
-
-dirdata_t *Sys_Findfirst (char *dir, char *filter, dirdata_t *dirdata)
-{
-  uxdirdata_t *uxdata;     
-  if (dirdata && filter){    
-    char dirfilter[MAX_OSPATH];
-    uxdata=Z_Malloc (sizeof(uxdirdata_t));
-    sprintf (dirfilter,"%s/%s", dir, filter);
-    glob (dirfilter,0,NULL,&uxdata->globbuf);
-    if (uxdata->globbuf.gl_pathc){
-      dirdata->internal=uxdata;
-      strncpy (dirdata->entry,uxdata->globbuf.gl_pathv[0],sizeof(dirdata->entry));
-      uxdata->count=0;
-      return dirdata;
-    }
-  }
-  return NULL;     
-}
-
-dirdata_t *Sys_Findnext (dirdata_t *dirdata)
-{
-  uxdirdata_t *uxdata;
-  if (dirdata){
-    uxdata=dirdata->internal;
-    if (uxdata) {
-      uxdata->count++;
-      // next entry ?
-      if (uxdata->count<uxdata->globbuf.gl_pathc){
-        strncpy (dirdata->entry,uxdata->globbuf.gl_pathv[uxdata->count],sizeof(dirdata->entry));
-        return dirdata;
-      }
-      // no -> close
-      globfree (&uxdata->globbuf);
-      Z_Free (dirdata->internal);
-      dirdata->internal=NULL;
-    }       
-  }
-  return NULL;
-}
-
-void Sys_Findclose (dirdata_t *dirdata)
-{
-  uxdirdata_t *uxdata;
-  if (dirdata){
-    uxdata=dirdata->internal;
-    if (uxdata){
-      globfree (&uxdata->globbuf);
-      Z_Free (uxdata);
-      dirdata->internal=NULL;
-    }    
-  }
-}
-
-
 int Sys_FileOpenRead (char *path, int *handle)
 {
 	int h;
@@ -455,21 +393,27 @@ char *Sys_InitUserDir(void)
   char *home;
   char *userdir;
   struct stat stat_buf;
+  int ulen;
 
   home = getenv("HOME");
   if (!home){
     Sys_Error("Environment variable HOME not found.\n");
   }
-  userdir = (char *)malloc(strlen(home)+strlen(prefdir)+1);
-  strcpy(userdir,home);
-  if (home[strlen(home)-1]!='/')
-    strcat(userdir,"/");
+  ulen = strlen(home)+strlen(prefdir);
+  userdir = (char *)malloc(ulen+2);
+  strncpy(userdir,home,ulen);
+  if (home[strlen(home)-1]!='/'){
+    ulen++;
+    strncat(userdir,"/",ulen);
+  }
 
   if (stat(userdir,&stat_buf)){
     Sys_Error("could not stat %s\n",userdir);
   }
-  
-  strcat(userdir,prefdir);
+
+  strncat(userdir,prefdir,ulen);
+  userdir[ulen]=0;
+
   if (stat(userdir,&stat_buf)){
     if (errno == ENOENT)
       Sys_mkdir(userdir);

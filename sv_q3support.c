@@ -28,7 +28,7 @@ mplane_t	*box_planes;
 int			box_firstbrush;
 mbrush_t	*box_brush;
 
-#define M sv.worldmodel
+//#define M sv.worldmodel
 
 //timestamp variables
 int c_pointcontents = 0;
@@ -44,7 +44,7 @@ Set up the planes and nodes so that the six floats of a bounding box
 can just be stored out and get a proper clipping hull structure.
 ===================
 */
-void CM_InitBoxHull (void)
+void CM_InitBoxHull (model_t *M)
 {
 	int			i;
 	int			side;
@@ -65,7 +65,7 @@ void CM_InitBoxHull (void)
 		// brush sides
 		s = &M->brushsides[M->numbrushsides+i];
 		s->plane = 	M->planes + (M->numplanes+i*2+side);
-		s->texture = NULL;
+		s->shader = NULL;
 
 		// planes
 		p = &box_planes[i*2];
@@ -139,7 +139,7 @@ CM_PointLeafnum_r
 
 ==================
 */
-int CM_PointLeafnum_r (vec3_t p, int num)
+int CM_PointLeafnum_r (model_t *M, vec3_t p, int num)
 {
 	float		d;
 	mnode_t		*node;
@@ -165,11 +165,11 @@ int CM_PointLeafnum_r (vec3_t p, int num)
 	return -1 - num;
 }
 
-int CM_PointLeafnum (vec3_t p)
+int CM_PointLeafnum (model_t *M, vec3_t p)
 {
 	if (!M->numplanes)
 		return 0;		// sound may call this without map loaded
-	return CM_PointLeafnum_r (p, 0);
+	return CM_PointLeafnum_r (M, p, 0);
 }
 
 
@@ -186,7 +186,7 @@ int		*leaf_list;
 float	*leaf_mins, *leaf_maxs;
 int		leaf_topnode;
 
-void CM_BoxLeafnums_r (int nodenum)
+void CM_BoxLeafnums_r (model_t *M, int nodenum)
 {
 	mplane_t	*plane;
 	mnode_t		*node;
@@ -217,14 +217,14 @@ void CM_BoxLeafnums_r (int nodenum)
 		{	// go down both
 			if (leaf_topnode == -1)
 				leaf_topnode = nodenum;
-			CM_BoxLeafnums_r (node->ichildren[0]);
+			CM_BoxLeafnums_r (M, node->ichildren[0]);
 			nodenum = node->ichildren[1];
 		}
 
 	}
 }
 
-int	CM_BoxLeafnums_headnode (vec3_t mins, vec3_t maxs, int *list, int listsize, int headnode, int *topnode)
+int	CM_BoxLeafnums_headnode (model_t *M, vec3_t mins, vec3_t maxs, int *list, int listsize, int headnode, int *topnode)
 {
 	leaf_list = list;
 	leaf_count = 0;
@@ -234,7 +234,7 @@ int	CM_BoxLeafnums_headnode (vec3_t mins, vec3_t maxs, int *list, int listsize, 
 
 	leaf_topnode = -1;
 
-	CM_BoxLeafnums_r (headnode);
+	CM_BoxLeafnums_r (M, headnode);
 
 	if (topnode)
 		*topnode = leaf_topnode;
@@ -242,9 +242,9 @@ int	CM_BoxLeafnums_headnode (vec3_t mins, vec3_t maxs, int *list, int listsize, 
 	return leaf_count;
 }
 
-int	CM_BoxLeafnums (vec3_t mins, vec3_t maxs, int *list, int listsize, int *topnode)
+int	CM_BoxLeafnums (model_t *M,vec3_t mins, vec3_t maxs, int *list, int listsize, int *topnode)
 {
-	return CM_BoxLeafnums_headnode (mins, maxs, list,
+	return CM_BoxLeafnums_headnode (M,mins, maxs, list,
 		listsize, 0 /*headnode??*/, topnode);
 }
 
@@ -256,16 +256,47 @@ CM_PointContents
 
 ==================
 */
-int CM_PointContents (vec3_t p, int headnode)
+int CM_PointContents (model_t *M, vec3_t p, int headnode)
 {
-	int		l;
+	int		l, contents, i, j;
+	mleaf_t			*leaf;
+	mbrush_t		*brush;
+	mbrushside_t	*brushside;
 
 	if (!M->numnodes)	// map not loaded
 		return 0;
 
-	l = CM_PointLeafnum_r (p, 0 /*headnode*/);
+	l = CM_PointLeafnum_r (M, p, 0 /*headnode*/);
 
-	return M->leafs[l].contents;
+	//PENTA: Based on qfusion contents soucre
+	leaf = &M->leafs[l];
+	if ( leaf->contents & CONTENTS_NODROP ) {
+		contents = CONTENTS_NODROP;
+	} else {
+		contents = 0;
+	}
+
+	for (i = 0; i < leaf->numbrushes; i++)
+	{
+		brush = &M->brushes[M->leafbrushes[leaf->firstbrush + i]];
+
+		// check if brush actually adds something to contents
+		if ( (contents & brush->contents) == brush->contents ) {
+			continue;
+		}
+		
+		brushside = &M->brushsides[brush->firstbrushside];
+		for ( j = 0; j < brush->numsides; j++, brushside++ )
+		{
+			if ((DotProduct(p, brushside->plane->normal) -brushside->plane->dist) > 0)
+				break;
+		}
+
+		if (j == brush->numsides) 
+			contents |= brush->contents;
+	}
+
+	return contents;
 }
 
 /*
@@ -276,7 +307,7 @@ Handles offseting and rotation of the end points for moving and
 rotating entities
 ==================
 */
-int	CM_TransformedPointContents (vec3_t p, int headnode, vec3_t origin, vec3_t angles)
+int	CM_TransformedPointContents (model_t *M, vec3_t p, int headnode, vec3_t origin, vec3_t angles)
 {
 	vec3_t		p_l;
 	vec3_t		temp;
@@ -297,7 +328,7 @@ int	CM_TransformedPointContents (vec3_t p, int headnode, vec3_t origin, vec3_t a
 		p_l[2] = DotProduct (temp, up);
 	}
 
-	l = CM_PointLeafnum_r (p_l, headnode);
+	l = CM_PointLeafnum_r (M, p_l, headnode);
 
 	return M->leafs[l].contents;
 }
@@ -327,7 +358,7 @@ qboolean	trace_ispoint;		// optimized case
 CM_ClipBoxToBrush
 ================
 */
-void CM_ClipBoxToBrush (vec3_t mins, vec3_t maxs, vec3_t p1, vec3_t p2,
+void CM_ClipBoxToBrush (model_t *M, vec3_t mins, vec3_t maxs, vec3_t p1, vec3_t p2,
 					  trace_t *trace, mbrush_t *brush)
 {
 	int			i, j;
@@ -443,7 +474,7 @@ void CM_ClipBoxToBrush (vec3_t mins, vec3_t maxs, vec3_t p1, vec3_t p2,
 CM_TestBoxInBrush
 ================
 */
-void CM_TestBoxInBrush (vec3_t mins, vec3_t maxs, vec3_t p1,
+void CM_TestBoxInBrush (model_t *M, vec3_t mins, vec3_t maxs, vec3_t p1,
 					  trace_t *trace, mbrush_t *brush)
 {
 	int			i, j;
@@ -500,7 +531,7 @@ void CM_TestBoxInBrush (vec3_t mins, vec3_t maxs, vec3_t p1,
 CM_TraceToLeaf
 ================
 */
-void CM_TraceToLeaf (int leafnum)
+void CM_TraceToLeaf (model_t *M, int leafnum)
 {
 	int			k;
 	int			brushnum;
@@ -534,9 +565,10 @@ void CM_TraceToLeaf (int leafnum)
 			continue;	// already checked this brush in another leaf
 		b->checkcount = checkcount;
 
-		//if ( !(b->contents & trace_contents))
-		//	continue;
-		CM_ClipBoxToBrush (trace_mins, trace_maxs, trace_start, trace_end, &trace_trace, b);
+		if ( !(b->contents & trace_contents))
+			continue;
+
+		CM_ClipBoxToBrush (M, trace_mins, trace_maxs, trace_start, trace_end, &trace_trace, b);
 		if (!trace_trace.fraction)
 			return;
 	}
@@ -551,7 +583,7 @@ PENTA: Clips to the given brush model
 Q3 doesn't have bsp's associated with map models anymore, just a list of brushes
 ================
 */
-void CM_TraceToBrushModel (int firstbrush, int numbrushes, vec3_t mins, vec3_t maxs,
+void CM_TraceToBrushModel (model_t *M, int firstbrush, int numbrushes, vec3_t mins, vec3_t maxs,
 						   vec3_t start, vec3_t end, trace_t *trace, int brushmask)
 {
 	int		i, brushnum;
@@ -570,10 +602,10 @@ void CM_TraceToBrushModel (int firstbrush, int numbrushes, vec3_t mins, vec3_t m
 		//brushnum = M->leafbrushes[firstbrush+i];
 		b = &M->brushes[firstbrush+i];
 
-		//if ( !(b->contents & trace_contents))
-		//	continue;
+		if ( !(b->contents & trace_contents))
+			continue;
 
-		CM_ClipBoxToBrush (mins, maxs, start, end, trace, b);
+		CM_ClipBoxToBrush (M, mins, maxs, start, end, trace, b);
 		if (!trace->fraction)
 			return;
 	}
@@ -595,7 +627,7 @@ void CM_TraceToBrushModel (int firstbrush, int numbrushes, vec3_t mins, vec3_t m
 CM_TestInLeaf
 ================
 */
-void CM_TestInLeaf (int leafnum)
+void CM_TestInLeaf (model_t *M, int leafnum)
 {
 	int			k;
 	int			brushnum;
@@ -614,9 +646,9 @@ void CM_TestInLeaf (int leafnum)
 			continue;	// already checked this brush in another leaf
 		b->checkcount = checkcount;
 
-		//if ( !(b->contents & trace_contents))
-		//	continue;
-		CM_TestBoxInBrush (trace_mins, trace_maxs, trace_start, &trace_trace, b);
+		if ( !(b->contents & trace_contents))
+			continue;
+		CM_TestBoxInBrush (M, trace_mins, trace_maxs, trace_start, &trace_trace, b);
 		if (!trace_trace.fraction)
 			return;
 	}
@@ -630,7 +662,7 @@ CM_RecursiveHullCheck
 
 ==================
 */
-void CM_RecursiveHullCheck (int num, float p1f, float p2f, vec3_t p1, vec3_t p2)
+void CM_RecursiveHullCheck (model_t *M, int num, float p1f, float p2f, vec3_t p1, vec3_t p2)
 {
 	mnode_t		*node;
 	mplane_t	*plane;
@@ -648,7 +680,7 @@ void CM_RecursiveHullCheck (int num, float p1f, float p2f, vec3_t p1, vec3_t p2)
 	// if < 0, we are in a leaf node
 	if (num < 0)
 	{
-		CM_TraceToLeaf (-1-num);
+		CM_TraceToLeaf (M, -1-num);
 		return;
 	}
 
@@ -679,20 +711,20 @@ void CM_RecursiveHullCheck (int num, float p1f, float p2f, vec3_t p1, vec3_t p2)
 
 
 #if 0
-CM_RecursiveHullCheck (node->ichildren[0], p1f, p2f, p1, p2);
-CM_RecursiveHullCheck (node->ichildren[1], p1f, p2f, p1, p2);
+CM_RecursiveHullCheck (M, node->ichildren[0], p1f, p2f, p1, p2);
+CM_RecursiveHullCheck (M, node->ichildren[1], p1f, p2f, p1, p2);
 return;
 #endif
 
 	// see which sides we need to consider
 	if (t1 >= offset && t2 >= offset)
 	{
-		CM_RecursiveHullCheck (node->ichildren[0], p1f, p2f, p1, p2);
+		CM_RecursiveHullCheck (M, node->ichildren[0], p1f, p2f, p1, p2);
 		return;
 	}
 	if (t1 < -offset && t2 < -offset)
 	{
-		CM_RecursiveHullCheck (node->ichildren[1], p1f, p2f, p1, p2);
+		CM_RecursiveHullCheck (M, node->ichildren[1], p1f, p2f, p1, p2);
 		return;
 	}
 
@@ -728,7 +760,7 @@ return;
 	for (i=0 ; i<3 ; i++)
 		mid[i] = p1[i] + frac*(p2[i] - p1[i]);
 
-	CM_RecursiveHullCheck (node->ichildren[side], p1f, midf, p1, mid);
+	CM_RecursiveHullCheck (M, node->ichildren[side], p1f, midf, p1, mid);
 
 
 	// go past the node
@@ -741,7 +773,7 @@ return;
 	for (i=0 ; i<3 ; i++)
 		mid[i] = p1[i] + frac2*(p2[i] - p1[i]);
 
-	CM_RecursiveHullCheck (node->ichildren[side^1], midf, p2f, mid, p2);
+	CM_RecursiveHullCheck (M, node->ichildren[side^1], midf, p2f, mid, p2);
 }
 
 
@@ -753,7 +785,7 @@ return;
 CM_BoxTrace
 ==================
 */
-trace_t		CM_BoxTrace (vec3_t start, vec3_t end,
+trace_t		CM_BoxTrace (model_t *M, vec3_t start, vec3_t end,
 						  vec3_t mins, vec3_t maxs,
 						  int headnode, int brushmask)
 {
@@ -796,10 +828,10 @@ trace_t		CM_BoxTrace (vec3_t start, vec3_t end,
 			c2[i] += 1;
 		}
 
-		numleafs = CM_BoxLeafnums_headnode (c1, c2, leafs, 1024, headnode, &topnode);
+		numleafs = CM_BoxLeafnums_headnode (M, c1, c2, leafs, 1024, headnode, &topnode);
 		for (i=0 ; i<numleafs ; i++)
 		{
-			CM_TestInLeaf (leafs[i]);
+			CM_TestInLeaf (M, leafs[i]);
 			if (trace_trace.allsolid)
 				break;
 		}
@@ -827,7 +859,7 @@ trace_t		CM_BoxTrace (vec3_t start, vec3_t end,
 	//
 	// general sweeping through world
 	//
-	CM_RecursiveHullCheck (headnode, 0, 1, start, end);
+	CM_RecursiveHullCheck (M, headnode, 0, 1, start, end);
 
 	if (trace_trace.fraction == 1)
 	{
@@ -855,7 +887,7 @@ rotating entities
 #endif
 
 
-trace_t		CM_TransformedBoxTrace (vec3_t start, vec3_t end,
+trace_t		CM_TransformedBoxTrace (model_t *M, vec3_t start, vec3_t end,
 						  vec3_t mins, vec3_t maxs,
 						  int headnode, int brushmask,
 						  vec3_t origin, vec3_t angles)
@@ -893,7 +925,7 @@ trace_t		CM_TransformedBoxTrace (vec3_t start, vec3_t end,
 	}
 
 	// sweep the box through the model
-	trace = CM_BoxTrace (start_l, end_l, mins, maxs, headnode, brushmask);
+	trace = CM_BoxTrace (M, start_l, end_l, mins, maxs, headnode, brushmask);
 
 	if (rotated && trace.fraction != 1.0)
 	{
@@ -1003,32 +1035,11 @@ byte	*CM_ClusterPHS (int cluster)
 
 AREAPORTALS
 
+PENTA: Areaportals seem to have changed somewhat from quake2
+this is based on the qfusion source who supports quake3 style areaportals
 ===============================================================================
 */
-/*
 
-void FloodArea_r (carea_t *area, int floodnum)
-{
-	int		i;
-	dareaportal_t	*p;
-
-	if (area->floodvalid == floodvalid)
-	{
-		if (area->floodnum == floodnum)
-			return;
-		Com_Error (ERR_DROP, "FloodArea_r: reflooded");
-	}
-
-	area->floodnum = floodnum;
-	area->floodvalid = floodvalid;
-	p = &map_areaportals[area->firstareaportal];
-	for (i=0 ; i<area->numareaportals ; i++, p++)
-	{
-		if (portalopen[p->portalnum])
-			FloodArea_r (&map_areas[p->otherarea], floodnum);
-	}
-}
-*/
 /*
 ====================
 FloodAreaConnections
@@ -1036,51 +1047,68 @@ FloodAreaConnections
 
 ====================
 */
-/*
-void	FloodAreaConnections (void)
+void	FloodAreaConnections (model_t *M)
 {
-	int		i;
-	carea_t	*area;
-	int		floodnum;
-
-	// all current floods are now invalid
-	floodvalid++;
-	floodnum = 0;
+	int		i, j;
 
 	// area 0 is not used
-	for (i=1 ; i<numareas ; i++)
+	for (i=1 ; i<M->numareas ; i++)
 	{
-		area = &map_areas[i];
-		if (area->floodvalid == floodvalid)
-			continue;		// already flooded into
-		floodnum++;
-		FloodArea_r (area, floodnum);
+		for (  j = 1; j < M->numareas; j++ ) {
+			M->areas[i].numareaportals[j] = ( j == i );
+		}
+	}
+}
+
+void	CM_SetAreaPortalState (model_t *M, int area1, int area2, qboolean open)
+{
+	if (area1 > M->numareas || area2 > M->numareas) {
+		Con_Printf ("CM_SetAreaPortalState: area > M->numareas\n");
+		return;
+	}
+	if ( open ) {
+		M->areas[area1].numareaportals[area2]++;
+		M->areas[area2].numareaportals[area1]++;
+		Con_Printf("Open portal between %i and %i\n", area1, area2);
+	} else {
+		M->areas[area1].numareaportals[area2]--;
+		//shouln't really happen
+		if (M->areas[area1].numareaportals[area2] < 0)
+			M->areas[area1].numareaportals[area2] = 0;
+
+		M->areas[area2].numareaportals[area1]--;
+		//shouln't really happen
+		if (M->areas[area2].numareaportals[area1] < 0)
+			M->areas[area2].numareaportals[area1] = 0;
+
+		Con_Printf("Close portal between %i and %i\n", area1, area2);
+	}
+}
+
+qboolean	CM_AreasConnected (model_t *M, int area1, int area2)
+{
+	int		i;
+/*
+	if (cm_noAreas->value)
+		return true;
+*/
+	if (area1 > M->numareas || area2 > M->numareas)
+		Sys_Error ("CM_AreasConnected: area > numareas");
+
+	if ( M->areas[area1].numareaportals[area2] )
+		return true;
+
+	// area 0 is not used
+	for (i=1 ; i<M->numareas ; i++)
+	{
+		if ( M->areas[i].numareaportals[area1] &&
+			M->areas[i].numareaportals[area2] )
+			return true;
 	}
 
-}
-
-void	CM_SetAreaPortalState (int portalnum, qboolean open)
-{
-	if (portalnum > numareaportals)
-		Com_Error (ERR_DROP, "areaportal > numareaportals");
-
-	portalopen[portalnum] = open;
-	FloodAreaConnections ();
-}
-
-qboolean	CM_AreasConnected (int area1, int area2)
-{
-	if (map_noareas->value)
-		return true;
-
-	if (area1 > numareas || area2 > numareas)
-		Com_Error (ERR_DROP, "area > numareas");
-
-	if (map_areas[area1].floodnum == map_areas[area2].floodnum)
-		return true;
 	return false;
 }
-*/
+
 
 /*
 =================
@@ -1092,34 +1120,49 @@ that area in the same flood as the area parameter
 This is used by the client refreshes to cull visibility
 =================
 */
-/*
-int CM_WriteAreaBits (byte *buffer, int area)
+int CM_WriteAreaBits (model_t *M, byte *buffer, int area)
 {
 	int		i;
-	int		floodnum;
 	int		bytes;
 
-	bytes = (numareas+7)>>3;
-
-	if (map_noareas->value)
+	bytes = (M->numareas+7)>>3;
+/*
+	if (cm_noAreas->value)
 	{	// for debugging, send everything
 		memset (buffer, 255, bytes);
 	}
 	else
+*/
 	{
 		memset (buffer, 0, bytes);
 
-		floodnum = map_areas[area].floodnum;
-		for (i=0 ; i<numareas ; i++)
+		for (i=1 ; i<M->numareas ; i++)
 		{
-			if (map_areas[i].floodnum == floodnum || !area)
+			if (!area || CM_AreasConnected (M, i, area ) || i == area)
 				buffer[i>>3] |= 1<<(i&7);
 		}
 	}
 
+	buffer[area>>3] |= 1<<(area&7);
+
 	return bytes;
 }
+
+/*
+=================
+CM_MergeAreaBits
+=================
 */
+void CM_MergeAreaBits (model_t *M, byte *buffer, int area)
+{
+	int		i;
+
+	for (i=1 ; i<M->numareas ; i++)
+	{
+		if ( CM_AreasConnected (M, i, area ) || i == area)
+			buffer[i>>3] |= 1<<(i&7);
+	}
+}
 
 /*
 ===================
@@ -1128,12 +1171,10 @@ CM_WritePortalState
 Writes the portal state to a savegame file
 ===================
 */
-/*
-void	CM_WritePortalState (FILE *f)
+void	CM_WritePortalState (model_t *M, FILE *f)
 {
-	fwrite (portalopen, sizeof(portalopen), 1, f);
 }
-*/
+
 /*
 ===================
 CM_ReadPortalState
@@ -1142,13 +1183,10 @@ Reads the portal state from a savegame file
 and recalculates the area connections
 ===================
 */
-/*
-void	CM_ReadPortalState (FILE *f)
+void	CM_ReadPortalState (model_t *M, FILE *f)
 {
-	FS_Read (portalopen, sizeof(portalopen), f);
-	FloodAreaConnections ();
 }
-*/
+
 /*
 =============
 CM_HeadnodeVisible

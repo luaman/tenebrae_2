@@ -56,6 +56,7 @@ char *SC_ParseIdent();
 int	SC_ParseToken();
 
 int SC_BlendModeForName(char *name);
+int SHADER_BlendModeForName(char *name);
 
 extern int line_num;
 

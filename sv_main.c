@@ -364,6 +364,9 @@ crosses a waterline.
 int		fatbytes;
 byte	fatpvs[MAX_MAP_LEAFS/8];
 
+int		areabytes;
+byte	areabits[MAX_MAP_AREAS/8];
+
 void SV_AddToFatPVS (vec3_t org, mnode_t *node)
 {
 	int		i;
@@ -374,7 +377,7 @@ void SV_AddToFatPVS (vec3_t org, mnode_t *node)
 	while (1)
 	{
 	// if this is a leaf, accumulate the pvs bits
-		if (node->contents < 0)
+		if (node->contents & CONTENTS_LEAF)
 		{
 			if (node->contents != CONTENTS_SOLID)
 			{
@@ -433,10 +436,15 @@ void SV_WriteEntitiesToClient (edict_t	*clent, sizebuf_t *msg)
 	vec3_t	org;
 	float	miss;
 	edict_t	*ent;
+	mleaf_t *clientleaf;
 
 // find the client's PVS
 	VectorAdd (clent->v.origin, clent->v.view_ofs, org);
 	pvs = SV_FatPVS (org);
+
+//find the client's Area Portal state
+	clientleaf = Mod_PointInLeaf(org, sv.worldmodel);
+	areabytes = CM_WriteAreaBits(sv.worldmodel, areabits, clientleaf->area);
 
 // send over all entities (excpet the client) that touch the pvs
 	ent = NEXT_EDICT(sv.edicts);
@@ -462,6 +470,15 @@ void SV_WriteEntitiesToClient (edict_t	*clent, sizebuf_t *msg)
 			}
 			if (i == ent->num_leafs)
 				continue;		// not visible
+
+			//PENTA: check against area portals
+			if (! (areabits[(int)(ent->v.areanum)>>3] & (1<<((int)(ent->v.areanum)&7)) ) )
+			{	// doors can legally straddle two areas, so
+				// we may need to check another one
+				if (!(int)(ent->v.areanum2)
+					|| !(areabits[(int)(ent->v.areanum2)>>3] & (1<<((int)(ent->v.areanum2)&7)) ))
+					continue;		// blocked by a door
+			}
 		}
 
 		if (msg->maxsize - msg->cursize < 16)
@@ -762,6 +779,11 @@ qboolean SV_SendClientDatagram (client_t *client)
 	SV_WriteClientdataToMessage (client->edict, &msg);
 
 	SV_WriteEntitiesToClient (client->edict, &msg);
+
+//PENTA: send over the area portal state
+	MSG_WriteByte (&msg, svc_areaportalstate);
+	MSG_WriteByte (&msg, areabytes);
+	SZ_Write (&msg, areabits, areabytes);
 
 // copy the server datagram if there is space
 	if (msg.cursize + sv.datagram.cursize < msg.maxsize)

@@ -54,7 +54,7 @@ ParticleEffect_t *particleEffects;
 vec3_t			r_pright, r_pup, r_ppn;
 
 // <AWE> missing prototypes
-extern qboolean SV_RecursiveHullCheck (hull_t *hull, int num, float p1f, float p2f, vec3_t p1, vec3_t p2, trace_t *trace);
+extern qboolean SV_RecursiveHullCheck (model_t *m, int num, float p1f, float p2f, vec3_t p1, vec3_t p2, trace_t *trace);
 
 
 ParticleEffect_t *ParticleEffectDefinedForName(const char *name);
@@ -1409,10 +1409,12 @@ void R_DrawParticles (void)
 
 			memset (&trace, 0, sizeof(trace));
 			trace.fraction = 1;
-			SV_RecursiveHullCheck (cl.worldmodel->hulls, 0, 0, 1, p->org, neworg, &trace);
+			SV_RecursiveHullCheck (cl.worldmodel, 0, 0, 1, p->org, neworg, &trace);
 
 			if (trace.fraction < 1) {
+
 				vec3_t tangent;
+
 				//calc reflection vector
 				d = DotProduct (p->vel, trace.plane.normal);
 				VectorMA (p->vel, -2*d, trace.plane.normal, p->vel);

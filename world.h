@@ -78,10 +78,20 @@ trace_t SV_Move (vec3_t start, vec3_t mins, vec3_t maxs, vec3_t end, int type, e
 // passedict is explicitly excluded from clipping checks (normally NULL)
 
 //Trace a box trough the world
-trace_t CM_BoxTrace (vec3_t start, vec3_t end,
+trace_t CM_BoxTrace (model_t *M, vec3_t start, vec3_t end,
 						  vec3_t mins, vec3_t maxs,
 						  int headnode, int brushmask);
 
 //Trace a box trough a model
-void CM_TraceToBrushModel (int firstbrush, int numbrushes, vec3_t mins, vec3_t maxs,
+void CM_TraceToBrushModel (model_t *M, int firstbrush, int numbrushes, vec3_t mins, vec3_t maxs,
 						   vec3_t start, vec3_t end, trace_t *trace, int brushmask);
+
+int CM_PointContents (model_t *M, vec3_t p, int headnode);
+
+void	CM_SetAreaPortalState (model_t *M, int area1, int area2, qboolean open);
+qboolean	CM_AreasConnected (model_t *M, int area1, int area2);
+int CM_WriteAreaBits (model_t *M, byte *buffer, int area);
+void CM_MergeAreaBits (model_t *M, byte *buffer, int area);
+void	CM_WritePortalState (model_t *M, FILE *f);
+void	CM_ReadPortalState (model_t *M, FILE *f);
+void	CM_InitBoxHull (model_t *M);
