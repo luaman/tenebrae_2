@@ -59,6 +59,20 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include <GL/glx.h>
 #endif
 
+void GL_checkerror(char *file, int line);
+
+#define GL_DEBUG
+
+#if defined(GL_DEBUG)
+
+#define checkerror() GL_checkerror(__FILE__, __LINE__)
+
+#else
+
+#define checkerror() do { } while(0)
+
+#endif
+
 void GL_BeginRendering (int *x, int *y, int *width, int *height);
 void GL_EndRendering (void);
 
@@ -470,51 +484,6 @@ extern PFNGLSTENCILOPSEPARATEATIPROC qglStencilOpSeparateATI;
 extern PFNGLSTENCILFUNCSEPARATEATIPROC qglStencilFuncSeparateATI;
 
 #endif /* !__APPLE__ && !MACOSX */
-
-#ifndef GL_VERSION_1_3 
-typedef void (APIENTRY * PFNGLACTIVETEXTUREARBPROC) (GLenum texture);
-typedef void (APIENTRY * PFNGLCLIENTACTIVETEXTUREARBPROC) (GLenum texture);
-typedef void (APIENTRY * PFNGLMULTITEXCOORD1DARBPROC) (GLenum target, GLdouble s);
-typedef void (APIENTRY * PFNGLMULTITEXCOORD1DVARBPROC) (GLenum target, const GLdouble *v);
-typedef void (APIENTRY * PFNGLMULTITEXCOORD1FARBPROC) (GLenum target, GLfloat s);
-typedef void (APIENTRY * PFNGLMULTITEXCOORD1FVARBPROC) (GLenum target, const GLfloat *v);
-typedef void (APIENTRY * PFNGLMULTITEXCOORD1IARBPROC) (GLenum target, GLint s);
-typedef void (APIENTRY * PFNGLMULTITEXCOORD1IVARBPROC) (GLenum target, const GLint *v);
-typedef void (APIENTRY * PFNGLMULTITEXCOORD1SARBPROC) (GLenum target, GLshort s);
-typedef void (APIENTRY * PFNGLMULTITEXCOORD1SVARBPROC) (GLenum target, const GLshort *v);
-typedef void (APIENTRY * PFNGLMULTITEXCOORD2DARBPROC) (GLenum target, GLdouble s, GLdouble t);
-typedef void (APIENTRY * PFNGLMULTITEXCOORD2DVARBPROC) (GLenum target, const GLdouble *v);
-typedef void (APIENTRY * PFNGLMULTITEXCOORD2FARBPROC) (GLenum target, GLfloat s, GLfloat t);
-typedef void (APIENTRY * PFNGLMULTITEXCOORD2FVARBPROC) (GLenum target, const GLfloat *v);
-typedef void (APIENTRY * PFNGLMULTITEXCOORD2IARBPROC) (GLenum target, GLint s, GLint t);
-typedef void (APIENTRY * PFNGLMULTITEXCOORD2IVARBPROC) (GLenum target, const GLint *v);
-typedef void (APIENTRY * PFNGLMULTITEXCOORD2SARBPROC) (GLenum target, GLshort s, GLshort t);
-typedef void (APIENTRY * PFNGLMULTITEXCOORD2SVARBPROC) (GLenum target, const GLshort *v);
-typedef void (APIENTRY * PFNGLMULTITEXCOORD3DARBPROC) (GLenum target, GLdouble s, GLdouble t, GLdouble r);
-typedef void (APIENTRY * PFNGLMULTITEXCOORD3DVARBPROC) (GLenum target, const GLdouble *v);
-typedef void (APIENTRY * PFNGLMULTITEXCOORD3FARBPROC) (GLenum target, GLfloat s, GLfloat t, GLfloat r);
-typedef void (APIENTRY * PFNGLMULTITEXCOORD3FVARBPROC) (GLenum target, const GLfloat *v);
-typedef void (APIENTRY * PFNGLMULTITEXCOORD3IARBPROC) (GLenum target, GLint s, GLint t, GLint r);
-typedef void (APIENTRY * PFNGLMULTITEXCOORD3IVARBPROC) (GLenum target, const GLint *v);
-typedef void (APIENTRY * PFNGLMULTITEXCOORD3SARBPROC) (GLenum target, GLshort s, GLshort t, GLshort r);
-typedef void (APIENTRY * PFNGLMULTITEXCOORD3SVARBPROC) (GLenum target, const GLshort *v);
-typedef void (APIENTRY * PFNGLMULTITEXCOORD4DARBPROC) (GLenum target, GLdouble s, GLdouble t, GLdouble r, GLdouble q);
-typedef void (APIENTRY * PFNGLMULTITEXCOORD4DVARBPROC) (GLenum target, const GLdouble *v);
-typedef void (APIENTRY * PFNGLMULTITEXCOORD4FARBPROC) (GLenum target, GLfloat s, GLfloat t, GLfloat r, GLfloat q);
-typedef void (APIENTRY * PFNGLMULTITEXCOORD4FVARBPROC) (GLenum target, const GLfloat *v);
-typedef void (APIENTRY * PFNGLMULTITEXCOORD4IARBPROC) (GLenum target, GLint s, GLint t, GLint r, GLint q);
-typedef void (APIENTRY * PFNGLMULTITEXCOORD4IVARBPROC) (GLenum target, const GLint *v);
-typedef void (APIENTRY * PFNGLMULTITEXCOORD4SARBPROC) (GLenum target, GLshort s, GLshort t, GLshort r, GLshort q);
-typedef void (APIENTRY * PFNGLMULTITEXCOORD4SVARBPROC) (GLenum target, const GLshort *v);
-#endif
-
-extern PFNGLACTIVETEXTUREARBPROC qglActiveTextureARB;
-extern PFNGLCLIENTACTIVETEXTUREARBPROC qglClientActiveTextureARB;
-extern PFNGLMULTITEXCOORD1FARBPROC qglMultiTexCoord1fARB;
-extern PFNGLMULTITEXCOORD2FARBPROC qglMultiTexCoord2fARB;
-extern PFNGLMULTITEXCOORD2FVARBPROC qglMultiTexCoord2fvARB;
-extern PFNGLMULTITEXCOORD3FARBPROC qglMultiTexCoord3fARB;
-extern PFNGLMULTITEXCOORD3FVARBPROC qglMultiTexCoord3fvARB;
 
 // <AWE> : MacOS X 10.2: defined in <OpenGL/glext.h>
 #if !defined (__APPLE__) && !defined (MACOSX) 
@@ -1064,7 +1033,6 @@ typedef void (APIENTRY *lpSelTexFUNC) (GLenum);
 //extern lpSelTexFUNC qglSelectTextureSGIS;
 
 extern qboolean gl_mtexable;
-extern qboolean gl_palettedtex; // <AWE>: true if EXT_paletted_texture present [for GL_Upload8_EXT ()].
 extern qboolean gl_texturefilteranisotropic; // <AWE> true if anisotropic texture filtering available.
 
 typedef enum
@@ -1412,7 +1380,6 @@ void		GL_SelectTexture (GLenum target);
 void		GL_Set2D (void);
 void		GL_SetupCubeMapMatrix (const transform_t *tr);
 //void		GL_SubdivideSurface (msurface_t *fa);
-void		GL_Upload8_EXT (byte *data, int width, int height,  qboolean mipmap, qboolean alpha);
 void		R_DrawCaustics(void);
 int			CL_PointContents (vec3_t p);
 void		V_CalcBlend (void);
@@ -1425,8 +1392,6 @@ int R_AllocateVertexInTemp(vec3_t pos, float texture [2], float lightmap[2], byt
 void R_CopyVerticesToHunk(void);
 void R_EnableVertexTable(int fields);
 void R_DisableVertexTable(int fields);
-
-qboolean 	VID_Is8bit (void);
 
 typedef struct mirrorplane_s {
 	int texture_object;  //Object we should render to and use for drawing
