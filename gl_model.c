@@ -298,7 +298,9 @@ model_t *Mod_LoadModel (model_t *mod, qboolean crash)
 	case MD3_IDENT:
 		Mod_LoadMd3Model (mod, buf);
 		break;
-
+	case TEKEYFRAMEHEADER:
+		Mod_LoadTenebraeKeyframeModel (mod, buf);
+		break;
 	case IDPOLYHEADER:
 		Mod_LoadAliasModel (mod, buf);
 		break;
