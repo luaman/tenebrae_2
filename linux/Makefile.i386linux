@@ -135,7 +135,6 @@ GLQUAKE_OBJS= \
 	$(BUILDDIR)/glquake/pr_edict.o \
 	$(BUILDDIR)/glquake/pr_exec.o \
 	$(BUILDDIR)/glquake/r_part.o \
-	$(BUILDDIR)/glquake/sbar.o \
 	$(BUILDDIR)/glquake/sv_main.o \
 	$(BUILDDIR)/glquake/sv_phys.o \
 	$(BUILDDIR)/glquake/sv_move.o \

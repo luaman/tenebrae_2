@@ -76,7 +76,6 @@ tenebrae_sdl_SOURCES =			\
 	$(MASTER_DIR)/r_shared.h	\
 	$(MASTER_DIR)/render.h		\
 	$(MASTER_DIR)/resource.h	\
-	$(MASTER_DIR)/sbar.c		\
 	$(MASTER_DIR)/sbar.h		\
 	$(MASTER_DIR)/screen.h		\
 	$(MASTER_DIR)/server.h		\
@@ -116,6 +115,7 @@ tenebrae_sdl_SOURCES =			\
 
 QUAKE_SRCS =				\
 	$(MASTER_DIR)/d_edge.c		\
+	$(MASTER_DIR)/sbar.c		\
 	$(MASTER_DIR)/d_fill.c		\
 	$(MASTER_DIR)/d_ifacea.h		\
 	$(MASTER_DIR)/d_iface.h		\
