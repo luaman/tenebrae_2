@@ -308,11 +308,16 @@ model_t *Mod_LoadModel (model_t *mod, qboolean crash)
 		ModQ3_LoadBrushModel(mod, buf);
 		break;
 	default:
+		Sys_Error("Unknown model type\n");
+		break;
+	}
+/*
+	default:
 		is_q3map = false;
 		Mod_LoadBrushModel (mod, buf);
 		break;
 	}
-
+*/
 	return mod;
 }
 
@@ -365,6 +370,7 @@ byte	*mod_base;
 Mod_LoadTextures
 =================
 */
+/*
 void Mod_LoadTextures (lump_t *l)
 {
 	int		i, j, pixels, num, max, altmax;
@@ -516,12 +522,12 @@ void Mod_LoadTextures (lump_t *l)
 		}
 	}
 }
-
+*/
 /*
 =================
 Mod_LoadLighting
 =================
-*/
+*//*
 void Mod_LoadLighting (lump_t *l)
 {
 	if (!l->filelen)
@@ -533,12 +539,12 @@ void Mod_LoadLighting (lump_t *l)
 	memcpy (loadmodel->lightdata, mod_base + l->fileofs, l->filelen);
 }
 
-
+*/
 /*
 =================
 Mod_LoadVisibility
 =================
-*/
+*//*
 void Mod_LoadVisibility (lump_t *l)
 {
 	if (!l->filelen)
@@ -550,12 +556,12 @@ void Mod_LoadVisibility (lump_t *l)
 	memcpy (loadmodel->visdata, mod_base + l->fileofs, l->filelen);
 }
 
-
+*/
 /*
 =================
 Mod_LoadEntities
 =================
-*/
+*//*
 void Mod_LoadEntities (lump_t *l)
 {
 	FILE *f;
@@ -580,13 +586,13 @@ void Mod_LoadEntities (lump_t *l)
 	loadmodel->entities = Hunk_AllocName ( l->filelen, loadname);	
 	memcpy (loadmodel->entities, mod_base + l->fileofs, l->filelen);
 }
-
+*/
 
 /*
 =================
 Mod_LoadVertexes
 =================
-*/
+*//*
 void Mod_LoadVertexes (lump_t *l)
 {
 	dvertex_t	*in;
@@ -609,12 +615,12 @@ void Mod_LoadVertexes (lump_t *l)
 		out->position[2] = LittleFloat (in->point[2]);
 	}
 }
-
+*/
 /*
 =================
 Mod_LoadSubmodels
 =================
-*/
+*//*
 void Mod_LoadSubmodels (lump_t *l)
 {
 	dmodel_t	*in;
@@ -645,12 +651,12 @@ void Mod_LoadSubmodels (lump_t *l)
 		out->numfaces = LittleLong (in->numfaces);
 	}
 }
-
+*/
 /*
 =================
 Mod_LoadEdges
 =================
-*/
+*//*
 void Mod_LoadEdges (lump_t *l)
 {
 	dedge_t *in;
@@ -672,12 +678,12 @@ void Mod_LoadEdges (lump_t *l)
 		out->v[1] = (unsigned short)LittleShort(in->v[1]);
 	}
 }
-
+*/
 /*
 =================
 Mod_LoadTexinfo
 =================
-*/
+*//*
 void Mod_LoadTexinfo (lump_t *l)
 {
 	texinfo_t *in;
@@ -738,14 +744,14 @@ void Mod_LoadTexinfo (lump_t *l)
 		}
 	}
 }
-
+*/
 /*
 ================
 CalcSurfaceExtents
 
 Fills in s->texturemins[] and s->extents[]
 ================
-*/
+*//*
 void CalcSurfaceExtents (msurface_t *s)
 {
 	float	mins[2], maxs[2], val;
@@ -787,17 +793,17 @@ void CalcSurfaceExtents (msurface_t *s)
 
 		s->texturemins[i] = bmins[i] * 16;
 		s->extents[i] = (bmaxs[i] - bmins[i]) * 16;
-		if ( !(tex->flags & TEX_SPECIAL) && s->extents[i] > 512 /* 256 */ )
+		if ( !(tex->flags & TEX_SPECIAL) && s->extents[i] > 512 )
 			Sys_Error ("Bad surface extents");
 	}
 }
-
+*/
 
 /*
 =================
 Mod_LoadFaces
 =================
-*/
+*//*
 void Mod_LoadFaces (lump_t *l)
 {
 	dface_t		*in;
@@ -897,13 +903,13 @@ void Mod_LoadFaces (lump_t *l)
 
 	}
 }
-
+*/
 
 /*
 =================
 Mod_SetParent
 =================
-*/
+*//*
 void Mod_SetParent (mnode_t *node, mnode_t *parent)
 {
 	node->parent = parent;
@@ -912,12 +918,12 @@ void Mod_SetParent (mnode_t *node, mnode_t *parent)
 	Mod_SetParent (node->children[0], node);
 	Mod_SetParent (node->children[1], node);
 }
-
+*/
 /*
 =================
 Mod_LoadNodes
 =================
-*/
+*//*
 void Mod_LoadNodes (lump_t *l)
 {
 	int			i, j, count, p;
@@ -959,12 +965,12 @@ void Mod_LoadNodes (lump_t *l)
 	
 	Mod_SetParent (loadmodel->nodes, NULL);	// sets nodes and leafs
 }
-
+*/
 /*
 =================
 Mod_LoadLeafs
 =================
-*/
+*//*
 void Mod_LoadLeafs (lump_t *l)
 {
 	dleaf_t 	*in;
@@ -1052,12 +1058,12 @@ void Mod_LoadLeafs (lump_t *l)
 		out->index = i;
 	}	
 }
-
+*/
 /*
 =================
 Mod_LoadClipnodes
 =================
-*/
+*//*
 void Mod_LoadClipnodes (lump_t *l)
 {
 	dclipnode_t *in, *out;
@@ -1104,14 +1110,14 @@ void Mod_LoadClipnodes (lump_t *l)
 		out->children[1] = LittleShort(in->children[1]);
 	}
 }
-
+*/
 /*
 =================
 Mod_MakeHull0
 
 Deplicate the drawing hull structure as a clipping hull
 =================
-*/
+*//*
 void Mod_MakeHull0 (void)
 {
 	mnode_t		*in, *child;
@@ -1143,12 +1149,12 @@ void Mod_MakeHull0 (void)
 		}
 	}
 }
-
+*/
 /*
 =================
 Mod_LoadMarksurfaces
 =================
-*/
+*//*
 void Mod_LoadMarksurfaces (lump_t *l)
 {	
 	int		i, j, count;
@@ -1172,12 +1178,12 @@ void Mod_LoadMarksurfaces (lump_t *l)
 		out[i] = loadmodel->surfaces + j;
 	}
 }
-
+*/
 /*
 =================
 Mod_LoadSurfedges
 =================
-*/
+*//*
 void Mod_LoadSurfedges (lump_t *l)
 {	
 	int		i, count;
@@ -1195,13 +1201,13 @@ void Mod_LoadSurfedges (lump_t *l)
 	for ( i=0 ; i<count ; i++)
 		out[i] = LittleLong (in[i]);
 }
-
+*/
 
 /*
 =================
 Mod_LoadPlanes
 =================
-*/
+*//*
 void Mod_LoadPlanes (lump_t *l)
 {
 	int			i, j;
@@ -1234,7 +1240,7 @@ void Mod_LoadPlanes (lump_t *l)
 		out->signbits = bits;
 	}
 }
-
+*/
 /*
 =================
 RadiusFromBounds
@@ -1257,7 +1263,7 @@ float RadiusFromBounds (vec3_t mins, vec3_t maxs)
 =================
 Mod_LoadBrushModel
 =================
-*/
+*//*
 void Mod_LoadBrushModel (model_t *mod, void *buffer)
 {
 	int			i, j;
@@ -1336,7 +1342,7 @@ void Mod_LoadBrushModel (model_t *mod, void *buffer)
 		}
 	}
 }
-
+*/
 /*
 ==============================================================================
 
@@ -1548,7 +1554,7 @@ void *Mod_LoadAllSkins (int numskins, daliasskintype_t *pskintype)
 	Sys_Error ("Mod_LoadAliasModel: Invalid # of skins: %d\n", numskins);
 
     s = pheader->skinwidth * pheader->skinheight;
-
+	
     for (i=0 ; i<numskins ; i++)
     {
 	if (pskintype->type == ALIAS_SKIN_SINGLE) {
@@ -1560,6 +1566,7 @@ void *Mod_LoadAllSkins (int numskins, daliasskintype_t *pskintype)
 	    pheader->texels[i] = texels - (byte *)pheader;
 	    memcpy (texels, (byte *)(pskintype + 1), s);
 	    //		}
+		/*
 	    sprintf (name, "%s_%i", loadmodel->name, i);
 	    pheader->gl_texturenum[i][0] =
 		pheader->gl_texturenum[i][1] =
@@ -1572,7 +1579,7 @@ void *Mod_LoadAllSkins (int numskins, daliasskintype_t *pskintype)
 		pheader->gl_lumatex[i][2] =
 		pheader->gl_lumatex[i][3] =
 		GL_LoadLuma (name, true);
-
+		*/
 	    pskintype = (daliasskintype_t *)((byte *)(pskintype+1) + s);
 	} else {
 	    // animating skin group.  yuck.
@@ -1591,21 +1598,23 @@ void *Mod_LoadAllSkins (int numskins, daliasskintype_t *pskintype)
 		    pheader->texels[i] = texels - (byte *)pheader;
 		    memcpy (texels, (byte *)(pskintype), s);
 		}
+		/*
 		sprintf (name, "%s_%i_%i", loadmodel->name, i,j);
 		pheader->gl_texturenum[i][j&3] = 
 		    GL_LoadTexture (name, pheader->skinwidth, 
 				    pheader->skinheight, (byte *)(pskintype), true, false, true);
 		pheader->gl_lumatex[i][j&3] = GL_LoadLuma(name, true);
+		*/
 
 		pskintype = (daliasskintype_t *)((byte *)(pskintype) + s);
 	    }
 	    k = j;
-	    for (/* */; j < 4; j++)
-		pheader->gl_texturenum[i][j&3] = 
-		    pheader->gl_texturenum[i][j - k]; 
+	    //for (; j < 4; j++)
+		//pheader->gl_texturenum[i][j&3] = 
+		//    pheader->gl_texturenum[i][j - k]; 
 	}
     }
-
+	
     return (void *)pskintype;
 }
 
@@ -1628,6 +1637,7 @@ void Mod_LoadAliasModel (model_t *mod, void *buffer)
 	daliasskintype_t	*pskintype;
 	int					start, end, total;
         alias3data_t			*palias3;
+	char				shadername[128];
 	
 	start = Hunk_LowMark ();
 
@@ -1704,6 +1714,10 @@ void Mod_LoadAliasModel (model_t *mod, void *buffer)
 //
 	pskintype = (daliasskintype_t *)&pinmodel[1];
 	pskintype = Mod_LoadAllSkins (pheader->numskins, pskintype);
+
+//load a hard coded skin
+	sprintf(shadername,"textures/skins/%s",loadname);
+	pheader->shader = GL_ShaderForName(shadername);
 
 //
 // load base s and t vertices
