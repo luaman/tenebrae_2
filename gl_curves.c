@@ -26,7 +26,24 @@ No dynamic lod...
 
 int			numleafbrushes;
 
-mcurve_t	*curvechain = NULL;
+//these are just utility structures
+typedef struct {
+	int firstcontrol;
+	int firstvertex;
+	int controlwidth, controlheight;
+	int width, height;
+} curve_t;
+
+typedef struct {
+	vec3_t		position;
+	float		texture[2];
+	float		lightmap[2];
+    byte		color[4];
+	vec3_t		tangent;
+	vec3_t		binormal;
+	vec3_t		normal;
+} meshvertex_t;
+
 
 #define MAX_BIN 10
 int binomials[MAX_BIN][MAX_BIN];
@@ -72,14 +89,15 @@ EvaluateBezier
 Evaluates the bezier surface with given control points at the u,v parameters
 =================
 */
-void EvaluateBezier(mmvertex_t *controlpoints,int ofsw, int ofsh, int width, int height, float u, float v,mmvertex_t *result) {
+void EvaluateBezier(mmvertex_t *controlpoints,int ofsw, int ofsh, int width, int height, float u, float v,meshvertex_t *result) {
 
 	int i,j;
 	float scale;
 	float color[4];
 	int	n=3;
 	int	m=3;
-	mmvertex_t *controlpoint;
+	mmvertex_t *controlpoint, *controlpoint2;
+	vec3_t temp;
 
 	for (i=0; i<4; i++) {
 		color[i] = 0.0f;
@@ -87,6 +105,9 @@ void EvaluateBezier(mmvertex_t *controlpoints,int ofsw, int ofsh, int width, int
 
 	for (i=0; i<3; i++) {
 		result->position[i] = 0.0;
+		result->tangent[i] = 0.0;
+		result->normal[i] = 0.0;
+		result->binormal[i] = 0.0;
 	}
 
 	for (i=0; i<2; i++) {
@@ -94,6 +115,7 @@ void EvaluateBezier(mmvertex_t *controlpoints,int ofsw, int ofsh, int width, int
 		result->lightmap[i] = 0.0;
 	}
 
+	//Calculate vertices & texture coords
 	for (i=0; i<n; i++) {
 		for (j=0; j<m; j++) {
 			scale = Bernstein(i,n-1,u)*Bernstein(j,m-1,v);
@@ -116,12 +138,60 @@ void EvaluateBezier(mmvertex_t *controlpoints,int ofsw, int ofsh, int width, int
 		}
 	}
 
+	//Yeah parametric tangent space! (done by deriving the function to u or v)
+/*	
+	//tangent
+	for (i=0; i<n; i++) {
+		for (j=0; j<m-1; j++) {
+			scale = Bernstein(i,n-1,u)*Bernstein(j,m-2,v);
+
+			controlpoint = &controlpoints[(ofsw+i)+(ofsh+j+1)*width];
+			controlpoint2 = &controlpoints[(ofsw+i)+(ofsh+j)*width];
+			VectorSubtract(controlpoint->position,controlpoint2->position, temp);
+			result->tangent[0] +=  scale*temp[0];
+			result->tangent[1] +=  scale*temp[1];
+			result->tangent[2] +=  scale*temp[2];
+		}
+	}
+	VectorScale(result->tangent,m-1,result->tangent);
+	VectorNormalize(result->tangent); //needed?
+
+	//binormal
+	for (i=0; i<n-1; i++) {
+		for (j=0; j<m; j++) {
+			scale = Bernstein(i,n-2,u)*Bernstein(j,m-1,v);
+
+			controlpoint = &controlpoints[(ofsw+i+1)+(ofsh+j)*width];
+			controlpoint2 = &controlpoints[(ofsw+i)+(ofsh+j)*width];
+			VectorSubtract(controlpoint->position,controlpoint2->position, temp);
+			result->binormal[0] +=  scale*temp[0];
+			result->binormal[1] +=  scale*temp[1];
+			result->binormal[2] +=  scale*temp[2];
+		}
+	}
+	VectorScale(result->binormal,n-1,result->binormal);
+	VectorNormalize(result->binormal); //needed?
+
+	//normal
+	CrossProduct(result->binormal, result->tangent, result->normal);
+	VectorNormalize(result->normal); //needed?
+*/	
+	/*
+	VectorCopy(result->binormal, temp);
+	VectorCopy(result->tangent, result->binormal);
+	VectorCopy(result->tangent, temp);
+	*/
+	//VectorScale(result->tangent,-1,result->tangent);
+
 	for (i=0; i<4; i++) {
 		result->color[i] = (byte)color[i];
 	}
 }
 
-void EvaluateBiquadraticBeziers(mmvertex_t *controlpoints, int width, int height, float u, float v,mmvertex_t *result) {
+/**
+* Quake3 beziers, are made up out of one or more 3x3 bezier patches
+*/
+void EvaluateBiquadraticBeziers(mmvertex_t *controlpoints, int width, int height, float u, float v,meshvertex_t *result) {
 
 
 //	EvaluateBezier(controlpoints,0,0,width,height,u,v,result);
@@ -147,38 +217,14 @@ void EvaluateBiquadraticBeziers(mmvertex_t *controlpoints, int width, int height
 	EvaluateBezier(controlpoints,ofsx,ofsy,width,height,u,v,result);
 }
 
-
-void MeanVert( mmvertex_t *a, mmvertex_t *b, mmvertex_t *out ) {
-	out->position[0] = 0.5 * (a->position[0] + b->position[0]);
-	out->position[1] = 0.5 * (a->position[1] + b->position[1]);
-	out->position[2] = 0.5 * (a->position[2] + b->position[2]);
-
-	out->texture[0] = 0.5 * (a->texture[0] + b->texture[0]);
-	out->texture[1] = 0.5 * (a->texture[1] + b->texture[1]);
-
-	out->lightmap[0] = 0.5 * (a->lightmap[0] + b->lightmap[0]);
-	out->lightmap[1] = 0.5 * (a->lightmap[1] + b->lightmap[1]);
-
-	out->color[0] = (a->color[0] + b->color[0]) >> 1;
-	out->color[1] = (a->color[1] + b->color[1]) >> 1;
-	out->color[2] = (a->color[2] + b->color[2]) >> 1;
-	out->color[3] = (a->color[3] + b->color[3]) >> 1;
-	
-}
-
-
-/*
-=================
-PutMeshOnCurve
-
-Drops the aproximating points onto the curve
-=================
+/**
+* "Evaluates the controlpoints"
 */
-void PutMeshOnCurve(mcurve_t in, mmvertex_t *verts) {
+void PutMeshOnCurve(curve_t in, mmvertex_t *verts) {
 	int		i, j, l, w, h;
 	float	prev, next;
 	float	du, dv, u ,v;
-	mmvertex_t results[128*128];
+	meshvertex_t results[128*128];
 	du = 1.0f/(in.width-1);
 	dv = 1.0f/(in.height-1);
 
@@ -189,41 +235,29 @@ void PutMeshOnCurve(mcurve_t in, mmvertex_t *verts) {
 	}
 
 	for (i=0; i<in.width*in.height; i++) {
-		verts[i] = results[i];
+		VectorCopy(results[i].position,verts[i].position);
 	}
-
-/*
-	// put all the aproximating points on the curve
-	for (i=0; i<w; i++) {
-		for (j=1; j<h; j+=2) {
-			for (l=0; l<3; l++) {
-				prev = ( verts[j*in.width+i].position[l] + verts[(j+1)*in.width+i].position[l] ) * 0.5;
-				next = ( verts[j*in.width+i].position[l] + verts[(j-1)*in.width+i].position[l] ) * 0.5;
-				verts[j*in.width+i].position[l] = ( prev + next ) * 0.5;
-			}
-		}
-	}
-
-	for (j=0; j<h; j++) {
-		for (i=1; i<w; i+=2) {
-			for (l=0; l<3; l++) {
-				prev = ( verts[j*in.width+i].position[l] + verts[j*in.width+i+1].position[l] ) * 0.5;
-				next = ( verts[j*in.width+i].position[l] + verts[j*in.width+i-1].position[l] ) * 0.5;
-				verts[j*in.width+i].position[l] = ( prev + next ) * 0.5;
-			}
-		}
-	}
-*/
 }
 
-void SubdivideCurve(mcurve_t *in, mmvertex_t *verts, int amount) {
+#define MAX_EXPANDED_AXIS 128
+
+/**
+* Evaluate the mesh, subdivide the control grid amount times.
+* Copies the resulting vertices to the out mesh.
+*/
+void SubdivideCurve(curve_t *in, mesh_t *out, mmvertex_t *verts, int amount) {
 	int		i, j, l, w, h, newwidth, newheight;
 	float	prev, next;
 	float	du, dv, u ,v;
-	mmvertex_t expand[128*128];
+	meshvertex_t *expand;
 
 	newwidth = in->controlwidth*amount;
 	newheight = in->controlheight*amount;
+	
+	//only a temporaly buffer
+	expand = malloc(sizeof(meshvertex_t)*newwidth*newheight);
+
+	if (!expand) Sys_Error("No more memory\n");
 
 	du = 1.0f/(newwidth-1);
 	dv = 1.0f/(newheight-1);
@@ -234,200 +268,113 @@ void SubdivideCurve(mcurve_t *in, mmvertex_t *verts, int amount) {
 		}
 	}
 
-	for (i=0; i<newwidth*newheight; i++) {
-		if (i==0)
-			in->firstvertex = R_AllocateVertexInTemp(expand[i].position,
-						expand[i].texture, expand[i].lightmap, expand[i].color);
-		else
-			R_AllocateVertexInTemp(expand[i].position,
-					expand[i].texture, expand[i].lightmap, expand[i].color);
-	}
-
+	out->numvertices = newwidth*newheight;
 	in->width = newwidth;
 	in->height = newheight;
+/*
+	out->tangents = Hunk_Alloc(sizeof(vec3_t)*out->numvertices);
+	out->binormals = Hunk_Alloc(sizeof(vec3_t)*out->numvertices);
+	out->normals = Hunk_Alloc(sizeof(vec3_t)*out->numvertices);
+*/	
+	for (i=0; i<newwidth*newheight; i++) {
+
+		//put the vertices in the global vertex table
+		if (i==0)
+			out->firstvertex = R_AllocateVertexInTemp(expand[i].position, expand[i].texture, expand[i].lightmap, expand[i].color);
+		else
+			R_AllocateVertexInTemp(expand[i].position, expand[i].texture, expand[i].lightmap, expand[i].color);
+/*
+		VectorCopy(expand[i].binormal, out->binormals[i]);
+		VectorCopy(expand[i].normal, out->normals[i]);
+		VectorCopy(expand[i].tangent, out->tangents[i]);
+*/
+	}
+
+	free(expand);
 }
 
-#define MAX_EXPANDED_AXIS 128
+void CreateIndecies(curve_t *curve, mesh_t *mesh)
+{
+	int i,j, i1, i2, li1, li2;
+	int w,h, index;
 
-int	originalWidths[MAX_EXPANDED_AXIS];
-int	originalHeights[MAX_EXPANDED_AXIS];
+	h = curve->width;
+	w = curve->height;
 
-/*
-=================
-SubdivideMesh
+	mesh->numtriangles = (curve->width-1)*(curve->height-1)*2;
+	mesh->numindecies = mesh->numtriangles*3;
+	mesh->indecies = (int *)Hunk_Alloc(sizeof(int)*mesh->numindecies);
 
-=================
-*/
-/*
-void SubdivideMesh(mcurve_t *in, float maxError, float minLength, mmvertex_t *verts) {
-	int			i, j, k, l;
-	mmvertex_t	prev, next, mid;
-	vec3_t		prevposition, nextposition, midposition;
-	vec3_t		delta;
-	float		len;
-	mmvertex_t	expand[MAX_EXPANDED_AXIS][MAX_EXPANDED_AXIS];
+	li1 = h;
+	li2 = 0;
+	index = 0;
+	for (i=0; i<w-1; i++) {
 
-	for ( i = 0 ; i < in->width ; i++ ) {
-		for ( j = 0 ; j < in->height ; j++ ) {
-			expand[j][i] = verts[j*in->width+i];
+		li1 = (i+1)*h;
+		li2 = i*h;
+		for (j=1; j<h; j++) {
+			i1 = j+(i+1)*h;
+			i2 = j+i*h;
+			
+			mesh->indecies[index++] = li2;
+			mesh->indecies[index++] = li1;
+			mesh->indecies[index++] = i2;
+
+			mesh->indecies[index++] = i2;
+			mesh->indecies[index++] = li1;
+			mesh->indecies[index++] = i1;
+
+			li1 = i1;
+			li2 = i2;
+		}
+	}
+}
+
+void TangentForPoly(int *index, mmvertex_t *vertices,vec3_t Tangent, vec3_t Binormal);
+void NormalForPoly(int *index, mmvertex_t *vertices,vec3_t Normal);
+
+void CreateTangentSpace(mesh_t *mesh) {
+	
+	int i,j;
+	int *num = malloc(sizeof(int)*mesh->numvertices);
+	vec3_t tang, bin, v1, v2, norm;
+
+	Q_memset(num,0,sizeof(int)*mesh->numvertices);
+	mesh->tangents = Hunk_Alloc(sizeof(vec3_t)*mesh->numvertices);
+	mesh->binormals = Hunk_Alloc(sizeof(vec3_t)*mesh->numvertices);
+	mesh->normals = Hunk_Alloc(sizeof(vec3_t)*mesh->numvertices);
+
+	//average for every triangle
+	for (i=0; i<mesh->numtriangles; i++) {
+		TangentForPoly(&mesh->indecies[i*3],&tempVertices[mesh->firstvertex],tang,bin);
+		NormalForPoly(&mesh->indecies[i*3],&tempVertices[mesh->firstvertex],norm);
+
+
+		for (j=0; j<3; j++) {
+			VectorAdd(mesh->tangents[mesh->indecies[i*3+j]],tang,mesh->tangents[mesh->indecies[i*3+j]]);
+			VectorAdd(mesh->binormals[mesh->indecies[i*3+j]],bin,mesh->binormals[mesh->indecies[i*3+j]]);
+			VectorAdd(mesh->normals[mesh->indecies[i*3+j]],norm,mesh->normals[mesh->indecies[i*3+j]]);
+			num[mesh->indecies[i*3+j]]++;
 		}
 	}
 
-	for ( i = 0 ; i < in->height ; i++ ) {
-		originalHeights[i] = i;
-	}
-	for ( i = 0 ; i < in->width ; i++ ) {
-		originalWidths[i] = i;
-	}
+	for (i=0; i<mesh->numvertices; i++) {
+		if (num[i] != 0) {
+			VectorScale(mesh->tangents[i],1.0f/num[i],mesh->tangents[i]);
+			VectorNormalize(mesh->tangents[i]);
 
-	// horizontal subdivisions
-	for ( j = 0 ; j + 2 < in->width ; j += 2 ) {
-		// check subdivided midpoints against control points
-		for ( i = 0 ; i < in->height ; i++ ) {
-			for ( l = 0 ; l < 3 ; l++ ) {
-				prevposition[l] = expand[i][j+1].position[l] - expand[i][j].position[l]; 
-				nextposition[l] = expand[i][j+2].position[l] - expand[i][j+1].position[l]; 
-				midposition[l] = (expand[i][j].position[l] + expand[i][j+1].position[l] * 2
-						+ expand[i][j+2].position[l] ) * 0.25;
-			}
+			VectorScale(mesh->binormals[i],1.0f/num[i],mesh->binormals[i]);
+			VectorNormalize(mesh->binormals[i]);
 
-			// if the span length is too long, force a subdivision
-			if ( Length( prevposition ) > minLength 
-				|| Length( nextposition ) > minLength ) {
-				break;
-			}
+			VectorScale(mesh->normals[i],1.0f/num[i],mesh->normals[i]);
+			VectorNormalize(mesh->normals[i]);
 
-			// see if this midpoint is off far enough to subdivide
-			VectorSubtract( expand[i][j+1].position, midposition, delta );
-			len = Length( delta );
-			if ( len > maxError ) {
-				break;
-			}
-		}
-
-		if ( in->width + 2 >= MAX_EXPANDED_AXIS ) {
-			break;	// can't subdivide any more
-		}
-
-		if ( i == in->height ) {
-			continue;	// didn't need subdivision
-		}
-
-		// insert two columns and replace the peak
-		in->width += 2;
-
-		for ( k = in->width - 1 ; k > j + 3 ; k-- ) {
-			originalWidths[k] = originalWidths[k-2];
-		}
-		originalWidths[j+3] = originalWidths[j+1];
-		originalWidths[j+2] = originalWidths[j+1];
-		originalWidths[j+1] = originalWidths[j];
-
-		for ( i = 0 ; i < in->height ; i++ ) {
-			MeanVert( &expand[i][j], &expand[i][j+1], &prev );
-			MeanVert( &expand[i][j+1], &expand[i][j+2], &next );
-			MeanVert( &prev, &next, &mid );
-
-			for ( k = in->width - 1 ; k > j + 3 ; k-- ) {
-				expand[i][k] = expand[i][k-2];
-			}
-			expand[i][j + 1] = prev;
-			expand[i][j + 2] = mid;
-			expand[i][j + 3] = next;
-		}
-
-		// back up and recheck this set again, it may need more subdivision
-		j -= 2;
-
+			//CrossProduct(mesh->binormals[i], mesh->tangents[i], mesh->normals[i]);
+		} else Con_Printf("num == 0\n");
 	}
 
-	// vertical subdivisions
-	for ( j = 0 ; j + 2 < in->height ; j += 2 ) {
-		// check subdivided midpoints against control points
-		for ( i = 0 ; i < in->width ; i++ ) {
-			for ( l = 0 ; l < 3 ; l++ ) {
-				prevposition[l] = expand[j+1][i].position[l] - expand[j][i].position[l]; 
-				nextposition[l] = expand[j+2][i].position[l] - expand[j+1][i].position[l]; 
-				midposition[l] = (expand[j][i].position[l] + expand[j+1][i].position[l] * 2
-						+ expand[j+2][i].position[l] ) * 0.25;
-			}
-
-			// if the span length is too long, force a subdivision
-			if ( Length( prevposition ) > minLength 
-				|| Length( nextposition ) > minLength ) {
-				break;
-			}
-			// see if this midpoint is off far enough to subdivide
-			VectorSubtract( expand[j+1][i].position, midposition, delta );
-			len = Length( delta );
-			if ( len > maxError ) {
-				break;
-			}
-		}
-
-		if ( in->height + 2 >= MAX_EXPANDED_AXIS ) {
-			break;	// can't subdivide any more
-		}
-
-		if ( i == in->width ) {
-			continue;	// didn't need subdivision
-		}
-
-		// insert two columns and replace the peak
-		in->height += 2;
-
-		for ( k = in->height - 1 ; k > j + 3 ; k-- ) {
-			originalHeights[k] = originalHeights[k-2];
-		}
-		originalHeights[j+3] = originalHeights[j+1];
-		originalHeights[j+2] = originalHeights[j+1];
-		originalHeights[j+1] = originalHeights[j];
-
-		for ( i = 0 ; i < in->width ; i++ ) {
-			MeanVert( &expand[j][i], &expand[j+1][i], &prev );
-			MeanVert( &expand[j+1][i], &expand[j+2][i], &next );
-			MeanVert( &prev, &next, &mid );
-
-			for ( k = in->height - 1 ; k > j + 3 ; k-- ) {
-				expand[k][i] = expand[k-2][i];
-			}
-			expand[j+1][i] = prev;
-			expand[j+2][i] = mid;
-			expand[j+3][i] = next;
-		}
-
-		// back up and recheck this set again, it may need more subdivision
-		j -= 2;
-
-	}
-
-	// collapse the verts
-
-	verts = &expand[0][0];
-	for ( i = 1 ; i < in->height ; i++ ) {
-		memmove( &verts[i*in->width], expand[i], in->width * sizeof(mmvertex_t) );
-	}
-
-	for (i=0; i<in->width; i++) {
-		for (j=0; j<in->height; j++) {
-				if ((i==0) && (j==0))
-					in->firstcontrol = R_AllocateVertexInTemp(expand[j][i].position,
-										expand[j][i].texture, expand[j][i].lightmap, expand[j][i].color);
-				else
-					R_AllocateVertexInTemp(expand[j][i].position,
-						expand[j][i].texture, expand[j][i].lightmap, expand[j][i].color);
-		}
-	}
-*/
-	/*
-	out.verts = &expand[0][0];
-	for ( i = 1 ; i < out.height ; i++ ) {
-		memmove( &out.verts[i*out.width], expand[i], out.width * sizeof(drawVert_t) );
-	}
-
-	return CopyMesh(&out);
-	*/
-//}
+	free(num);
+}
 
 /*
 =================
@@ -437,34 +384,57 @@ Creates a curve from the given surface
 
 =================
 */
-void CS_Create(dq3face_t *in, mcurve_t *curve, texture_t *texture)
+void CS_Create(dq3face_t *in, mesh_t *mesh, mapshader_t *shader)
 {
-	curve->controlwidth = in->patchOrder[0];
-	curve->controlheight = in->patchOrder[1];
-	curve->firstcontrol = in->firstvertex;
+	curve_t curve;
+
+	curve.controlwidth = in->patchOrder[0];
+	curve.controlheight = in->patchOrder[1];
+	curve.firstcontrol = in->firstvertex;
 	
 	//just use the control points as vertices
-	curve->firstvertex = in->firstmeshvertex;
-	curve->width = curve->controlwidth;
-	curve->height = curve->controlheight;
+	curve.firstvertex = in->firstmeshvertex;
 
-	curve->next = NULL;
-	curve->texture = texture;
-
+	//evaluate the mesh vertices
 	if (gl_mesherror.value > 0)
-		SubdivideCurve(curve,&tempVertices[curve->firstcontrol],gl_mesherror.value);
+		SubdivideCurve(&curve, mesh, &tempVertices[curve.firstcontrol], gl_mesherror.value);
+
+	//setup rest of the mesh
+	mesh->shader = shader;
+
+	CreateIndecies(&curve, mesh);
+	CreateTangentSpace(mesh);
+
+	mesh->trans.origin[0] = mesh->trans.origin[1] = mesh->trans.origin[2] = 0.0f;
+	mesh->trans.angles[0] = mesh->trans.angles[1] = mesh->trans.angles[2] = 0.0f;
+	mesh->trans.scale[0] = mesh->trans.scale[1] = mesh->trans.scale[2] = 1.0f;
 
 	//PutMeshOnCurve(*curve,&tempVertices[curve->firstcontrol]);
 	//SubdivideMesh(curve,gl_mesherror.value,1000,&tempVertices[curve->firstcontrol]);
 //	Con_Printf("MeshCurve %i %i %i\n",curve->firstcontrol,curve->controlwidth,curve->controlheight);
 }
 
+/**
+*  Multiplies the curve's color with the current lightmap brightness.
+*/
+void CS_SetupMeshColors(mesh_t *mesh)
+{
+	int i;
+
+	for (i=0; i<mesh->numvertices; i++) {
+		globalVertexTable[i+mesh->firstvertex].color[0] = (int)(globalVertexTable[i+mesh->firstvertex].color[0]*sh_lightmapbright.value);
+		globalVertexTable[i+mesh->firstvertex].color[1] = (int)(globalVertexTable[i+mesh->firstvertex].color[1]*sh_lightmapbright.value);
+		globalVertexTable[i+mesh->firstvertex].color[2] = (int)(globalVertexTable[i+mesh->firstvertex].color[2]*sh_lightmapbright.value);
+	}
+}
+
+/*
 void CS_DrawAmbient(mcurve_t *curve)
 {
 	int i,j, i1, i2;
 	int w,h;
 
-	GL_Bind(curve->texture->gl_texturenum);
+	//GL_Bind(curve->texture->gl_texturenum);
 	glShadeModel (GL_SMOOTH);
 	//Con_Printf("Drawcurve %i %i %i\n",curve->firstvertex,curve->width,curve->height);
 	h = curve->width;
@@ -487,3 +457,4 @@ void CS_DrawAmbient(mcurve_t *curve)
 		glEnd();
 	}
 }
+*/
