@@ -586,7 +586,7 @@ void R_MarkShadowCasting (shadowlight_t *light, mnode_t *node)
 	mleaf_t		*leaf;
 	int			c,leafindex;
 
-	if (node->contents < 0) {
+	if (node->contents & CONTENTS_LEAF) {
 		//we are in a leaf
 		leaf = (mleaf_t *)node;
 		leafindex = leaf->cluster;
@@ -1770,7 +1770,7 @@ void R_RecursiveShadowAdd(mnode_t *node)
 		return;		// solid
 	}
 
-	if (node->contents < 0) {
+	if (node->contents & CONTENTS_LEAF) {
 		return;		// leaf
 	}
 
