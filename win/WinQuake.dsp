@@ -162,8 +162,6 @@ SOURCE=..\gl_bumparb.c
 
 !ELSEIF  "$(CFG)" == "winquake - Win32 GL Release"
 
-# PROP Exclude_From_Build 1
-
 !ENDIF 
 
 # End Source File
@@ -187,8 +185,6 @@ SOURCE=..\gl_bumpparhelia.c
 
 !ELSEIF  "$(CFG)" == "winquake - Win32 GL Release"
 
-# PROP Exclude_From_Build 1
-
 !ENDIF 
 
 # End Source File
@@ -200,7 +196,7 @@ SOURCE=..\gl_bumpradeon.c
 
 !ELSEIF  "$(CFG)" == "winquake - Win32 GL Release"
 
-# PROP Exclude_From_Build 1
+# ADD CPP /FR
 
 !ENDIF 
 
