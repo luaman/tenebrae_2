@@ -50,8 +50,12 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 
 // - DC -
-#if defined (SDL) 
+#if defined (SDL)
+#if defined(__FreeBSD__)
+#include <SDL11/SDL_opengl.h>
+#else 
 #include <SDL/SDL_opengl.h>
+#endif
 #endif
 
 #if defined (__glx__)

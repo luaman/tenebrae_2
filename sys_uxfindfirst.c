@@ -36,7 +36,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "quakedef.h"
 #include <errno.h>
 
-#if !defined(__GLIBC__)
+#if !defined(__FreeBSD__) && !defined(__GLIBC__)
 
 #include <dirent.h>
 #include <fnmatch.h>

@@ -55,8 +55,11 @@ int yylex ( void );
 #endif
 
 #include <stdio.h>
+#if defined(__FreeBSD__)
+#include <stdlib.h>
+#else
 #include <malloc.h>
-
+#endif
 #include "rc1.0_combiners.h"
 #include "nvparse_errors.h"
 #include "nvparse_externs.h"

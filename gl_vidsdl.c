@@ -5,8 +5,11 @@
 #include <dlfcn.h>
 
 #include <SDL.h>
+#if defined(__FreeBSD__)
+#include <SDL11/SDL_opengl.h>
+#else
 #include <SDL/SDL_opengl.h>
-
+#endif
 #include "quakedef.h"
 
 viddef_t    vid;                // global video state
