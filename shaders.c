@@ -542,6 +542,8 @@ char *ParseShader (char *data, shader_t *shader)
 			data = COM_SkipLine(data);
 		} else if (!strcmp(command,"nomipmaps")) {
 			shader->mipmap = false;
+		} else if (!strcmp(command,"noshadow")) {
+			shader->flags |= SURF_NOSHADOW;
 		} else if (!strcmp(command,"cull")) {
 			GET_SAFE_TOKEN;
 			if (!strcmp(com_token,"disable")) {
@@ -639,4 +641,7 @@ void R_ShutdownShaders() {
 		shaderList = shaderList->next;
 		free(s);
 	}
+
+	//free video textures and such
+	GL_ShutdownTextures();
 }
