@@ -89,12 +89,14 @@ typedef struct qmelement_s
 
 
 typedef qwidget_t qmelement_t;
+typedef struct drawfont_s drawfont_t;
 struct qwidget_s
 {
 	qmtable_t        *mtable;
 	char             *name;       // stored in a string table
 	char             *id;         // idem
 	char             *tag;
+	drawfont_t		 *font;		  //font to use for this item and all sub items
 	int               num_children;	
 	qmelement_t      *parent;     // bounding element
 	qmelement_t      *previous;   // previous sibling

@@ -249,6 +249,7 @@ qwidget_t box_template =
 				DEF_STR_VALUE,           // name
 				DEF_STR_VALUE,           // id
 				box_tag,         // tag
+				NULL,			//font
 				0,            // num_children
 				NULL,         // parent
 				NULL,         // previous
@@ -279,6 +280,7 @@ qwidget_t vbox_template =
 				DEF_STR_VALUE,           // name
 				DEF_STR_VALUE,           // id
 				vbox_tag,     // tag
+				NULL,			//font
 				0,            // num_children
 				NULL,         // parent
 				NULL,         // previous
@@ -309,6 +311,7 @@ qwidget_t label_template =
 				DEF_STR_VALUE,           // name
 				DEF_STR_VALUE,           // id
 				label_tag,    // tag
+				NULL,			//font
 				0,            // num_children
 				NULL,         // parent
 				NULL,         // previous
@@ -339,6 +342,7 @@ qwidget_t image_template =
 				DEF_STR_VALUE,           // name
 				DEF_STR_VALUE,           // id
 				image_tag,         // tag
+				NULL,			//font
 				0,            // num_children
 				NULL,         // parent
 				NULL,         // previous
@@ -369,6 +373,7 @@ qwidget_t button_template =
 				DEF_STR_VALUE,           // name
 				DEF_STR_VALUE,           // id
 				button_tag,         // tag
+				NULL,			//font
 				0,            // num_children
 				NULL,         // parent
 				NULL,         // previous
@@ -399,6 +404,7 @@ qwidget_t checkbox_template =
 				DEF_STR_VALUE,           // name
 				DEF_STR_VALUE,           // id
 				checkbox_tag,         // tag
+				NULL,			//font
 				0,            // num_children
 				NULL,         // parent
 				NULL,         // previous
@@ -429,6 +435,7 @@ qwidget_t radio_template =
 				DEF_STR_VALUE,           // name
 				DEF_STR_VALUE,           // id
 				radio_tag,         // tag
+				NULL,			//font
 				0,            // num_children
 				NULL,         // parent
 				NULL,         // previous
@@ -459,6 +466,7 @@ qwidget_t rgroup_template =
 				DEF_STR_VALUE,           // name
 				DEF_STR_VALUE,           // id
 				rgroup_tag,         // tag
+				NULL,			//font
 				0,            // num_children
 				NULL,         // parent
 				NULL,         // previous
@@ -489,6 +497,7 @@ qwidget_t slider_template =
 				DEF_STR_VALUE,           // name
 				DEF_STR_VALUE,           // id
 				slider_tag,         // tag
+				NULL,			//font
 				0,            // num_children
 				NULL,         // parent
 				NULL,         // previous
@@ -519,6 +528,7 @@ qwidget_t edit_template =
 			DEF_STR_VALUE,           // name
 			DEF_STR_VALUE,           // id
 			edit_tag,         // tag
+			NULL,			//font
 			0,            // num_children
 			NULL,         // parent
 			NULL,         // previous
@@ -549,6 +559,7 @@ qwidget_t window_template =
 				DEF_STR_VALUE,           // name
 				DEF_STR_VALUE,           // id
 				window_tag,         // tag
+				NULL,			//font
 				0,            // num_children
 				NULL,         // parent
 				NULL,         // previous
@@ -708,8 +719,7 @@ static struct qwindow_dummy_t {
 */
 
 qwindow_t *windows_stack = NULL;
-
-
+drawfont_t *currentFont = NULL;
 
 void M_AddWindowInList (qwindow_t *window)
 {
@@ -1034,6 +1044,7 @@ void M_Init (void)
 	COM_FindAllExt ("menu", "xul", M_LoadXmlWindowFile);
 	Con_Printf("=================================\n");
 
+	currentFont = Draw_DefaultFont();
 	focus_shader = GL_ShaderForName ("menu/focus");
 }
 
@@ -1064,9 +1075,6 @@ void M_Menu_Options_f (void)
 {
 	Cbuf_AddText ("openwindow help\n");
 }
-
-void (*vid_menudrawfn)(void);
-void (*vid_menukeyfn)(int key);
 
 /*
 ========
@@ -1658,24 +1666,19 @@ void M_DrawTransPic (int x, int y, qpic_t *pic)
 ================
 M_DrawString
 
-draws the str string of length len in the (x1,y1,x2,y2) frame 
+draws the str string of length len in the (x1,y1,x2,y2) rectangle 
 ================
 */
 int M_DrawString (int x1, int y1, int x2, int y2, char *str, int len)
 {
 	// calculate string width and height, center it
-	int w = len * 8;
-	int h = 16;
+	int w = Draw_StringWidth(str, currentFont);
+	int h = Draw_StringHeight(str, currentFont);
 	int x = x1 + (x2 - x1 - w)/2;
 	int y = y1 + (y2 - y1 - h)/2;
-	while (*str && len)
-	{
-		M_DrawCharacter (x, y, (*str)+128);
-		str++;
-		x += 8;
-		len--;
-	}
-	return x;
+
+	Draw_StringFont(x, y, str, currentFont);
+	return x + w;
 }
 
 /*
@@ -1921,6 +1924,13 @@ void M_DrawXmlNestedWidget (qwidget_t *self, int xpos, int ypos)
 	// all objects within the window tree have to be a widget
 	//qwidget_t *widget=ptr;
 	qwidget_t *w;
+	drawfont_t *fontStack;
+	
+	//save the current font on the stack
+	//and set the widget's font as current font
+	fontStack = currentFont;
+	if (self->font)
+		currentFont = self->font;
 
 	if (self->mtable->Draw){
 		self->mtable->Draw (self, xpos, ypos);
@@ -1934,8 +1944,10 @@ void M_DrawXmlNestedWidget (qwidget_t *self, int xpos, int ypos)
 		// draw outlines
 		M_DrawOutlines (self, xpos, ypos);
 	}
-	if (self->children == NULL)
+	if (self->children == NULL) {
+		currentFont = fontStack; //restore font
 		return;
+	}
 	// vertical orientation
 	if (self->orient) {
 		int wwidth;
@@ -1989,6 +2001,8 @@ void M_DrawXmlNestedWidget (qwidget_t *self, int xpos, int ypos)
 			break;
 		}
 	}
+
+	currentFont = fontStack;
 }
 
 void M_DrawWindow (qwindow_t *wnd)
@@ -2079,6 +2093,7 @@ char *M_ReadXmlPropAsString (xmlNodePtr node, char *name, char *ret, int size)
 	value = xmlGetProp (node, name);
 	if (value){
 		strncpy (ret, (char *)value, size);
+		ret[size-1] = 0;
 		xmlFree (value);
 	} else
 		ret=EMPTY_STR;
@@ -2364,12 +2379,12 @@ void M_LoadXmlLabel (qwidget_t *self, xmlNodePtr node)
 {
 	/* 
 	 * --- supported attributes :
-	 
-	   disabled   =  bool   
+
 	   value      =  string : label text
 
 	 * --- unsupported :
 
+	   disabled   =  bool
 	   control    =  string : xul element id 
 	   accesskey  =  string 
 
@@ -2549,10 +2564,9 @@ void M_LoadXmlSlider (qwidget_t *self, xmlNodePtr node)
 
 	   curpos     =  [0,maxpos] : cursor position
 	   maxpos     =  int : maximum cursor value
-	   pageincrement =  int 
 
 	 * --- unsupported :
-	 
+	   pageincrement =  int 	 
    	   increment  =  int : 
 
 	*/
@@ -2705,6 +2719,7 @@ void M_LoadXmlElement (qwidget_t *self, xmlNodePtr root)
 	*/
 
 	int temp;
+	char buffer[MAX_QPATH];
 	
 	// read general attributes from the file 
 	
@@ -2715,6 +2730,13 @@ void M_LoadXmlElement (qwidget_t *self, xmlNodePtr root)
 	self->id = M_ReadXmlPropAsRefString (root, "id");
 	self->name = M_ReadXmlPropAsRefString (root, "name");
 
+	//check for a font
+	buffer[0] = 0;
+	self->font = NULL;
+	M_ReadXmlPropAsString (root, "font", buffer, sizeof(buffer));
+	if (buffer[0])
+		self->font = Draw_FontForName(buffer);
+		
 	temp = M_CompareXmlProp (root, "orient", xmlorient, 2);
 	if (temp != -1)
 		self->orient = temp;
