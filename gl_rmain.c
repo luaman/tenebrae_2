@@ -154,6 +154,7 @@ cvar_t  fog_waterfog = {"fog_waterfog","1"};
 float fog_color[4];
 cvar_t	r_tangentscale = {"r_tangentscale","1"}; 
 cvar_t	sh_delux = {"sh_delux","1"};
+cvar_t	sh_rtlights = {"sh_rtlights","1"};
 
 mirrorplane_t mirrorplanes[NUM_MIRROR_PLANES];
 int mirror_contents;
@@ -208,7 +209,7 @@ void R_RotateForEntity (entity_t *e)
     glTranslatef (e->origin[0],  e->origin[1],  e->origin[2]);
 
     glRotatef (e->angles[1],  0, 0, 1);
-    glRotatef (-e->angles[0],  0, 1, 0);
+    glRotatef (-e->angles[0], 0, 1, 0);
     glRotatef (e->angles[2],  1, 0, 0);
 }
 
@@ -241,10 +242,7 @@ R_GetSpriteFrame
 mspriteframe_t *R_GetSpriteFrame (entity_t *currententity)
 {
 	msprite_t		*psprite;
-	mspritegroup_t	*pspritegroup;
-	mspriteframe_t	*pspriteframe;
-	int				i, numframes, frame;
-	float			*pintervals, fullinterval, targettime, time;
+	int				frame;
 
 	psprite = currententity->model->cache.data;
 	frame = currententity->frame;
@@ -255,104 +253,81 @@ mspriteframe_t *R_GetSpriteFrame (entity_t *currententity)
 		frame = 0;
 	}
 
-	if (psprite->frames[frame].type == SPR_SINGLE)
-	{
-		pspriteframe = psprite->frames[frame].frameptr;
-	}
-	else
-	{
-		pspritegroup = (mspritegroup_t *)psprite->frames[frame].frameptr;
-		pintervals = pspritegroup->intervals;
-		numframes = pspritegroup->numframes;
-		fullinterval = pintervals[numframes-1];
-
-		time = cl.time + currententity->syncbase;
-
-	// when loading in Mod_LoadSpriteGroup, we guaranteed all interval values
-	// are positive, so we don't have to worry about division by 0
-		targettime = time - ((int)(time / fullinterval)) * fullinterval;
-
-		for (i=0 ; i<(numframes-1) ; i++)
-		{
-			if (pintervals[i] > targettime)
-				break;
-		}
-
-		pspriteframe = pspritegroup->frames[i];
-	}
-
-	return pspriteframe;
+	return &psprite->frames[frame];
 }
 
 /*
 =================
 R_DrawSpriteModel
 
+We allow any shader on a sprite now
 =================
 */
-#define VectorScalarMult(a,b,c) {c[0]=a[0]*b;c[1]=a[1]*b;c[2]=a[2]*b;}
-void R_DrawSpriteModel (entity_t *e) //Oriented Sprite Fix - Eradicator
+void R_DrawSpriteModel (entity_t *e)
 {
-	vec3_t	point;
-	mspriteframe_t	*frame;
-	float		*up, *right;
-	vec3_t		v_forward, v_right, v_up;
 	msprite_t		*psprite;
-	vec3_t		fixed_origin;
-	vec3_t		temp;
+	mspriteframe_t	*frame;
 
-	// don't even bother culling, because it's just a single
-	// polygon without a surface cache
+	float		*up, *right;
+	float		*point, *tex;
+
+	float		verts[4*3];
+	float		texco[4*2];
+	int			indecies[6] = {0,1,2,2,3,0};
+
+	vertexdef_t	def;
+
 	frame = R_GetSpriteFrame (e);
 	psprite = currententity->model->cache.data;
 
-	VectorCopy(e->origin,fixed_origin);
+	up = vup;
+	right = vright;
 
-	if (psprite->type == SPR_ORIENTED)
-	{	// bullet marks on walls
-		AngleVectors (currententity->angles, v_forward, v_right, v_up);
-		VectorScalarMult(v_forward,-2,temp);
-		VectorAdd(temp,fixed_origin,fixed_origin);
-		up = v_up;
-		right = v_right;
-	}
-	else
-	{	// normal sprite
-		up = vup;
-		right = vright;
-	}
+	point = verts;
+	tex = texco;
 
-	GL_DisableMultitexture();
-
-    GL_Bind(frame->gl_texturenum);
-
-	glEnable (GL_ALPHA_TEST);
-	glBegin (GL_QUADS);
-
-	glTexCoord2f (0, 1);
-	//VectorMA (e->origin, frame->down, up, point); //Old
-	VectorMA (fixed_origin, frame->down, up, point); //Fixed Origin
+	//Point 1
+	VectorMA (e->origin, frame->down, up, point);
 	VectorMA (point, frame->left, right, point);
-	glVertex3fv (point);
+	tex[0] = 0;
+	tex[1] = 1;
+	point += 3;
+	tex += 2;
 
-	glTexCoord2f (0, 0);
-	VectorMA (fixed_origin, frame->up, up, point);
+	//Point 2
+	VectorMA (e->origin, frame->up, up, point);
 	VectorMA (point, frame->left, right, point);
-	glVertex3fv (point);
+	tex[0] = 0;
+	tex[1] = 0;
+	point += 3;
+	tex += 2;
 
-	glTexCoord2f (1, 0);
-	VectorMA (fixed_origin, frame->up, up, point);
+	//Point 3
+	VectorMA (e->origin, frame->up, up, point);
 	VectorMA (point, frame->right, right, point);
-	glVertex3fv (point);
+	tex[0] = 1;
+	tex[1] = 0;
+	point += 3;
+	tex += 2;
 
-	glTexCoord2f (1, 1);
-	VectorMA (fixed_origin, frame->down, up, point);
+	//Point 4
+	VectorMA (e->origin, frame->down, up, point);
 	VectorMA (point, frame->right, right, point);
-	glVertex3fv (point);
-	
-	glEnd ();
+	tex[0] = 1;
+	tex[1] = 1;
+	point += 3;
+	tex += 2;
 
-	glDisable (GL_ALPHA_TEST);
+	Q_memset(&def,0,sizeof(vertexdef_t));
+	def.vertices = verts;
+	def.texcoords = texco;
+	def.tangents = NULL;
+	def.binormals = NULL;
+	def.normals = NULL;
+	def.lightmapcoords = NULL;
+	def.colors = NULL;
+
+	gl_bumpdriver.drawTriangleListBase(&def, indecies, 6, frame->shader, -1);
 }
 
 /*
@@ -1379,12 +1354,12 @@ void R_DrawLightSprites (void)
 
         if (currententity->model->type == mod_sprite)
         {
-            if ( ((msprite_t *)currententity->model->cache.data)->type
-                >= SPR_VP_PARALLEL_UPRIGHT_OVER )
+            //if ( ((msprite_t *)currententity->model->cache.data)->type
+            //    >= SPR_VP_PARALLEL_UPRIGHT_OVER )
             {
 
-                if (currententity->light_lev)
-                    continue;
+                //if (currententity->light_lev)
+                //    continue;
 
                 //We do attent instead of opengl since gl doesn't seem to do
                 //what we want, it never really gets to zero.
@@ -1401,9 +1376,9 @@ void R_DrawLightSprites (void)
                           currentshadowlight->color[2]*colorscale);
 
                 if ( currentshadowlight->filtercube )
-                    R_DrawSpriteModelWV(currententity);
+                    R_DrawSpriteModelLightWV(currententity);
                 else
-                    R_DrawSpriteModel(currententity);
+                    R_DrawSpriteModelLight(currententity);
             }
         }
     }
@@ -1434,31 +1409,32 @@ void R_DrawFullbrightSprites (void)
 	if ( cl_numvisedicts == 0 )
             return;
 
-	glEnable(GL_BLEND);
-	glBlendFunc(GL_SRC_ALPHA,GL_ONE);
+//	glEnable(GL_BLEND);
+//	glBlendFunc(GL_SRC_ALPHA,GL_ONE);
 	glDepthMask(0);
-	GL_DisableMultitexture();
+//	GL_DisableMultitexture();
 
 	for (i=0 ; i<cl_numvisedicts ; i++)
 	{
 		currententity = cl_visedicts[i];
 	
 		if (currententity->model->type == mod_sprite) {
-			if (((msprite_t *)currententity->model->cache.data)->type >= SPR_VP_PARALLEL_UPRIGHT_OVER) {
-				if (currententity->light_lev) {
+			//if (((msprite_t *)currententity->model->cache.data)->type >= SPR_VP_PARALLEL_UPRIGHT_OVER) {
+			//	if (currententity->light_lev) {
 					
-					glColor3fv(&currententity->color[0]);
+			//		glColor3fv(&currententity->color[0]);
 					R_DrawSpriteModel(currententity);
-				}
-			} else {
-                                        glColor3f(1.0f, 1.0f, 1.0f);
-					R_DrawSpriteModel(currententity);
-			}
+			//	}
+			//} else {
+            //                            glColor3f(1.0f, 1.0f, 1.0f);
+			//		R_DrawSpriteModel(currententity);
+			//}
 		}
 	}
 
-	glDisable(GL_BLEND);
+//	glDisable(GL_BLEND);
 	glDepthMask(1);
+
 }
 
 /*
@@ -2130,6 +2106,7 @@ void R_RenderScene (void)
 
 	glFogfv(GL_FOG_COLOR, color_black);
 
+	if (sh_rtlights.value)
 	for (i=0; i<numUsedShadowLights; i++) {
 
 		l = usedshadowlights[i];
@@ -2234,10 +2211,13 @@ void R_RenderScene (void)
 		glDisable(GL_STENCIL_TEST);
 
 		//sprites only recive "shadows" from the cubemap not the stencil
-
+		//disable scissorint for the sprites (gives "cut off" artefacts otherwise)
+		glDisable(GL_SCISSOR_TEST);
 		if (!sh_visiblevolumes.value) {
 			R_DrawLightSprites ();
 		}
+		if (!sh_noscissor.value)
+			glEnable(GL_SCISSOR_TEST);
 
 		glDepthMask(GL_TRUE);		
 
