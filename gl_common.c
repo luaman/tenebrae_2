@@ -25,12 +25,9 @@ const char     *gl_vendor;
 const char     *gl_renderer;
 const char     *gl_version;
 const char     *gl_extensions;
-qboolean fullsbardraw = false;
-
 
 float           vid_gamma = 1.0;
 
-qboolean        isPermedia = false;
 qboolean        gl_mtexable = false;
 qcardtype       gl_cardtype = GENERIC;
 qboolean        gl_var = false; //PENTA: vertex array range is available
@@ -79,12 +76,6 @@ occlusion_cut_meshes;
 occlusion_cut_entities;
 occlusion_cut_lights;
 
-unsigned short  d_8to16table[256];
-unsigned        d_8to24table[256];
-unsigned char   d_15to8table[65536];
-unsigned char   d_8to8graytable[256];
-
-
 /*-----------------------------------------------------------------------*/
 
 void GL_checkerror(char *file, int line)
@@ -105,123 +96,8 @@ void GL_checkerror(char *file, int line)
 
 int Q_strncasecmp (char *s1,char *s2,int count);
 
-
-void VID_SetPalette (unsigned char *palette)
-{
-     byte           *pal;
-     unsigned        r,g,b;
-     unsigned        a;
-     unsigned        v;
-     int             r1,g1,b1;
-     int		j,k,l,m;
-     unsigned short  i;
-     unsigned       *table;
-     unsigned char  *shade;
-     int             dist, bestdist;
-
-//
-// 8 8 8 encoding
-//
-     pal = palette;
-     table = d_8to24table;
-     shade = d_8to8graytable;
-     for (i=0 ; i<256 ; i++)
-     {
-          r = pal[0];
-          g = pal[1];
-          b = pal[2];
-          pal += 3;
-		
-          //PENTA: fullbright colors
-          //a = i;//(i >= 192) ? 255 : 0;
-          a = 255;
-          v = (a<<24) + (r<<0) + (g<<8) + (b<<16);
-          *table++ = v;
-          //PENA: Grayscale conversion for bump maps
-          *shade++ = ((r+g+b)/3);
-     }
-     d_8to24table[255] &= 0xffffff;	// 255 is transparent
-
-     // JACK: 3D distance calcs - k is last closest, l is the distance.
-     // FIXME: Precalculate this and cache to disk.
-     for (i=0; i < (1<<15); i++) {
-          /* Maps
-             000000000000000
-             000000000011111 = Red  = 0x1F
-             000001111100000 = Blue = 0x03E0
-             111110000000000 = Grn  = 0x7C00
-          */
-          r = ((i & 0x1F) << 3)+4;
-          g = ((i & 0x03E0) >> 2)+4;
-          b = ((i & 0x7C00) >> 7)+4;
-          pal = (unsigned char *)d_8to24table;
-          for (v=0,k=0,bestdist=10000*10000; v<256; v++,pal+=4) {
-               r1 = (int)r - (int)pal[0];
-               g1 = (int)g - (int)pal[1];
-               b1 = (int)b - (int)pal[2];
-               dist = (r1*r1)+(g1*g1)+(b1*b1);
-               if (dist < bestdist) {
-                    k=v;
-                    bestdist = dist;
-               }
-          }
-          d_15to8table[i]=k;
-     }
-}
-
-//BOOL	gammaworks;
-
-void	VID_ShiftPalette (unsigned char *palette)
-{
-//	extern	byte ramps[3][256];
-	
-//	VID_SetPalette (palette);
-
-//	gammaworks = SetDeviceGammaRamp (maindc, ramps);
-}
-
-
-
-/*
-  BINDTEXFUNCPTR bindTexFunc;
-
-  #define TEXTURE_EXT_STRING "GL_EXT_texture_object"
-
-/*
-PENTA; not used anymore
-*/
-/*
-  void CheckArrayExtensions (void)
-  {
-  char		*tmp;
-
-  // check for texture extension 
-  tmp = (unsigned char *)glGetString(GL_EXTENSIONS);
-  while (*tmp)
-  {
-  if (strncmp((const char*)tmp, "GL_EXT_vertex_array", strlen("GL_EXT_vertex_array")) == 0)
-  {
-  if (
-  ((SAFE_GET_PROC (glArrayElementEXT, (void *), "glArrayElementEXT")) == NULL) ||
-  ((SAFE_GET_PROC (glColorPointerEXT, (void *), "glColorPointerEXT")) == NULL) ||
-  ((SAFE_GET_PROC (glTexCoordPointerEXT, (void *), "glTexCoordPointerEXT")) == NULL) ||
-  ((SAFE_GET_PROC (glVertexPointerEXT, (void *), "glVertexPointerEXT")) == NULL) )
-  {
-  Sys_Error ("GetProcAddress for vertex extension failed");
-  return;
-  }
-  return;
-  }
-  tmp++;
-  }
-
-  Sys_Error ("Vertex array extension not present");
-  }
-*/
-
 void CheckMultiTextureExtensions(void)
 {
-
      if (strstr(gl_extensions, "GL_ARB_multitexture")) {
 
           SAFE_GET_PROC (qglActiveTextureARB,PFNGLACTIVETEXTUREARBPROC,"glActiveTextureARB");
@@ -305,7 +181,8 @@ void CheckGeforce3Extensions(void)
      //Con_Printf("%i texture units\n",supportedTmu);
 
      if (strstr(gl_extensions, "GL_EXT_texture3D")
-         && (supportedTmu >= 4)  && (!COM_CheckParm ("-forcegf2"))
+         && (supportedTmu >= 4)  && (!COM_CheckParm ("-forcegf2")) 
+		 && (!COM_CheckParm ("-forcegeneric"))
          && (gl_cardtype == GEFORCE)
          && strstr(gl_extensions, "GL_NV_vertex_program1_1")
          && strstr(gl_extensions, "GL_NV_vertex_array_range")
@@ -456,14 +333,14 @@ void CheckARBFragmentExtensions(void)
      }
 }
 
-void CheckNV3xFragmentExtensions(void) 
-{
+void CheckNV3xFragmentExtensions(void) {
      int supportedTmu;
-     glGetIntegerv(GL_MAX_ACTIVE_TEXTURES_ARB,&supportedTmu); 
+     glGetIntegerv(GL_MAX_ACTIVE_TEXTURES_ARB,&supportedTmu);
 
      if (strstr(gl_extensions, "GL_EXT_texture3D")
          && (!COM_CheckParm ("-forcegeneric"))
          && (!COM_CheckParm ("-nonv3x"))
+
          && strstr(gl_extensions, "GL_NV_fragment_program")
          && strstr(gl_extensions, "GL_NV_vertex_program2"))
      {
@@ -473,6 +350,7 @@ void CheckNV3xFragmentExtensions(void)
           SAFE_GET_PROC (qglTexImage3DEXT,PFNGLTEXIMAGE3DEXT,"glTexImage3DEXT");
 
           //get vertex_program pointers
+
           SAFE_GET_PROC (qglAreProgramsResidentNV,PFNGLAREPROGRAMSRESIDENTNVPROC,"glAreProgramsResidentNV");
           SAFE_GET_PROC (qglBindProgramNV,PFNGLBINDPROGRAMNVPROC,"glBindProgramNV");
           SAFE_GET_PROC (qglDeleteProgramsNV,PFNGLDELETEPROGRAMSNVPROC,"glDeleteProgramsNV");
@@ -565,12 +443,6 @@ void GL_Init (void)
      Con_Printf ("GL_EXTENSIONS: %s\n", gl_extensions);
 
      Con_Printf ("%s %s\n", gl_renderer, gl_version);
-
-     if (Q_strncasecmp ((char *)gl_renderer,"PowerVR",7)==0)
-          fullsbardraw = true;
-
-     if (Q_strncasecmp ((char *)gl_renderer,"Permedia",8)==0)
-          isPermedia = true;
 
      Con_Printf ("Checking multitexture\n");
      CheckMultiTextureExtensions ();
