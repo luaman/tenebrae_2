@@ -670,10 +670,10 @@ void R_DrawAliasSurfaceShadowVolume (aliashdr_t	*paliashdr, aliasframeinstant_t 
 	// EXT_stencil_two_side
 	glDisable(GL_CULL_FACE);
 	qglActiveStencilFaceEXT(GL_BACK);
-	glStencilOp(GL_KEEP, GL_INCR_WRAP_EXT, GL_KEEP);
+	glStencilOp(GL_KEEP, GL_DECR_WRAP_EXT, GL_KEEP);
 	glStencilFunc(GL_ALWAYS, 0, ~0);
 	qglActiveStencilFaceEXT(GL_FRONT);
-	glStencilOp(GL_KEEP, GL_DECR_WRAP_EXT, GL_KEEP);
+	glStencilOp(GL_KEEP, GL_INCR_WRAP_EXT, GL_KEEP);
 	glStencilFunc(GL_ALWAYS, 0, ~0);
 	R_DrawAliasFrameShadowVolume2 (paliashdr, aliasframeinstant);
 	glEnable(GL_CULL_FACE);
@@ -684,8 +684,8 @@ void R_DrawAliasSurfaceShadowVolume (aliashdr_t	*paliashdr, aliasframeinstant_t 
 	glDisable(GL_CULL_FACE);
 	glStencilOp(GL_KEEP, GL_INCR_WRAP_EXT, GL_KEEP);
 	qglStencilFuncSeparateATI(GL_ALWAYS, GL_ALWAYS, 0, ~0);
-	qglStencilOpSeparateATI(GL_FRONT, GL_KEEP, GL_DECR_WRAP_EXT, GL_KEEP);
-	qglStencilOpSeparateATI(GL_BACK, GL_KEEP, GL_INCR_WRAP_EXT, GL_KEEP);
+	qglStencilOpSeparateATI(GL_FRONT, GL_KEEP, GL_INCR_WRAP_EXT, GL_KEEP);
+	qglStencilOpSeparateATI(GL_BACK, GL_KEEP, GL_DECR_WRAP_EXT, GL_KEEP);
 	R_DrawAliasFrameShadowVolume2 (paliashdr, aliasframeinstant);
 	glEnable(GL_CULL_FACE);
 	break;
