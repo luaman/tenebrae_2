@@ -91,6 +91,13 @@ typedef struct
 	unsigned int	cachededgeoffset;
 } medge_t;
 
+// !!! if this is changed, it must be changed in asm_draw.h too !!!
+typedef struct
+{
+	unsigned short	v[2];
+	unsigned int	cachededgeoffset;
+} medge_t;
+
 typedef struct
 {
 	float		vecs[2][4];
