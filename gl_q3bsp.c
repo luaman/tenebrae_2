@@ -274,6 +274,7 @@ void findNeighbourForEdge(glpoly_t *poly, int neighindex) {
 		p = loadmodel->surfaces[i].polys;
 
 		if(!p) continue; //surface is a curve or a md3
+		if(loadmodel->surfaces[i].shader->shader->flags & SURF_NOSHADOW) continue; //no neighbours without shadows
 
 		//check if it has a shared vertex
 		for (j=0; j<p->numneighbours; j++) {
@@ -695,12 +696,9 @@ void ModQ3_SetupFaces (void)
 
 		//fill in the glpoly
 		TangentForPoly(poly->indecies,&tempVertices[0],s->tangent,s->binormal);
-		//Scale up the tangent space a bit while this is a bit hacky it makes the bump look
-		//much better, "more deep".
-		VectorScale(s->tangent,r_tangentscale.value,s->tangent);
-		VectorScale(s->binormal,r_tangentscale.value,s->binormal);
-		findNeighbours(poly);
 
+		if(s->shader->shader->flags & SURF_NOSHADOW) continue;
+		findNeighbours(poly);
 	}
 	Con_Printf("  Checked %i edges\n",numnormal);
 	Con_Printf("  %i single edges\n",noneighbour);
