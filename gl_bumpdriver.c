@@ -496,7 +496,8 @@ void R_DrawWorldBumped() {
 		R_DrawMeshBumped((mesh_t *)currentshadowlight->lightCmdsMesh[i].asVoid);
 	}
 	
-	lastShader = ((msurface_t *)currentshadowlight->lightCmds[0].asVoid)->shader->shader;
+        if ( (msurface_t *)currentshadowlight->lightCmds[0].asVoid)
+	    lastShader = ((msurface_t *)currentshadowlight->lightCmds[0].asVoid)->shader->shader;
 	freeIndex = 0;
 	for (i=0; i<currentshadowlight->numlightcmds-1; i++) {
 		s = (msurface_t *)currentshadowlight->lightCmds[i].asVoid;
