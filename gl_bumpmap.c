@@ -137,15 +137,11 @@ void GL_EnableColorShader (qboolean specular) {
     glTexEnvf (GL_TEXTURE_ENV, GL_COMBINE_RGB_ARB, GL_MODULATE);
 	
 	if (!specular) {
-		if (sh_colormaps.value) {
-			GL_EnableMultitexture();
-			glTexEnvf (GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_COMBINE_ARB);
-			glTexEnvf (GL_TEXTURE_ENV, GL_SOURCE0_RGB_ARB, GL_PREVIOUS_ARB);
-			glTexEnvf (GL_TEXTURE_ENV, GL_SOURCE1_RGB_ARB, GL_TEXTURE);
-			glTexEnvf (GL_TEXTURE_ENV, GL_COMBINE_RGB_ARB, GL_MODULATE);
-		} else {
-			GL_DisableMultitexture();
-		}
+		GL_EnableMultitexture();
+		glTexEnvf (GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_COMBINE_ARB);
+		glTexEnvf (GL_TEXTURE_ENV, GL_SOURCE0_RGB_ARB, GL_PREVIOUS_ARB);
+		glTexEnvf (GL_TEXTURE_ENV, GL_SOURCE1_RGB_ARB, GL_TEXTURE);
+		glTexEnvf (GL_TEXTURE_ENV, GL_COMBINE_RGB_ARB, GL_MODULATE);
 	} else {
 		GL_EnableMultitexture();
 		glTexEnvf (GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_COMBINE_ARB);
@@ -161,7 +157,7 @@ void GL_EnableColorShader (qboolean specular) {
 
 void GL_DisableColorShader (qboolean specular) {
 	if (!specular) {
-		if (sh_colormaps.value) GL_DisableMultitexture();
+		GL_DisableMultitexture();
 	} else {
 		glTexEnvf (GL_TEXTURE_ENV, GL_OPERAND1_RGB_ARB, GL_SRC_COLOR);
 		GL_DisableMultitexture();
@@ -1001,7 +997,7 @@ void R_DrawAliasObjectLight(entity_t *e,void (*AliasGeoSender) (aliashdr_t *pali
 	//float			org[4],res[4];
 	aliashdr_t	*paliashdr;
         alias3data_t    *data;
-	vec3_t		oldlightpos;
+	vec3_t		oldlightpos, oldvieworg;
         aliasframeinstant_t *aliasframeinstant;
         int i,maxnumsurf;
 
@@ -1040,7 +1036,8 @@ void R_DrawAliasObjectLight(entity_t *e,void (*AliasGeoSender) (aliashdr_t *pali
 		
 		VectorCopy(currentshadowlight->origin,oldlightpos);
 		VectorCopy(currentshadowlight->origin,currentshadowlight->oldlightorigin);
-		
+		VectorCopy( r_refdef.vieworg,oldvieworg);
+		VectorCopy( aliasframeinstant->lightinstant->vieworg, r_refdef.vieworg);
 		VectorCopy(aliasframeinstant->lightinstant->lightpos ,currentshadowlight->origin);
 		pose = paliashdr->frames[e->frame].firstpose;
 		numposes = paliashdr->frames[e->frame].numposes;
@@ -1050,6 +1047,7 @@ void R_DrawAliasObjectLight(entity_t *e,void (*AliasGeoSender) (aliashdr_t *pali
 		
 		aliasframeinstant = aliasframeinstant->_next;
         
+		VectorCopy(oldvieworg, r_refdef.vieworg);
 		VectorCopy(oldlightpos,currentshadowlight->origin);		
 	} /* for paliashdr */
 
