@@ -689,7 +689,7 @@ void MSG_WriteString (sizebuf_t *sb, char *s)
 
 void MSG_WriteCoord (sizebuf_t *sb, float f)
 {
-	MSG_WriteShort (sb, (int)(f*8));
+	MSG_WriteLong (sb, (int)(f*8));
 }
 //Round to nearest value, rather than rounding toward zero - Eradicator
 void MSG_WriteAngle (sizebuf_t *sb, float f)
@@ -834,7 +834,7 @@ char *MSG_ReadString (void)
 
 float MSG_ReadCoord (void)
 {
-	return MSG_ReadShort() * (0.125f); //Spedup Small Calculation - Eradicator
+	return MSG_ReadLong() * (0.125f); //Spedup Small Calculation - Eradicator
 }
 
 
@@ -842,11 +842,6 @@ float MSG_ReadAngle (void)
 {
 	return MSG_ReadChar() * (1.40625f); //Spedup Small Calculation - Eradicator
 }
-
-
-
-
-
 
 //===========================================================================
 void SZ_Alloc (sizebuf_t *buf, int startsize)
