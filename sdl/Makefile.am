@@ -286,14 +286,10 @@ GL_TENEBRAE_SRCS =			\
 	$(MASTER_DIR)/gl_aliasinstant.c		\
 	$(MASTER_DIR)/gl_brushinstant.c		\
 	$(MASTER_DIR)/gl_bumpdriver.c		\
+	$(MASTER_DIR)/gl_drivermem.c		\
+	$(MASTER_DIR)/gl_vertexcache.c		\
 	$(MASTER_DIR)/gl_bumparb.c		\
-	$(MASTER_DIR)/gl_bumpgl2.c		\
-	$(MASTER_DIR)/gl_bumpgf.c		\
 	$(MASTER_DIR)/gl_bumpmap.c		\
-	$(MASTER_DIR)/gl_bumpparhelia.c		\
-	$(MASTER_DIR)/gl_bumpradeon.c		\
-	$(MASTER_DIR)/gl_bumpnv3x.c		\
-	$(MASTER_DIR)/gl_bumpgeneric.c		\
 	$(MASTER_DIR)/gl_bumpstat.c		\
 	$(MASTER_DIR)/gl_common.c		\
 	$(MASTER_DIR)/gl_curves.c		\
@@ -303,6 +299,14 @@ GL_TENEBRAE_SRCS =			\
 	$(MASTER_DIR)/gl_screenrect.c		\
 	$(MASTER_DIR)/gl_shadow.c		\
 	$(MASTER_DIR)/gl_svbsp.c		
+
+#	$(MASTER_DIR)/gl_bumpgl2.c		\
+#	$(MASTER_DIR)/gl_bumpgf.c		\
+#	$(MASTER_DIR)/gl_bumpparhelia.c		\
+#	$(MASTER_DIR)/gl_bumpradeon.c		\
+#	$(MASTER_DIR)/gl_bumpnv3x.c		\
+#	$(MASTER_DIR)/gl_bumpgeneric.c		\
+#
 
 LEX_TENEBRAE_SRCS =			\
 	$(MASTER_DIR)/lex_part.l		
