@@ -100,6 +100,7 @@ cvar_t	r_lightmap = {"r_lightmap","0"};
 //cvar_t	r_mirroralpha = {"r_mirroralpha","1"};
 cvar_t	r_wateralpha = {"r_wateralpha","0.5"};//PENTA: different default
 cvar_t	r_novis = {"r_novis","0"};
+cvar_t	r_noareaportal = {"r_noareaportal","0"};
 
 cvar_t	gl_finish = {"gl_finish","0"};
 cvar_t	gl_clear = {"gl_clear","0"};
@@ -2092,6 +2093,11 @@ void R_RenderScene (void)
 		return;
 	}
 
+	//Always do stencil tests
+ 	glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
+	glStencilFunc(GL_ALWAYS, 1, 0xffffffff);
+	glEnable(GL_STENCIL_TEST);	
+
 	R_DrawViewModel();
 	R_DrawAmbientEntities();
 	glDepthFunc(GL_LEQUAL);
@@ -2135,7 +2141,7 @@ void R_RenderScene (void)
 
 			if (l->castShadow) {
   				glDepthFunc(GL_LESS);
-  				glEnable(GL_STENCIL_TEST);
+  				//glEnable(GL_STENCIL_TEST);
 				glColorMask(false, false, false, false);
 				glStencilFunc(GL_ALWAYS, 1, 0xffffffff);
 				glClear(GL_STENCIL_BUFFER_BIT);
@@ -2208,15 +2214,19 @@ void R_RenderScene (void)
 		}
 
 		if (!sh_visiblevolumes.value) {
+			//glPolygonOffset(0,5);
+			//glEnable(GL_POLYGON_OFFSET_FILL);
 			R_DrawWorldBumped();
-			glPolygonOffset(0,-5);
-			glEnable(GL_POLYGON_OFFSET_FILL);
 			R_DrawLightEntities(l);
-			glDisable(GL_POLYGON_OFFSET_FILL);
+			//glDisable(GL_POLYGON_OFFSET_FILL);
 		}
 		glDisable (GL_BLEND);
 		glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-		glDisable(GL_STENCIL_TEST);
+		
+		//PENTA: always do stencil for posinv// glDisable(GL_STENCIL_TEST);
+ 		glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
+		glStencilFunc(GL_ALWAYS, 1, 0xffffffff);
+		glEnable(GL_STENCIL_TEST);
 
 		//sprites only recive "shadows" from the cubemap not the stencil
 		//disable scissorint for the sprites (gives "cut off" artefacts otherwise)
