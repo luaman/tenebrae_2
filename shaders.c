@@ -385,12 +385,15 @@ char *ParseStage (char *data, shader_t *shader)
 					stage.src_blend = GL_ONE;
 					stage.dst_blend = GL_ONE;
 				} else {
+					Con_Printf("Unknown blend func %s\n",com_token);
 					stage.src_blend = -1;
 					stage.dst_blend = -1;
 				}
 			} else {
 				GET_SAFE_TOKEN;
-				stage.dst_blend = SC_BlendModeForName(com_token);
+				stage.dst_blend = SHADER_BlendModeForName(com_token);
+				if (stage.dst_blend < 0)
+					Con_Printf("Unknown blend func %s\n",com_token);
 			}
 		} else if (!strcmp(command, "alphafunc")) {
 
