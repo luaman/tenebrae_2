@@ -465,9 +465,6 @@ void Draw_Init (void)
 	//Load nomalization cube map
 	normcube_texture_object = GL_LoadNormalizationCubemap();
 
-	//load diffuse vertex program
-	R_LoadVertexProgram();
-
 	halo_texture_object = EasyTgaLoad("penta/utflare5.tga");
 
 	for (i=0; i<8; i++) {
