@@ -47,6 +47,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define	MAX_MAP_PORTALS		65536
 #define MAX_MAP_LEAFCURVES	65536
 #define MAX_MAP_CURVES		4096
+#define	MAX_MAP_AREAS		0x100
+
 
 // key / value pair sizes
 
@@ -137,7 +139,8 @@ typedef struct
 } dplane_t;
 
 
-
+/*
+//PENTA: Q3 has another contents system 
 #define	CONTENTS_EMPTY		-1
 #define	CONTENTS_SOLID		-2
 #define	CONTENTS_WATER		-3
@@ -146,7 +149,7 @@ typedef struct
 #define	CONTENTS_SKY		-6
 #define	CONTENTS_ORIGIN		-7		// removed at csg time
 #define	CONTENTS_CLIP		-8		// changed to contents_solid
-
+*/
 #define	CONTENTS_CURRENT_0		-9
 #define	CONTENTS_CURRENT_90		-10
 #define	CONTENTS_CURRENT_180	-11
