@@ -323,7 +323,7 @@ void DecalClipLeaf(decal_t *dec, mleaf_t *leaf)
 			{
 				int j;
 				for (j=0; j<3; j++) {
-					v = (float *)(&globalVertexTable[poly->indecies[i+j]]);
+					v = (float *)(&cl.worldmodel->userVerts[poly->indecies[i+j]]);
 					newVertex[j][0] = v[0];
 					newVertex[j][1] = v[1];
 					newVertex[j][2] = v[2];
@@ -336,7 +336,7 @@ void DecalClipLeaf(decal_t *dec, mleaf_t *leaf)
 	}
 
 
-	//for all surfaces in the leaf
+	//for all meshes in the leaf
 	for (k=0; k<leaf->nummeshes; k++) {
 		mesh_t *mesh = &cl.worldmodel->meshes[cl.worldmodel->leafmeshes[leaf->firstmesh+k]];
 
@@ -344,10 +344,10 @@ void DecalClipLeaf(decal_t *dec, mleaf_t *leaf)
 		{
 			int j;
 
-			if (DotProduct(dec->normal, mesh->normals[mesh->indecies[i]]) < decalEpsilon) continue;
+			if (DotProduct(dec->normal, mesh->triplanes[i/3].normal) < decalEpsilon) continue;
 
 			for (j=0; j<3; j++) {
-				v = (float *)(&globalVertexTable[mesh->firstvertex+mesh->indecies[i+j]]);
+				v = (float *)(mesh->userVerts[mesh->indecies[i+j]]);
 				newVertex[j][0] = v[0];
 				newVertex[j][1] = v[1];
 				newVertex[j][2] = v[2];
