@@ -57,6 +57,7 @@ void R_DrawMeshAmbient(mesh_t *mesh) {
 
 	vertexdef_t def;
 	transform_t trans;
+	int	res;
 
 	def.vertices = &globalVertexTable[mesh->firstvertex].position[0];
 	def.vertexstride = sizeof(mmvertex_t);
@@ -79,7 +80,20 @@ void R_DrawMeshAmbient(mesh_t *mesh) {
 	def.colors = &globalVertexTable[mesh->firstvertex].color[0];
 	def.colorstride = sizeof(mmvertex_t);
 
-	gl_bumpdriver.drawTriangleListBase(&def, mesh->indecies, mesh->numindecies, mesh->shader->shader, mesh->lightmapIndex);
+	c_alias_polys += mesh->numtriangles;
+
+	if (gl_occlusiontest && sh_occlusiontest.value) {
+		glEnable(GL_OCCLUSION_TEST_HP);
+		gl_bumpdriver.drawTriangleListBase(&def, mesh->indecies, mesh->numindecies, mesh->shader->shader, mesh->lightmapIndex);
+		glDisable(GL_OCCLUSION_TEST_HP);
+		glGetIntegerv(GL_OCCLUSION_TEST_RESULT_HP,&res);
+		if (!res) {
+			mesh->visframe = r_framecount - 10; //make it invisible this frame
+			occlusion_cut_meshes++;
+		}
+	} else {
+		gl_bumpdriver.drawTriangleListBase(&def, mesh->indecies, mesh->numindecies, mesh->shader->shader, mesh->lightmapIndex);
+	}
 }
 
 void R_DrawMeshBumped(mesh_t *mesh) {
@@ -106,6 +120,8 @@ void R_DrawMeshBumped(mesh_t *mesh) {
 
 	def.lightmapcoords = NULL; // no lightmaps on aliasses
 
+	c_alias_polys += mesh->numtriangles;
+
 	gl_bumpdriver.drawTriangleListBump(&def, mesh->indecies, mesh->numindecies, mesh->shader->shader, &mesh->trans);
 }
 
@@ -127,6 +143,8 @@ void R_DrawAliasAmbient(aliashdr_t *paliashdr, aliasframeinstant_t *instant) {
 	def.lightmapcoords = NULL; // no lightmaps on aliasses
 	def.colors = NULL;
 	def.colorstride = 0;
+
+	c_alias_polys += paliashdr->numtris;
 
 	gl_bumpdriver.drawTriangleListBase(&def, (int *)((byte *)paliashdr + paliashdr->indecies),paliashdr->numtris*3,paliashdr->shader, -1);
 }
@@ -153,6 +171,9 @@ void R_DrawAliasBumped(aliashdr_t *paliashdr, aliasframeinstant_t *instant) {
 	VectorCopy(currententity->origin,trans.origin);
 	VectorCopy(currententity->angles,trans.angles);
 	trans.scale[0] = trans.scale[1] = trans.scale[2] = 1.0f;
+
+	c_alias_polys += paliashdr->numtris;
+
 	gl_bumpdriver.drawTriangleListBump(&def,&linstant->indecies[0],linstant->numtris*3,paliashdr->shader, &trans);
 }
 
@@ -211,6 +232,7 @@ void R_DrawBrushAmbient (entity_t *e) {
 		}
 	}
 	if (runshader && runlength) {
+		c_brush_polys += runlength;
 		gl_bumpdriver.drawSurfaceListBase(&def, surfArray, runlength, runshader);
 	}
 }
@@ -241,6 +263,7 @@ void R_DrawBrushBumped (entity_t *e) {
 	VectorCopy(e->origin,trans.origin);
 	VectorCopy(e->angles,trans.angles);
 	trans.scale[0] = trans.scale[1] = trans.scale[2] = 1.0f;
+	c_brush_polys += runlength;
 	gl_bumpdriver.drawSurfaceListBump(&def, surfArray, runlength, &trans);
 }
 
@@ -265,6 +288,7 @@ void R_DrawWorldAmbientChain(msurface_t *first) {
 	}
 
 	if (numsurf) {
+		c_brush_polys += numsurf;
 		gl_bumpdriver.drawSurfaceListBase(&def, surfArray, numsurf, first->shader->shader);
 		numsurf = 0;
 	}
@@ -289,6 +313,7 @@ void R_DrawWorldBumped() {
 	trans.origin[0] = trans.origin[1]  = trans.origin[2] = 0.0f;
 	trans.scale[0] = trans.scale[1] = trans.scale[2] = 1.0f;
 
+	c_brush_polys += (currentshadowlight->numlightcmds-1);
 	gl_bumpdriver.drawSurfaceListBump(&def, (msurface_t **)(&currentshadowlight->lightCmds[0]), currentshadowlight->numlightcmds-1, &trans);
 
 	for (i=0; i<currentshadowlight->numlightcmdsmesh-1; i++) {
