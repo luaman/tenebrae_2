@@ -125,7 +125,7 @@ GLQUAKE_OBJS= \
 	$(BUILDDIR)/glquake/host_cmd.o \
 	$(BUILDDIR)/glquake/keys.o \
 	$(BUILDDIR)/glquake/mathlib.o \
-	$(BUILDDIR)/glquake/menu.o \
+	$(BUILDDIR)/glquake/xmlmenu.o \
 	$(BUILDDIR)/glquake/net_dgrm.o \
 	$(BUILDDIR)/glquake/net_loop.o \
 	$(BUILDDIR)/glquake/net_main.o \
@@ -136,7 +136,6 @@ GLQUAKE_OBJS= \
 	$(BUILDDIR)/glquake/pr_edict.o \
 	$(BUILDDIR)/glquake/pr_exec.o \
 	$(BUILDDIR)/glquake/r_part.o \
-	$(BUILDDIR)/glquake/sbar.o \
 	$(BUILDDIR)/glquake/sv_main.o \
 	$(BUILDDIR)/glquake/sv_phys.o \
 	$(BUILDDIR)/glquake/sv_move.o \
@@ -316,7 +315,7 @@ $(BUILDDIR)/glquake/host_cmd.o :     $(MOUNT_DIR)/host_cmd.c
 $(BUILDDIR)/glquake/keys.o :         $(MOUNT_DIR)/keys.c
 	$(DO_GL_CC)
 
-$(BUILDDIR)/glquake/menu.o :         $(MOUNT_DIR)/menu.c
+$(BUILDDIR)/glquake/xmlmenu.o :      $(MOUNT_DIR)/xmlmenu.c
 	$(DO_GL_CC)
 
 $(BUILDDIR)/glquake/mathlib.o :      $(MOUNT_DIR)/mathlib.c
@@ -350,9 +349,6 @@ $(BUILDDIR)/glquake/pr_exec.o :      $(MOUNT_DIR)/pr_exec.c
 	$(DO_GL_CC)
 
 $(BUILDDIR)/glquake/r_part.o :       $(MOUNT_DIR)/r_part.c
-	$(DO_GL_CC)
-
-$(BUILDDIR)/glquake/sbar.o :         $(MOUNT_DIR)/sbar.c
 	$(DO_GL_CC)
 
 $(BUILDDIR)/glquake/sv_main.o :      $(MOUNT_DIR)/sv_main.c

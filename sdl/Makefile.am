@@ -30,6 +30,8 @@ sdl_tenebrae_LDADD = @MATHLIB@ @INETLIB@ @SDL_LIBS@ @OPENGLLIBS@ $(noinst_LIBRAR
 glx_tenebrae_LFLAGS = -i -Cfr
 sdl_tenebrae_LFLAGS = -i -Cfr
 
+glx_tenebrae_AFLAGS = -x assembler-with-cpp
+sdl_tenebrae_AFLAGS = -x assembler-with-cpp
 
 # datadir is a variable defined by autoconf to @prefix@/share/ 
 glx_tenebrae_CFLAGS = @CFLAGS@ @X11_CFLAGS@  -D__glx__ -DGLQUAKE -DBASEDIR=@GAMEDIR@ -I$(MASTER_DIR) -I$(NVPARSE_DIR) 
@@ -44,14 +46,16 @@ glx_tenebrae_SOURCES =			\
 	$(MASTER_DIR)/snd_linux.c		\
 	$(MASTER_DIR)/sys_linux.c		\
 	$(MASTER_DIR)/gl_vidlinuxglx.c		\
-	$(COMMON_SRCS)
+	$(COMMON_SRCS)	                        \
+	$(X86_SRCS)
 
 sdl_tenebrae_SOURCES = 			\
 	$(MASTER_DIR)/cd_sdl.c			\
 	$(MASTER_DIR)/sys_sdl.c			\
 	$(MASTER_DIR)/snd_sdl.c			\
 	$(MASTER_DIR)/gl_vidsdl.c		\
-	$(COMMON_SRCS)	
+	$(COMMON_SRCS)	                        \
+	$(X86_SRCS)
 
 COMMON_SRCS =				\
 	$(MASTER_DIR)/adivtab.h			\
@@ -89,8 +93,8 @@ COMMON_SRCS =				\
 	$(MASTER_DIR)/keys.h			\
 	$(MASTER_DIR)/mathlib.c			\
 	$(MASTER_DIR)/mathlib.h			\
-	$(MASTER_DIR)/menu.c			\
-	$(MASTER_DIR)/menu.h			\
+	$(MASTER_DIR)/xmlmenu.c			\
+	$(MASTER_DIR)/xmlmenu.h			\
 	$(MASTER_DIR)/modelgen.h		\
 	$(MASTER_DIR)/mpdosock.h		\
 	$(MASTER_DIR)/net.h			\
@@ -119,8 +123,6 @@ COMMON_SRCS =				\
 	$(MASTER_DIR)/r_shared.h		\
 	$(MASTER_DIR)/render.h			\
 	$(MASTER_DIR)/resource.h		\
-	$(MASTER_DIR)/sbar.c			\
-	$(MASTER_DIR)/sbar.h			\
 	$(MASTER_DIR)/screen.h			\
 	$(MASTER_DIR)/server.h			\
 	$(MASTER_DIR)/shaders.c			\
@@ -189,22 +191,7 @@ QUAKE_SRCS =				\
 X86_SRCS =				\
 	$(MASTER_DIR)/snd_mixa.s		\
 	$(MASTER_DIR)/sys_dosa.s		\
-	$(MASTER_DIR)/d_copy.s			\
-	$(MASTER_DIR)/d_draw.s			\
-	$(MASTER_DIR)/d_draw16.s		\
-	$(MASTER_DIR)/d_parta.s			\
-	$(MASTER_DIR)/d_polysa.s		\
-	$(MASTER_DIR)/d_scana.s			\
-	$(MASTER_DIR)/d_spr8.s			\
-	$(MASTER_DIR)/d_varsa.s			\
-	$(MASTER_DIR)/math.s			\
-	$(MASTER_DIR)/r_aclipa.s		\
-	$(MASTER_DIR)/r_aliasa.s		\
-	$(MASTER_DIR)/r_drawa.s			\
-	$(MASTER_DIR)/r_edgea.s			\
-	$(MASTER_DIR)/surf16.s			\
-	$(MASTER_DIR)/surf8.s			\
-	$(MASTER_DIR)/worlda.s
+	$(MASTER_DIR)/math.s
 
 NONX86_SRCS =				\
 	$(MASTER_DIR)/d_vars.c			\
