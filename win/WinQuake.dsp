@@ -4,7 +4,7 @@
 
 # TARGTYPE "Win32 (x86) Application" 0x0101
 
-CFG=WINQUAKE - WIN32 GL DEBUG
+CFG=winquake - Win32 GL Debug
 !MESSAGE This is not a valid makefile. To build this project using NMAKE,
 !MESSAGE use the Export Makefile command and run
 !MESSAGE 
@@ -13,12 +13,13 @@ CFG=WINQUAKE - WIN32 GL DEBUG
 !MESSAGE You can specify a configuration when running NMAKE
 !MESSAGE by defining the macro CFG on the command line. For example:
 !MESSAGE 
-!MESSAGE NMAKE /f "WinQuake.mak" CFG="WINQUAKE - WIN32 GL DEBUG"
+!MESSAGE NMAKE /f "WinQuake.mak" CFG="winquake - Win32 GL Debug"
 !MESSAGE 
 !MESSAGE Possible choices for configuration are:
 !MESSAGE 
 !MESSAGE "winquake - Win32 GL Debug" (based on "Win32 (x86) Application")
 !MESSAGE "winquake - Win32 GL Release" (based on "Win32 (x86) Application")
+!MESSAGE "winquake - Win32 Tenebrae Debug" (based on "Win32 (x86) Application")
 !MESSAGE 
 
 # Begin Project
@@ -83,7 +84,34 @@ BSC32=bscmake.exe
 LINK32=link.exe
 # ADD BASE LINK32 winmm.lib wsock32.lib opengl32.lib glu32.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib ..\scitech\lib\win32\vc\mgllt.lib /nologo /subsystem:windows /profile /machine:I386
 # SUBTRACT BASE LINK32 /map /debug
-# ADD LINK32 comctl32.lib ..\dxsdk\sdk\lib\dxguid.lib winmm.lib wsock32.lib opengl32.lib glu32.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib libpng.lib zlib.lib ..\nvparse\nvparse.lib /nologo /subsystem:windows /profile /debug /machine:I386 /nodefaultlib:"LIBCD" /out:"C:\Games\tenebrae\tenebrae2.exe" /libpath:"..\extlibs-w32"
+# ADD LINK32 comctl32.lib ..\dxsdk\sdk\lib\dxguid.lib winmm.lib wsock32.lib opengl32.lib glu32.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib libpng.lib zlib.lib ..\nvparse\nvparse.lib ..\extlibs-w32\ode.lib ..\extlibs-w32\libxml2.lib ..\extlibs-w32\iconv.lib /nologo /subsystem:windows /profile /debug /machine:I386 /nodefaultlib:"LIBCD" /out:"C:\Games\tenebrae\tenebrae2.exe" /libpath:"..\extlibs-w32"
+
+!ELSEIF  "$(CFG)" == "winquake - Win32 Tenebrae Debug"
+
+# PROP BASE Use_MFC 0
+# PROP BASE Use_Debug_Libraries 0
+# PROP BASE Output_Dir "winquake___Win32_Tenebrae_Debug0"
+# PROP BASE Intermediate_Dir "winquake___Win32_Tenebrae_Debug0"
+# PROP BASE Ignore_Export_Lib 0
+# PROP BASE Target_Dir ""
+# PROP Use_MFC 0
+# PROP Use_Debug_Libraries 0
+# PROP Output_Dir "winquake___Win32_Tenebrae_Debug0"
+# PROP Intermediate_Dir "winquake___Win32_Tenebrae_Debug0"
+# PROP Ignore_Export_Lib 0
+# PROP Target_Dir ""
+# ADD BASE CPP /nologo /G5 /GX /Zd /Op /Ob2 /I "..\dxsdk\sdk\inc" /I "..\extlibs-w32" /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /D "GLQUAKE" /FR /YX /FD /c
+# ADD CPP /nologo /G5 /GX /Zi /Od /Op /Ob2 /I "..\dxsdk\sdk\inc" /I "..\extlibs-w32" /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /D "GLQUAKE" /FR /YX /FD /c
+# ADD BASE MTL /nologo /D "NDEBUG" /mktyplib203 /win32
+# ADD MTL /nologo /D "NDEBUG" /mktyplib203 /win32
+# ADD BASE RSC /l 0x409 /d "NDEBUG"
+# ADD RSC /l 0x409 /d "NDEBUG"
+BSC32=bscmake.exe
+# ADD BASE BSC32 /nologo
+# ADD BSC32 /nologo
+LINK32=link.exe
+# ADD BASE LINK32 comctl32.lib ..\dxsdk\sdk\lib\dxguid.lib winmm.lib wsock32.lib opengl32.lib glu32.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib libpng.lib zlib.lib ..\nvparse\nvparse.lib ..\extlibs-w32\ode.lib ..\extlibs-w32\libxml2.lib ..\extlibs-w32\iconv.lib /nologo /subsystem:windows /profile /debug /machine:I386 /nodefaultlib:"LIBCD" /out:"C:\Games\tenebrae\tenebrae2.exe" /libpath:"..\extlibs-w32"
+# ADD LINK32 comctl32.lib ..\dxsdk\sdk\lib\dxguid.lib winmm.lib wsock32.lib opengl32.lib glu32.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib libpng.lib zlib.lib ..\nvparse\nvparse.lib ..\extlibs-w32\ode.lib ..\extlibs-w32\libxml2.lib ..\extlibs-w32\iconv.lib /nologo /subsystem:windows /profile /debug /machine:I386 /nodefaultlib:"LIBCD" /out:"C:\Games\tenebrae\tenebrae2.exe" /libpath:"..\extlibs-w32"
 
 !ENDIF 
 
@@ -91,6 +119,7 @@ LINK32=link.exe
 
 # Name "winquake - Win32 GL Debug"
 # Name "winquake - Win32 GL Release"
+# Name "winquake - Win32 Tenebrae Debug"
 # Begin Group "Source Files"
 
 # PROP Default_Filter "cpp;c;cxx;rc;def;r;odl;hpj;bat;for;f90"
@@ -101,6 +130,24 @@ SOURCE=..\cd_win.c
 # Begin Source File
 
 SOURCE=..\chase.c
+# End Source File
+# Begin Source File
+
+SOURCE=..\cl_cin.c
+
+!IF  "$(CFG)" == "winquake - Win32 GL Debug"
+
+!ELSEIF  "$(CFG)" == "winquake - Win32 GL Release"
+
+# PROP Exclude_From_Build 1
+
+!ELSEIF  "$(CFG)" == "winquake - Win32 Tenebrae Debug"
+
+# PROP BASE Exclude_From_Build 1
+# PROP Exclude_From_Build 1
+
+!ENDIF 
+
 # End Source File
 # Begin Source File
 
@@ -157,17 +204,14 @@ SOURCE=..\gl_brushinstant.c
 # Begin Source File
 
 SOURCE=..\gl_bumparb.c
-
-!IF  "$(CFG)" == "winquake - Win32 GL Debug"
-
-!ELSEIF  "$(CFG)" == "winquake - Win32 GL Release"
-
-!ENDIF 
-
 # End Source File
 # Begin Source File
 
 SOURCE=..\gl_bumpdriver.c
+# End Source File
+# Begin Source File
+
+SOURCE=..\gl_bumpgeneric.c
 # End Source File
 # Begin Source File
 
@@ -179,14 +223,11 @@ SOURCE=..\gl_bumpmap.c
 # End Source File
 # Begin Source File
 
+SOURCE=..\gl_bumpnv3x.c
+# End Source File
+# Begin Source File
+
 SOURCE=..\gl_bumpparhelia.c
-
-!IF  "$(CFG)" == "winquake - Win32 GL Debug"
-
-!ELSEIF  "$(CFG)" == "winquake - Win32 GL Release"
-
-!ENDIF 
-
 # End Source File
 # Begin Source File
 
@@ -196,6 +237,11 @@ SOURCE=..\gl_bumpradeon.c
 
 !ELSEIF  "$(CFG)" == "winquake - Win32 GL Release"
 
+# ADD CPP /FR
+
+!ELSEIF  "$(CFG)" == "winquake - Win32 Tenebrae Debug"
+
+# ADD BASE CPP /FR
 # ADD CPP /FR
 
 !ENDIF 
@@ -339,16 +385,27 @@ InputName=math
 	
 # End Custom Build
 
+!ELSEIF  "$(CFG)" == "winquake - Win32 Tenebrae Debug"
+
+# Begin Custom Build - mycoolbuild
+OutDir=.\winquake___Win32_Tenebrae_Debug0
+InputPath=..\math.s
+InputName=math
+
+"$(OUTDIR)\$(InputName).obj" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
+	cl /EP > $(OUTDIR)\$(InputName).spp $(InputPath) 
+	..\gas2masm\debug\gas2masm < $(OUTDIR)\$(InputName).spp >                                                                                                                                                                                                    $(OUTDIR)\$(InputName).asm 
+	ml /c /Cp /coff /Fo$(OUTDIR)\$(InputName).obj /Zm /Zi                                                                                                                                                                                                    $(OUTDIR)\$(InputName).asm 
+	del $(OUTDIR)\$(InputName).spp 
+	
+# End Custom Build
+
 !ENDIF 
 
 # End Source File
 # Begin Source File
 
 SOURCE=..\mathlib.c
-# End Source File
-# Begin Source File
-
-SOURCE=..\menu.c
 # End Source File
 # Begin Source File
 
@@ -380,6 +437,10 @@ SOURCE=..\net_wipx.c
 # End Source File
 # Begin Source File
 
+SOURCE=..\phys_main.c
+# End Source File
+# Begin Source File
+
 SOURCE=..\pr_cmds.c
 # End Source File
 # Begin Source File
@@ -396,7 +457,25 @@ SOURCE=..\r_part.c
 # End Source File
 # Begin Source File
 
+SOURCE=..\roq\roq_read.c
+# End Source File
+# Begin Source File
+
 SOURCE=..\sbar.c
+
+!IF  "$(CFG)" == "winquake - Win32 GL Debug"
+
+!ELSEIF  "$(CFG)" == "winquake - Win32 GL Release"
+
+# PROP Exclude_From_Build 1
+
+!ELSEIF  "$(CFG)" == "winquake - Win32 Tenebrae Debug"
+
+# PROP BASE Exclude_From_Build 1
+# PROP Exclude_From_Build 1
+
+!ENDIF 
+
 # End Source File
 # Begin Source File
 
@@ -448,6 +527,21 @@ InputName=snd_mixa
 	
 # End Custom Build
 
+!ELSEIF  "$(CFG)" == "winquake - Win32 Tenebrae Debug"
+
+# Begin Custom Build - mycoolbuild
+OutDir=.\winquake___Win32_Tenebrae_Debug0
+InputPath=..\snd_mixa.s
+InputName=snd_mixa
+
+"$(OUTDIR)\$(InputName).obj" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
+	cl /EP /DGLQUAKE > $(OUTDIR)\$(InputName).spp $(InputPath) 
+	..\gas2masm\debug\gas2masm < $(OUTDIR)\$(InputName).spp >                                                                                                                                                                                                    $(OUTDIR)\$(InputName).asm 
+	ml /c /Cp /coff /Fo$(OUTDIR)\$(InputName).obj /Zm /Zi                                                                                                                                                                                                    $(OUTDIR)\$(InputName).asm 
+	del $(OUTDIR)\$(InputName).spp 
+	
+# End Custom Build
+
 !ENDIF 
 
 # End Source File
@@ -474,10 +568,6 @@ SOURCE=..\sv_q3support.c
 # Begin Source File
 
 SOURCE=..\sv_user.c
-# End Source File
-# Begin Source File
-
-SOURCE=..\sys_win.c
 # End Source File
 # Begin Source File
 
@@ -513,6 +603,21 @@ InputName=sys_wina
 	
 # End Custom Build
 
+!ELSEIF  "$(CFG)" == "winquake - Win32 Tenebrae Debug"
+
+# Begin Custom Build - mycoolbuild
+OutDir=.\winquake___Win32_Tenebrae_Debug0
+InputPath=..\sys_wina.s
+InputName=sys_wina
+
+"$(OUTDIR)\$(InputName).obj" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
+	cl /EP /DGLQUAKE > $(OUTDIR)\$(InputName).spp $(InputPath) 
+	..\gas2masm\debug\gas2masm < $(OUTDIR)\$(InputName).spp >                                                                                                                                                                                                    $(OUTDIR)\$(InputName).asm 
+	ml /c /Cp /coff /Fo$(OUTDIR)\$(InputName).obj /Zm /Zi                                                                                                                                                                                                    $(OUTDIR)\$(InputName).asm 
+	del $(OUTDIR)\$(InputName).spp 
+	
+# End Custom Build
+
 !ENDIF 
 
 # End Source File
@@ -523,6 +628,10 @@ SOURCE=..\te_scripts.c
 # Begin Source File
 
 SOURCE=..\textures.c
+# End Source File
+# Begin Source File
+
+SOURCE=..\textures_vid.c
 # End Source File
 # Begin Source File
 
@@ -539,6 +648,10 @@ SOURCE=..\winquake.rc
 # Begin Source File
 
 SOURCE=..\world.c
+# End Source File
+# Begin Source File
+
+SOURCE=..\xmlmenu.c
 # End Source File
 # Begin Source File
 
@@ -631,6 +744,20 @@ SOURCE=..\mathlib.h
 # Begin Source File
 
 SOURCE=..\menu.h
+
+!IF  "$(CFG)" == "winquake - Win32 GL Debug"
+
+!ELSEIF  "$(CFG)" == "winquake - Win32 GL Release"
+
+# PROP Exclude_From_Build 1
+
+!ELSEIF  "$(CFG)" == "winquake - Win32 Tenebrae Debug"
+
+# PROP BASE Exclude_From_Build 1
+# PROP Exclude_From_Build 1
+
+!ENDIF 
+
 # End Source File
 # Begin Source File
 
@@ -694,6 +821,10 @@ SOURCE=..\render.h
 # End Source File
 # Begin Source File
 
+SOURCE=..\roq\roq.h
+# End Source File
+# Begin Source File
+
 SOURCE=..\sbar.h
 # End Source File
 # Begin Source File
@@ -718,6 +849,10 @@ SOURCE=..\sys.h
 # End Source File
 # Begin Source File
 
+SOURCE=..\sys_win.c
+# End Source File
+# Begin Source File
+
 SOURCE=..\vid.h
 # End Source File
 # Begin Source File
@@ -735,6 +870,10 @@ SOURCE=..\winquake.h
 # Begin Source File
 
 SOURCE=..\world.h
+# End Source File
+# Begin Source File
+
+SOURCE=..\xmlmenu.h
 # End Source File
 # Begin Source File
 
@@ -762,11 +901,84 @@ SOURCE=.\splash.bmp
 # PROP Default_Filter ".cg"
 # Begin Source File
 
+SOURCE=..\cg\ambientbump_nv20.cg
+
+!IF  "$(CFG)" == "winquake - Win32 GL Debug"
+
+!ELSEIF  "$(CFG)" == "winquake - Win32 GL Release"
+
+# Begin Custom Build
+InputPath=..\cg\ambientbump_nv20.cg
+InputName=ambientbump_nv20
+
+"..\cg\$(InputName).ts" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
+	"C:\Program Files\NVIDIA Corporation\Cg\bin\cgc" -profile fp20 $(InputPath) -o ..\cg\$(InputName).ts
+
+# End Custom Build
+
+!ELSEIF  "$(CFG)" == "winquake - Win32 Tenebrae Debug"
+
+# Begin Custom Build
+InputPath=..\cg\ambientbump_nv20.cg
+InputName=ambientbump_nv20
+
+"..\cg\$(InputName).ts" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
+	"C:\Program Files\NVIDIA Corporation\Cg\bin\cgc" -profile fp20 $(InputPath) -o ..\cg\$(InputName).ts
+
+# End Custom Build
+
+!ENDIF 
+
+# End Source File
+# Begin Source File
+
+SOURCE=..\cg\ambientbump_nv20_2.cg
+
+!IF  "$(CFG)" == "winquake - Win32 GL Debug"
+
+!ELSEIF  "$(CFG)" == "winquake - Win32 GL Release"
+
+# Begin Custom Build
+InputPath=..\cg\ambientbump_nv20_2.cg
+InputName=ambientbump_nv20_2
+
+"..\cg\$(InputName).regcomb" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
+	"C:\Program Files\NVIDIA Corporation\Cg\bin\cgc" -profile fp20 $(InputPath) -o ..\cg\$(InputName).regcomb
+
+# End Custom Build
+
+!ELSEIF  "$(CFG)" == "winquake - Win32 Tenebrae Debug"
+
+# Begin Custom Build
+InputPath=..\cg\ambientbump_nv20_2.cg
+InputName=ambientbump_nv20_2
+
+"..\cg\$(InputName).regcomb" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
+	"C:\Program Files\NVIDIA Corporation\Cg\bin\cgc" -profile fp20 $(InputPath) -o ..\cg\$(InputName).regcomb
+
+# End Custom Build
+
+!ENDIF 
+
+# End Source File
+# Begin Source File
+
 SOURCE=..\cg\deluxe.cg
 
 !IF  "$(CFG)" == "winquake - Win32 GL Debug"
 
 !ELSEIF  "$(CFG)" == "winquake - Win32 GL Release"
+
+# Begin Custom Build
+InputPath=..\cg\deluxe.cg
+InputName=deluxe
+
+"..\cg\$(InputName).reg" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
+	"C:\Program Files\NVIDIA Corporation\Cg\bin\cgc" -profile fp20 $(InputPath) -o ..\cg\$(InputName).reg
+
+# End Custom Build
+
+!ELSEIF  "$(CFG)" == "winquake - Win32 Tenebrae Debug"
 
 # Begin Custom Build
 InputPath=..\cg\deluxe.cg
@@ -794,6 +1006,48 @@ InputName=deluxe1
 
 "..\cg\$(InputName).reg" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
 	"C:\Program Files\NVIDIA Corporation\Cg\bin\cgc" -profile arbfp1 $(InputPath) -o ..\cg\$(InputName).reg
+
+# End Custom Build
+
+!ELSEIF  "$(CFG)" == "winquake - Win32 Tenebrae Debug"
+
+# Begin Custom Build
+InputPath=..\cg\deluxe1.cg
+InputName=deluxe1
+
+"..\cg\$(InputName).reg" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
+	"C:\Program Files\NVIDIA Corporation\Cg\bin\cgc" -profile arbfp1 $(InputPath) -o ..\cg\$(InputName).reg
+
+# End Custom Build
+
+!ENDIF 
+
+# End Source File
+# Begin Source File
+
+SOURCE=..\cg\light_interaction_fx.cg
+
+!IF  "$(CFG)" == "winquake - Win32 GL Debug"
+
+!ELSEIF  "$(CFG)" == "winquake - Win32 GL Release"
+
+# Begin Custom Build
+InputPath=..\cg\light_interaction_fx.cg
+InputName=light_interaction_fx
+
+"..\cg\$(InputName).vp30" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
+	"C:\Program Files\NVIDIA Corporation\Cg\bin\cgc" -profile fp30 $(InputPath) -o ..\cg\$(InputName).vp30
+
+# End Custom Build
+
+!ELSEIF  "$(CFG)" == "winquake - Win32 Tenebrae Debug"
+
+# Begin Custom Build
+InputPath=..\cg\light_interaction_fx.cg
+InputName=light_interaction_fx
+
+"..\cg\$(InputName).vp30" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
+	"C:\Program Files\NVIDIA Corporation\Cg\bin\cgc" -profile fp30 $(InputPath) -o ..\cg\$(InputName).vp30
 
 # End Custom Build
 

@@ -3,6 +3,7 @@
 	ProjectType="Visual C++"
 	Version="7.10"
 	Name="winquake"
+	RootNamespace="winquake"
 	SccProjectName=""
 	SccLocalPath="">
 	<Platforms>
@@ -39,7 +40,7 @@
 				Name="VCLinkerTool"
 				AdditionalOptions="/MACHINE:I386"
 				AdditionalDependencies="comctl32.lib ..\dxsdk\sdk\lib\dxguid.lib winmm.lib wsock32.lib opengl32.lib glu32.lib odbc32.lib odbccp32.lib libpng.lib zlib.lib ..\nvparse\nvparse\debug\nvparse.lib libxml2.lib"
-				OutputFile=".\debug_gl\glquake.exe"
+				OutputFile=".\debug_gl\tenebrae2.exe"
 				LinkIncremental="2"
 				SuppressStartupBanner="TRUE"
 				AdditionalLibraryDirectories="..\extlibs-w32"
@@ -55,7 +56,8 @@
 				TargetEnvironment="1"
 				TypeLibraryName=".\debug_gl/WinQuake.tlb"/>
 			<Tool
-				Name="VCPostBuildEventTool"/>
+				Name="VCPostBuildEventTool"
+				CommandLine="copy $(TargetPath) $(TENEBRAE2_DIR)\tenebrae2.exe"/>
 			<Tool
 				Name="VCPreBuildEventTool"/>
 			<Tool
@@ -236,6 +238,9 @@
 						Name="VCCLCompilerTool"
 						BrowseInformation="1"/>
 				</FileConfiguration>
+			</File>
+			<File
+				RelativePath="..\gl_bumpstat.c">
 			</File>
 			<File
 				RelativePath="..\gl_common.c">
@@ -645,6 +650,9 @@ del $(OUTDIR)\$(InputName).spp
 			</File>
 			<File
 				RelativePath="..\world.h">
+			</File>
+			<File
+				RelativePath="..\xmlmenu.h">
 			</File>
 			<File
 				RelativePath="..\zone.h">
