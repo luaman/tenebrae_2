@@ -321,8 +321,8 @@ void Draw_Init (void)
 	//
 	// get the other pics we need
 	//
-	draw_disc = GL_ShaderForName ("disc");
-	draw_backtile = GL_ShaderForName ("backtile");
+	draw_disc = GL_ShaderForName ("screen/disc");
+	draw_backtile = GL_ShaderForName ("screen/backtile");
 
 	//PENTA: load fallof glow
 	glow_texture_object = GL_Load2DAttenTexture();
@@ -364,15 +364,67 @@ void Draw_Character (int x, int y, int num)
 	int		row, col, nnum;
 	float		frow, fcol, size;
 
+	/* use shaders for fonts ?
+	float glyph_width, glyph_height;
+	shader_t *shader;
+
+	vec3_t vertices[4];
+	float texcoords[8];
+
+	int indecies[]={0,1,2,2,1,3};
+
+	vertexdef_t verts[]={
+		vertices,0,              // vertices
+		texcoords,0,             // texcoords
+		NULL,0,                  // lightmapcoords
+		NULL,0,                  // tangents
+		NULL,0,                  // binormals
+		NULL,0,                  // normals
+		NULL,0                   // colors
+	};
+
+	glyph_pix_width = 8;
+	glyph_pix_height = 16;
+
+
+	vertices[0][0] = x; 
+	vertices[0][1] = y;
+	vertices[0][3] = 0.0f;
+
+	texcoords[0] = fcol;
+	texcoords[1] = frow;
+  
+	vertices[1][0] = x + glyph_pix_width; 
+	vertices[1][1] = y ;
+	vertices[1][3] = 0.0f;  
+
+	texcoords[2] = fcol + glyph_width;
+	texcoords[3] = frow;
+
+	vertices[2][0] = x;
+	vertices[2][1] = y + glyph_pix_height;
+	vertices[2][3] = 0.0f;  
+
+	texcoords[4] = fcol;
+	texcoords[5] = frow + glyph_height;
+
+	vertices[3][0] = x + glyph_pix_width; 
+	vertices[3][1] = y + glyph_pix_height;
+	vertices[3][3] = 0.0f;  
+
+	texcoords[6] = fcol + glyph_width;
+	texcoords[7] = frow + glyph_height;
+	*/
+
+
 	if (num == 32)
 		return;		// space
 
 	if (num > 127) glColor3ub(255,50,10);
-		
+
 	nnum = num & 127;
-	//nnum = nnum
-	
-	if (y <= -8)
+
+	if (y <= 0)
 		return;			// totally off screen
 
 	row = nnum>>4;
@@ -381,6 +433,10 @@ void Draw_Character (int x, int y, int num)
 	frow = row*0.0625;
 	fcol = col*0.0625;
 	size = 0.0625;
+
+
+	glDisable(GL_ALPHA_TEST);
+	glEnable (GL_BLEND);
 
 	GL_Bind (char_texture);
 
@@ -394,6 +450,8 @@ void Draw_Character (int x, int y, int num)
 	glTexCoord2f (fcol, frow + size);
 	glVertex2f (x, y+16);
 	glEnd ();
+	glEnable(GL_ALPHA_TEST);
+	glDisable (GL_BLEND);
 
 	if (num > 127) glColor3ub(255,255,255);
 }
@@ -431,20 +489,20 @@ void Draw_DebugChar (char num)
 =============
 Draw_AlphaPic
 =============
-
+*/
 void Draw_AlphaPic (int x, int y, shader_t *pic, float alpha)
 {
 	glDisable(GL_ALPHA_TEST);
 	glEnable (GL_BLEND);
-//	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-//	glCullFace(GL_FRONT);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	glCullFace(GL_FRONT);
 	glColor4f (1,1,1,alpha);
-	Draw_GLPic (x, y, x+pic->width, y+pic->height, pic);
+	//Draw_Pic (x, y, x+pic->width, y+pic->height, pic);
 	glColor4f (1,1,1,1);
 	glEnable(GL_ALPHA_TEST);
 	glDisable (GL_BLEND);
 }
-*/
+
 /*
 =============
 Draw_Pic
@@ -602,7 +660,7 @@ Draw_ConsoleBackground
 void Draw_ConsoleBackground (int lines)
 {
 
-	int y = (vid.height * 3) >> 2;
+	int y = (vid.height * 3) >> 2; // 2/3 of screen size
 	int x, i; 
 
 	char tl[80]; //Console Clock - Eradicator
@@ -629,7 +687,7 @@ void Draw_ConsoleBackground (int lines)
 
 void Draw_SpiralConsoleBackground (int lines) //Spiral Console - Eradicator
 { 
-	/*
+   /*
    int x, i; 
    int y; 
    static float xangle = 0, xfactor = .3f, xstep = .01f; 
@@ -666,7 +724,7 @@ void Draw_SpiralConsoleBackground (int lines) //Spiral Console - Eradicator
 		for (i=0 ; i < strlen(tl) ; i++) 
 			Draw_Character (x + i * 8, y, tl[i] | 0x80);
 	}
-	*/
+   */
 }
 
 
@@ -695,7 +753,7 @@ void Draw_TileClear (int x, int y, int w, int h)
 	glVertex2f (x, y+h);
 	glEnd ();
 	*/
-	Draw_Pic (x, y, x+w, y+h, draw_backtile);
+	Draw_Pic (x, y, (x+w), (y+h), draw_backtile);
 }
 
 
