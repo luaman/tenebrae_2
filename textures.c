@@ -1325,6 +1325,20 @@ void GL_ShutdownTextures(void) {
 	}
 }
 
+void Print_Tex_Cache_f(void) {
+	int i;
+	gltexture_t *glt;
+
+	for (i=0, glt=gltextures ; i<numgltextures ; i++, glt++)
+	{
+		//found one, return it...
+		Con_Printf("%s: texnum(%i) type(%i) dynamic(%i) width(%i) heigt(%i)\n",
+			glt->identifier, glt->texnum, glt->type, (glt->dynamic == NULL ? 0 : 1), glt->width, glt->height);
+
+	}
+}
+
+/*
 int GL_LoadLuma(char *identifier, qboolean mipmap)
 {
 	qboolean	alpha;
@@ -1354,7 +1368,7 @@ int GL_LoadLuma(char *identifier, qboolean mipmap)
 		return 0;
 	}
 }
-
+*/
 
 char *face_names[] =
 {
@@ -1565,7 +1579,7 @@ int GL_Load3DAttenTexture(void)
 				if (DistSq < radiussq) {
 					byte value;
 					float FallOff = (radiussq - DistSq) / radiussq;
-					FallOff *= FallOff;
+					//FallOff *= FallOff;
 					value = FallOff*255.0;
 					data[r * ATTEN_VOLUME_SIZE * ATTEN_VOLUME_SIZE *4+ t * ATTEN_VOLUME_SIZE *4+ s *4+ 0] = value;
 					data[r * ATTEN_VOLUME_SIZE * ATTEN_VOLUME_SIZE *4+ t * ATTEN_VOLUME_SIZE *4+ s *4+ 1] = value;
