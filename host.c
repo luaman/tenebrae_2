@@ -889,7 +889,7 @@ void Host_Init (quakeparms_t *parms)
 	Con_Printf ("Modified by Charles 'Pentagram' Hollemeersch\n");
 	Con_Printf ("%4.1f megabyte heap\n",parms->memsize/ (1024*1024.0));
 	
-	R_InitTextures ();		// needed even for dedicated servers
+//	R_InitTextures ();		// needed even for dedicated servers
  
 	if (cls.state != ca_dedicated)
 	{
