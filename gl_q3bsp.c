@@ -269,7 +269,7 @@ void findNeighbourForEdge(glpoly_t *poly, int neighindex) {
 	eindex = poly->neighbours[neighindex].p1;
 	eindex2 = poly->neighbours[neighindex].p2;
 
-	if (poly->neighbours[eindex].n != NULL) return;
+	if (poly->neighbours[neighindex].n != NULL) return;
 	for (i=0; i<loadmodel->numsurfaces; i++) {
 		p = loadmodel->surfaces[i].polys;
 
@@ -283,8 +283,7 @@ void findNeighbourForEdge(glpoly_t *poly, int neighindex) {
 			np2 = p->neighbours[j].p2;
 
 			if ((vertexEqual(&tempVertices[np1],&tempVertices[eindex]) 
-				&& vertexEqual(&tempVertices[np2],&tempVertices[eindex2])
-				)
+				&& vertexEqual(&tempVertices[np2],&tempVertices[eindex2]))
 				||
 			   (vertexEqual(&tempVertices[np2],&tempVertices[eindex])
 			   && vertexEqual(&tempVertices[np1],&tempVertices[eindex2])))
@@ -673,6 +672,8 @@ void ModQ3_SetupFaces (void)
 	char	cache[MAX_QPATH], fullpath[MAX_OSPATH];
 	int mod = loadmodel->numsurfaces / 10;
 	int progress = 0;
+
+	if (mod < 1) mod = 1;
 	numnaughty = 0;
 	numnormal = 0;
 	noneighbour = 0;
