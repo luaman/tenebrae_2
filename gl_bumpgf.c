@@ -35,6 +35,7 @@ If a light has a cubemap filter it requires 3 passes
 #include "nvparse/nvparse.h"
 
 //#define DELUX_DEBUG
+//#define AMBIENT_BUMP
 
 //<AWE> "diffuse_program_object" has to be defined static. Otherwise nameclash with "gl_bumpradeon.c".
 static GLuint diffuse_program_object;
@@ -42,11 +43,19 @@ static GLuint specularalias_program_object; //He he nice name to type a lot
 static GLuint deluxCombiner;
 static GLuint delux_program_object;
 
+#ifdef AMBIENT_BUMP
+static GLuint ambientBumpTS;
+static GLuint ambientBumpCombiner;
+static GLuint ambientBumpCombiner2;
+#endif 
+
+void GF3_SetupTcMods(stage_t *s);
+
 /*
 Pixel shader for diffuse bump mapping does diffuse bumpmapping with norm cube, self shadowing & dist attent in
 1 pass (thanx to the 4 texture units on a gf4)
 */
-void GL_EnableDiffuseShaderGF3(const transform_t *tr, vec3_t lightOrig) {
+void GL_EnableDiffuseShaderGF3(const transform_t *tr, vec3_t lightOrig, int stageIndex) {
 
 	//tex 0 = normal map
 	//tex 1 = nomalization cube map (tangent space light vector)
@@ -65,10 +74,24 @@ void GL_EnableDiffuseShaderGF3(const transform_t *tr, vec3_t lightOrig) {
 	glMatrixMode(GL_TEXTURE);
 	glPushMatrix();
 	glLoadIdentity();
-	if (currentshadowlight->filtercube) {
-		glEnable(GL_TEXTURE_CUBE_MAP_ARB);
-		glBindTexture(GL_TEXTURE_CUBE_MAP_ARB, currentshadowlight->filtercube);
+	if (currentshadowlight->shader->numstages) {
 		GL_SetupCubeMapMatrix(tr);
+		if (currentshadowlight->shader->stages[stageIndex].texture[0]->type == GL_TEXTURE_CUBE_MAP_ARB) {
+			glEnable(GL_TEXTURE_CUBE_MAP_ARB);
+			glBindTexture(GL_TEXTURE_CUBE_MAP_ARB, currentshadowlight->shader->stages[stageIndex].texture[0]->texnum);
+		} else {
+			glEnable(GL_TEXTURE_2D);
+			GL_BindAdvanced(currentshadowlight->shader->stages[stageIndex].texture[0]);
+			//Default = repeat the texture one time in the light's sphere
+			//Can be modified with the tcMod shader commands
+			glTranslatef(0.5,0.5,0.5);
+			glScalef(0.5,0.5,0.5);
+			glScalef(1.0f/(currentshadowlight->radiusv[0]), 
+					 1.0f/(currentshadowlight->radiusv[1]),
+					 1.0f/(currentshadowlight->radiusv[2]));
+
+		}	
+		GF3_SetupTcMods(&currentshadowlight->shader->stages[stageIndex]);
 	} else {
 		glEnable(GL_TEXTURE_3D);
 		glBindTexture(GL_TEXTURE_3D, atten3d_texture_object);
@@ -164,7 +187,7 @@ void GL_EnableDiffuseShaderGF3(const transform_t *tr, vec3_t lightOrig) {
 
 }
 
-void GL_DisableDiffuseShaderGF3() {
+void GL_DisableDiffuseShaderGF3(int stageIndex) {
 
 	qglCombinerParameteriNV(GL_NUM_GENERAL_COMBINERS_NV, 1);
 
@@ -180,8 +203,11 @@ void GL_DisableDiffuseShaderGF3() {
 	glDisable(GL_TEXTURE_2D);
 
 	GL_SelectTexture(GL_TEXTURE3_ARB);
-	if (currentshadowlight->filtercube) {
-		glDisable(GL_TEXTURE_CUBE_MAP_ARB);
+	if (currentshadowlight->shader->numstages) {
+		if (currentshadowlight->shader->stages[stageIndex].texture[0]->type == GL_TEXTURE_CUBE_MAP_ARB)
+			glDisable(GL_TEXTURE_CUBE_MAP_ARB);
+		else
+			glDisable(GL_TEXTURE_2D);
 	} else {
 		glDisable(GL_TEXTURE_3D);
 	}
@@ -195,7 +221,7 @@ void GL_DisableDiffuseShaderGF3() {
     glDisable( GL_VERTEX_PROGRAM_NV );
 }
 
-void GL_EnableSpecularShaderGF3(const transform_t *tr, vec3_t lightOrig, qboolean alias, qboolean packedGloss) {
+void GL_EnableSpecularShaderGF3(const transform_t *tr, vec3_t lightOrig, int stageIndex, qboolean alias, qboolean packedGloss) {
 
 	vec3_t scaler = {0.5f, 0.5f, 0.5f};
 	float invrad = 1/currentshadowlight->radius;
@@ -219,10 +245,23 @@ void GL_EnableSpecularShaderGF3(const transform_t *tr, vec3_t lightOrig, qboolea
 	glPushMatrix();
 	glLoadIdentity();
 
-	if (currentshadowlight->filtercube) {
-		glEnable(GL_TEXTURE_CUBE_MAP_ARB);
-		glBindTexture(GL_TEXTURE_CUBE_MAP_ARB, currentshadowlight->filtercube);
+	if (currentshadowlight->shader->numstages) {
 		GL_SetupCubeMapMatrix(tr);
+		if (currentshadowlight->shader->stages[stageIndex].texture[0]->type == GL_TEXTURE_CUBE_MAP_ARB) {
+			glEnable(GL_TEXTURE_CUBE_MAP_ARB);
+			glBindTexture(GL_TEXTURE_CUBE_MAP_ARB, currentshadowlight->shader->stages[stageIndex].texture[0]->texnum);
+		} else {
+			glEnable(GL_TEXTURE_2D);
+			GL_BindAdvanced(currentshadowlight->shader->stages[stageIndex].texture[0]);
+			//Default = repeat the texture one time in the light's sphere
+			//Can be modified with the tcMod shader commands
+			glTranslatef(0.5,0.5,0.5);
+			glScalef(0.5,0.5,0.5);
+			glScalef(1.0f/(currentshadowlight->radiusv[0]), 
+					 1.0f/(currentshadowlight->radiusv[1]),
+					 1.0f/(currentshadowlight->radiusv[2]));
+		}
+		GF3_SetupTcMods(&currentshadowlight->shader->stages[stageIndex]);
 	} else {
 		glEnable(GL_TEXTURE_3D);
 		glBindTexture(GL_TEXTURE_3D, atten3d_texture_object);
@@ -448,10 +487,15 @@ void GF3_SetupTcMod(tcmod_t *tc) {
 	}
 }
 
+void GF3_SetupTcMods(stage_t *s) {
+	int i;
+	for (i=0; i<s->numtcmods; i++) {
+		GF3_SetupTcMod(&s->tcmods[i]);	
+	}
+
+}
 
 void GF3_SetupSimpleStage(stage_t *s) {
-	tcmod_t *tc;
-	int i;
 
 	if (s->type != STAGE_SIMPLE) {
 		Con_Printf("Non simple stage, in simple stage list");
@@ -461,9 +505,7 @@ void GF3_SetupSimpleStage(stage_t *s) {
 	glMatrixMode(GL_TEXTURE);
 	glPushMatrix();
 
-	for (i=0; i<s->numtcmods; i++) {
-		GF3_SetupTcMod(&s->tcmods[i]);	
-	}
+	GF3_SetupTcMods(s);
 
 	if (s->src_blend > -1) {
 		glBlendFunc(s->src_blend, s->dst_blend);
@@ -550,9 +592,11 @@ void GF3_sendTriangleListTA(const vertexdef_t *verts, int *indecies, int numInde
 
 void GF3_drawTriangleListBump (const vertexdef_t *verts, int *indecies, int numIndecies, shader_t *shader, const transform_t *tr) {
 
+	int i, num;
+
 	if (!(shader->flags & SURF_PPLIGHT)) return;
 
-	if (currentshadowlight->filtercube) {
+	if (currentshadowlight->shader->numstages) {
 		//draw attent into dest alpha
 		GL_DrawAlpha();
 		GL_EnableAttentShaderGF3(currentshadowlight->origin);
@@ -564,29 +608,36 @@ void GF3_drawTriangleListBump (const vertexdef_t *verts, int *indecies, int numI
 	}
 	glColor3fv(&currentshadowlight->color[0]);
 
+	num = (currentshadowlight->shader->numstages == 0) ? 1 : currentshadowlight->shader->numstages;
+
 	if ((shader->numglossstages > 0) && (shader->numbumpstages > 0)) {
-		GL_EnableSpecularShaderGF3(tr,currentshadowlight->origin,true,(shader->glossstages[0].type == STAGE_GRAYGLOSS));
-		//bind the correct texture
-		GL_SelectTexture(GL_TEXTURE0_ARB);
-		GL_BindAdvanced(shader->bumpstages[0].texture[0]);
+		//FIXME: A lot of statechanges for every pass we could only rebind the texture (and some overhead like matrix setup,...)
+		for(i=0; i<num; i++) {
+			GL_EnableSpecularShaderGF3(tr,currentshadowlight->origin,i,true,(shader->glossstages[0].type == STAGE_GRAYGLOSS));
+			//bind the correct texture
+			GL_SelectTexture(GL_TEXTURE0_ARB);
+			GL_BindAdvanced(shader->bumpstages[0].texture[0]);
 
-		GL_SelectTexture(GL_TEXTURE2_ARB);
-		GL_BindAdvanced(shader->glossstages[0].texture[0]);
+			GL_SelectTexture(GL_TEXTURE2_ARB);
+			GL_BindAdvanced(shader->glossstages[0].texture[0]);
 
-		GF3_sendTriangleListTA(verts,indecies,numIndecies);
-		GL_DisableDiffuseShaderGF3();
+			GF3_sendTriangleListTA(verts,indecies,numIndecies);
+			GL_DisableDiffuseShaderGF3(i);
+		}
 	}
 
 	if ((shader->numcolorstages > 0) && (shader->numbumpstages > 0)) {
-		GL_EnableDiffuseShaderGF3(tr,currentshadowlight->origin);
-		//bind the correct texture
-		GL_SelectTexture(GL_TEXTURE0_ARB);
-		GL_BindAdvanced(shader->bumpstages[0].texture[0]);
-		GL_SelectTexture(GL_TEXTURE2_ARB);
-		GL_BindAdvanced(shader->colorstages[0].texture[0]);
+		for(i=0; i<num; i++) {
+			GL_EnableDiffuseShaderGF3(tr,currentshadowlight->origin,i);
+			//bind the correct texture
+			GL_SelectTexture(GL_TEXTURE0_ARB);
+			GL_BindAdvanced(shader->bumpstages[0].texture[0]);
+			GL_SelectTexture(GL_TEXTURE2_ARB);
+			GL_BindAdvanced(shader->colorstages[0].texture[0]);
 
-		GF3_sendTriangleListTA(verts,indecies,numIndecies);
-		GL_DisableDiffuseShaderGF3();
+			GF3_sendTriangleListTA(verts,indecies,numIndecies);
+			GL_DisableDiffuseShaderGF3(i);
+		}
 	}
 }
 
@@ -828,6 +879,142 @@ Generic world surfaces routines
 
 **************************/
 
+#ifdef AMBIENT_BUMP
+
+gltexture_t *cubetex = NULL;
+
+void GF3_sendSurfacesAmbient(msurface_t **surfs, int numSurfaces) {
+	int i;
+	glpoly_t *p;
+	msurface_t *surf;
+	float packed_normal [3];
+	static float trans[3] = {0.5, 0.5, 0.5};
+	vec3_t newtan, newbin, newnrm;
+	float *oldtan, *oldbin, *oldnrm;
+
+	for (i=0; i<numSurfaces; i++) {
+		surf = surfs[i];
+		if (surf->visframe != r_framecount)
+			continue;
+		p = surf->polys;
+
+		oldtan = &surf->tangent[0];
+		oldbin = &surf->binormal[0];
+		oldnrm = &surf->plane->normal[0];
+
+		//Transpose: gives tangent->object
+		newtan[0] = oldtan[0];
+		newtan[1] = -oldbin[0];
+		newtan[2] = oldnrm[0];
+
+		newbin[0] = oldtan[1];
+		newbin[1] = -oldbin[1];
+		newbin[2] = oldnrm[1];
+
+		newnrm[0] = oldtan[2];
+		newnrm[1] = -oldbin[2];
+		newnrm[2] = oldnrm[2];
+
+		qglMultiTexCoord3fvARB(GL_TEXTURE1_ARB, newtan);
+		qglMultiTexCoord3fvARB(GL_TEXTURE2_ARB, newbin);
+		qglMultiTexCoord3fvARB(GL_TEXTURE3_ARB, newnrm);
+
+		glDrawElements(GL_TRIANGLES, p->numindecies, GL_UNSIGNED_INT, &p->indecies[0]);
+	}
+}
+
+void GF3_sendSurfacesAmbientBase(msurface_t **surfs, int numSurfaces) {
+	int i;
+	glpoly_t *p;
+	msurface_t *surf;
+	float packed_normal [3];
+	static float trans[3] = {0.5, 0.5, 0.5};
+	vec3_t newtan, newbin, newnrm;
+	float *oldtan, *oldbin, *oldnrm;
+
+	for (i=0; i<numSurfaces; i++) {
+		surf = surfs[i];
+		if (surf->visframe != r_framecount)
+			continue;
+		p = surf->polys;
+
+		if (surf->lightmaptexturenum < 0)
+			continue;
+		GL_Bind(lightmap_textures+surf->lightmaptexturenum);
+
+		glDrawElements(GL_TRIANGLES, p->numindecies, GL_UNSIGNED_INT, &p->indecies[0]);
+	}
+}
+
+void GF3_TestAmbientBumps (vertexdef_t *verts, msurface_t **surfs, int numSurfaces, shader_t *shader) {
+
+	glGetError();
+	if (!cubetex) {
+		cubetex = GL_CacheTexture ("cubemaps/cube_",  false, TEXTURE_CUBEMAP);
+	}
+
+	//Pass 1: Lightmap (= ambient occlusion) * colormap
+
+	qglClientActiveTextureARB(GL_TEXTURE1_ARB);
+	glTexCoordPointer(2, GL_FLOAT, verts->lightmapstride, verts->lightmapcoords);
+	glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+
+	if (shader->numcolorstages) {
+		if (shader->colorstages[0].numtextures)
+			GL_BindAdvanced(shader->colorstages[0].texture[0]);
+	}
+
+
+	glEnable(GL_REGISTER_COMBINERS_NV);
+	glCallList(ambientBumpCombiner2);
+
+	GL_EnableMultitexture();
+
+	GF3_sendSurfacesAmbientBase(surfs, numSurfaces);
+
+	GL_DisableMultitexture();
+
+	glDisableClientState(GL_TEXTURE_COORD_ARRAY);
+		
+	//Pass 2: Dependent lookup in cubemap
+
+	glEnable(GL_BLEND);
+
+	if (shader->numbumpstages) {
+		if (shader->bumpstages[0].numtextures)
+			GL_BindAdvanced(shader->bumpstages[0].texture[0]);
+	}
+
+	glEnable(GL_TEXTURE_SHADER_NV);
+	glCallList(ambientBumpTS);
+
+	glCallList(ambientBumpCombiner);
+
+	checkerror();
+
+	GL_SelectTexture(GL_TEXTURE3_ARB);
+	glEnable(GL_TEXTURE_CUBE_MAP_ARB);
+	glBindTexture(GL_TEXTURE_CUBE_MAP_ARB, cubetex->texnum);
+
+	glColor3ub(255,255,255);
+
+	glBlendFunc(GL_DST_COLOR, GL_ZERO);
+
+	GF3_sendSurfacesAmbient(surfs, numSurfaces);
+
+	glDisable(GL_TEXTURE_CUBE_MAP_ARB);
+	GL_SelectTexture(GL_TEXTURE0_ARB);
+
+	glDisable(GL_BLEND);
+
+	glDisable(GL_TEXTURE_SHADER_NV);
+
+	glDisable(GL_REGISTER_COMBINERS_NV);
+	
+}
+
+#endif
+
 void GF3_sendSurfacesBase(msurface_t **surfs, int numSurfaces, qboolean bindLightmap) {
 	int i;
 	glpoly_t *p;
@@ -910,7 +1097,11 @@ void GF3_drawSurfaceListBase (vertexdef_t *verts, msurface_t **surfs, int numSur
 	}
 
 	if (verts->lightmapcoords && (shader->flags & SURF_PPLIGHT)) {
+#ifdef AMBIENT_BUMP
 
+	GF3_TestAmbientBumps(verts, surfs, numSurfaces, shader);
+
+#else
 		qglClientActiveTextureARB(GL_TEXTURE1_ARB);
 		glTexCoordPointer(2, GL_FLOAT, verts->lightmapstride, verts->lightmapcoords);
 		glEnableClientState(GL_TEXTURE_COORD_ARRAY);
@@ -923,7 +1114,6 @@ void GF3_drawSurfaceListBase (vertexdef_t *verts, msurface_t **surfs, int numSur
 		}
 
 		if (usedelux) {
-
 			glDisableClientState(GL_TEXTURE_COORD_ARRAY);
 
 			qglClientActiveTextureARB(GL_TEXTURE0_ARB);
@@ -1031,7 +1221,6 @@ void GF3_drawSurfaceListBase (vertexdef_t *verts, msurface_t **surfs, int numSur
 			glEnableClientState(GL_TEXTURE_COORD_ARRAY);
 
 			qglClientActiveTextureARB(GL_TEXTURE1_ARB);
-
 		}
 		
 		if (shader->numstages && shader->numcolorstages)
@@ -1080,6 +1269,7 @@ void GF3_drawSurfaceListBase (vertexdef_t *verts, msurface_t **surfs, int numSur
 		glDisableClientState(GL_TEXTURE_COORD_ARRAY);
 		GL_DisableMultitexture();
 		qglClientActiveTextureARB(GL_TEXTURE0_ARB);
+#endif //Ambient bump
 	}
 
 	if (!shader->cull) {
@@ -1227,13 +1417,15 @@ void GF3_sendSurfacesPlain(msurface_t **surfs, int numSurfaces) {
 
 void GF3_drawSurfaceListBump (vertexdef_t *verts, msurface_t **surfs, int numSurfaces,const transform_t *tr) {
 
+	int i, num;
+
 	glVertexPointer(3, GL_FLOAT, verts->vertexstride, verts->vertices);
 	glEnableClientState(GL_VERTEX_ARRAY);
 
 	qglClientActiveTextureARB(GL_TEXTURE0_ARB);
 	glEnableClientState(GL_TEXTURE_COORD_ARRAY);
 
-	if (currentshadowlight->filtercube) {
+	if (currentshadowlight->shader->numstages) {
 		//draw attent into dest alpha
 		GL_DrawAlpha();
 		GL_EnableAttentShaderGF3(currentshadowlight->origin);
@@ -1248,16 +1440,20 @@ void GF3_drawSurfaceListBump (vertexdef_t *verts, msurface_t **surfs, int numSur
 	}
 	glColor3fv(&currentshadowlight->color[0]);
 
+	num = (currentshadowlight->shader->numstages == 0) ? 1 : currentshadowlight->shader->numstages;
+	for (i=0; i<num; i++) {
+		GL_EnableSpecularShaderGF3(tr,currentshadowlight->origin, i, true,true);
+		glTexCoordPointer(2, GL_FLOAT, verts->texcoordstride, verts->texcoords);
+		GF3_sendSurfacesTA(surfs,numSurfaces, true);
+		GL_DisableDiffuseShaderGF3(i);
+	}
 
-	GL_EnableSpecularShaderGF3(tr,currentshadowlight->origin,true,true);
 
-	glTexCoordPointer(2, GL_FLOAT, verts->texcoordstride, verts->texcoords);
-	GF3_sendSurfacesTA(surfs,numSurfaces, true);
-	GL_DisableDiffuseShaderGF3();
-
-	GL_EnableDiffuseShaderGF3(tr,currentshadowlight->origin);
-	GF3_sendSurfacesTA(surfs,numSurfaces, false);
-	GL_DisableDiffuseShaderGF3();
+	for (i=0; i<num; i++) {
+		GL_EnableDiffuseShaderGF3(tr,currentshadowlight->origin,i);
+		GF3_sendSurfacesTA(surfs,numSurfaces, false);
+		GL_DisableDiffuseShaderGF3(i);
+	}
 
 	glDisableClientState(GL_VERTEX_ARRAY);
 	glDisableClientState(GL_TEXTURE_COORD_ARRAY);
@@ -1472,7 +1668,6 @@ void BUMP_InitGeforce3(void) {
 	qglLoadProgramNV( GL_VERTEX_PROGRAM_NV, specularalias_program_object,
 					strlen(vpSpecularAliasGF3), (const GLubyte *) vpSpecularAliasGF3);
 
-
 	qglGenProgramsNV( 1, &delux_program_object);
 
 	qglLoadProgramNV( GL_VERTEX_PROGRAM_NV, delux_program_object,
@@ -1500,6 +1695,11 @@ void BUMP_InitGeforce3(void) {
 	qglProgramParameter4fNV( GL_VERTEX_PROGRAM_NV, 20, 0.5, 0.5, 0.5, 0.5);
 
 	deluxCombiner = NV_LoadCombiner("hardware/delux.regcomb");
+#ifdef AMBIENT_BUMP
+	ambientBumpTS = NV_LoadCombiner("hardware/ambientbump.ts");
+	ambientBumpCombiner = NV_LoadCombiner("hardware/ambientbump.regcomb");
+	ambientBumpCombiner2 = NV_LoadCombiner("hardware/ambientbump_2.regcomb");
+#endif
 
 	//bind the correct stuff to the bump mapping driver
 	gl_bumpdriver.drawSurfaceListBase = GF3_drawSurfaceListBase;
