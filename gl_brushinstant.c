@@ -261,7 +261,7 @@ void R_CalcBrushVolumeVerts(entity_t *e, brushlightinstant_t *ins) {
 		for (j=0 ; j<surf->numedges ; j++)
 		{
 			//v2 = (vec3_t *)&poly->verts[j];
-			v2 = (vec3_t *)(&globalVertexTable[poly->firstvertex+j]);
+			v2 = (vec3_t *)(&cl.worldmodel->userVerts[poly->firstvertex+j]);
 			VectorSubtract ( (*v2) ,ins->lightpos, v1);
 			scale = Length (v1);
 
@@ -347,7 +347,7 @@ void R_CalcBrushAttenCoords(entity_t *e, brushlightinstant_t *ins) {
 		usedcolorscales++;
 
 		//we could probably do this in hardware, with a vertex program!
-		v = (float *)(&globalVertexTable[poly->firstvertex]);
+		v = (float *)(&cl.worldmodel->userVerts[poly->firstvertex]);
 		//v = poly->verts[0];
 		for (j=0 ; j<poly->numverts ; j++, v+= VERTEXSIZE)
 		{
@@ -382,7 +382,7 @@ void R_SetupBrushLightHAV(entity_t *ent, brushlightinstant_t *ins)
 		poly = psurf->polys;
 		
 		//v = poly->verts[0];
-		v = (float *)(&globalVertexTable[poly->firstvertex]);
+		v = (float *)(&cl.worldmodel->userVerts[poly->firstvertex]);
 		for (j=0 ; j<poly->numverts ; j++, v+= VERTEXSIZE)
 		{	
 
