@@ -658,7 +658,7 @@ void CL_RelinkEntities (void)
 			}
 			
 			if (ent->skinnum >= 16) {
-				dl->filtercube = R_CubeMapLookup(ent->skinnum);
+				dl->filtercube = ent->skinnum;
 			} else {
 				dl->filtercube = 0;
 			}
@@ -721,7 +721,7 @@ void CL_RelinkEntities (void)
 			dl->owner = ent;
 			//PENTA: Hack give the lava ball a lava cube map
 			if (!strcmp (ent->model->name, "progs/lavaball.mdl")) {
-				dl->filtercube = R_CubeMapLookup(17);
+				dl->filtercube = 0;
 				dl->color[0] = 1;
 				dl->color[1] = 1;
 				dl->color[2] = 1;
