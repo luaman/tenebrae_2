@@ -336,6 +336,7 @@ void Draw_CharToConback (int num, byte *dest)
 
 }
 
+void Print_Tex_Cache_f(void);
 /*
 ===============
 Draw_Init
@@ -369,19 +370,23 @@ void Draw_Init (void)
 
 	Cmd_AddCommand ("gl_texturemode", &Draw_TextureMode_f);
 	Cmd_AddCommand ("roq_info", &Roq_Info_f);
+	Cmd_AddCommand ("gl_texcache",Print_Tex_Cache_f);
 
 	// load the console background and the charset
 	// by hand, because we need to write the version
 	// string into the background before turning
 	// it into a texture
+	
+	/*
 	draw_chars = W_GetLumpName ("conchars");
 	for (i=0 ; i<256*64 ; i++)
 		if (draw_chars[i] == 0)
 			draw_chars[i] = 255;	// proper transparent color
-
+	*/
 	// now turn them into textures
-	char_texture = GL_LoadTexture ("charset", 128, 128, draw_chars, false, true, false);
+	char_texture = EasyTgaLoad("textures/system/charset.tga");//GL_LoadTexture ("charset", 128, 128, draw_chars, false, true, false);
 
+/*
 	start = Hunk_LowMark();
 
 	cb = (qpic_t *)COM_LoadTempFile ("gfx/conback.lmp");	
@@ -451,6 +456,17 @@ void Draw_Init (void)
 
 	// free loaded console
 	Hunk_FreeToLowMark(start);
+*/
+	//Clean conback loading
+	conback->width = vid.conwidth;
+	conback->height = vid.conheight;
+	gl = (glpic_t *)conback->data;
+	gl->texnum = EasyTgaLoad("textures/system/conback.tga");
+	gl->sl = 0;
+	gl->sh = 1;
+	gl->tl = 0;
+	gl->th = 1;
+	
 
 	// save a texture slot for translated picture
 	translate_texture = texture_extension_number++;
@@ -834,6 +850,30 @@ void Draw_Fill (int x, int y, int w, int h, int c)
 	glColor3f (host_basepal[c*3]/255.0,
 		host_basepal[c*3+1]/255.0,
 		host_basepal[c*3+2]/255.0);
+
+	glBegin (GL_QUADS);
+
+	glVertex2f (x,y);
+	glVertex2f (x+w, y);
+	glVertex2f (x+w, y+h);
+	glVertex2f (x, y+h);
+
+	glEnd ();
+	glColor3f (1,1,1);
+	glEnable (GL_TEXTURE_2D);
+}
+
+/*
+=============
+Draw_Fill
+
+Fills a box of pixels with a single color
+=============
+*/
+void Draw_FillRGB (int x, int y, int w, int h, float r, float g, float b)
+{
+	glDisable (GL_TEXTURE_2D);
+	glColor3f (r,g,b);
 
 	glBegin (GL_QUADS);
 
