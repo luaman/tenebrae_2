@@ -39,11 +39,11 @@ cvar_t          willi_gray_colormaps = {"willi_gray_colormaps", "0"};
 cvar_t          cg_conclock = {"cg_conclock", "1", true};
 
 byte		*draw_chars;				// 8*8 graphic characters
-qpic_t		*draw_disc;
-qpic_t		*draw_backtile;
+shader_t	*draw_disc;
+shader_t	*draw_backtile;
 
-int			translate_texture;
-int			char_texture;
+int		translate_texture;
+int		char_texture;
 /*
 int			glow_texture_object;	//PENTA: gl texture object of the glow texture
 int			normcube_texture_object; //PENTA: normalization cubemap
@@ -53,14 +53,17 @@ int			atten3d_texture_object;
 int			halo_texture_object;
 */
 
+/*
 typedef struct
 {
 	int		texnum;
 	float	sl, tl, sh, th;
 } glpic_t;
+*/
 
-byte		conback_buffer[sizeof(qpic_t) + sizeof(glpic_t)];
-qpic_t		*conback = (qpic_t *)&conback_buffer;
+//byte		conback_buffer[sizeof(shader_t)];
+//shader_t	*conback = (shader_t *)&conback_buffer;
+shader_t        *conback;
 /*
 int		gl_lightmap_format = 4;
 int		gl_solid_format = 3;
@@ -79,10 +82,10 @@ typedef struct
 	int		width, height;
 	qboolean	mipmap;
 	int		type; //gl texture type like GL_TEXTURE_2D etc...
-} gltexture_t;
+} shader_t;
 
 #define	MAX_GLTEXTURES	1024
-gltexture_t	gltextures[MAX_GLTEXTURES];
+shader_t	gltextures[MAX_GLTEXTURES];
 int			numgltextures;
 
 qboolean is_overriden;
@@ -198,114 +201,6 @@ void Scrap_Upload (void)
 //=============================================================================
 /* Support Routines */
 
-typedef struct cachepic_s
-{
-	char		name[MAX_QPATH];
-	qpic_t		pic;
-	byte		padding[32];	// for appended glpic
-} cachepic_t;
-
-#define	MAX_CACHED_PICS		128
-cachepic_t	menu_cachepics[MAX_CACHED_PICS];
-int			menu_numcachepics;
-
-byte		menuplyr_pixels[4096];
-
-int		pic_texels;
-int		pic_count;
-
-qpic_t *Draw_PicFromWad (char *name)
-{
-	qpic_t	*p;
-	glpic_t	*gl;
-
-	p = W_GetLumpName (name);
-	gl = (glpic_t *)p->data;
-
-	// load little ones into the scrap
-	if (p->width < 64 && p->height < 64)
-	{
-		int		x, y;
-		int		i, j, k;
-		int		texnum;
-
-		texnum = Scrap_AllocBlock (p->width, p->height, &x, &y);
-		scrap_dirty = true;
-		k = 0;
-		for (i=0 ; i<p->height ; i++)
-			for (j=0 ; j<p->width ; j++, k++)
-				scrap_texels[texnum][(y+i)*BLOCK_WIDTH + x + j] = p->data[k];
-		texnum += scrap_texnum;
-		gl->texnum = texnum;
-		gl->sl = (x+0.01)/(float)BLOCK_WIDTH;
-		gl->sh = (x+p->width-0.01)/(float)BLOCK_WIDTH;
-		gl->tl = (y+0.01)/(float)BLOCK_WIDTH;
-		gl->th = (y+p->height-0.01)/(float)BLOCK_WIDTH;
-
-		pic_count++;
-		pic_texels += p->width*p->height;
-	}
-	else
-	{
-		gl->texnum = GL_LoadPicTexture (p);
-		gl->sl = 0;
-		gl->sh = 1;
-		gl->tl = 0;
-		gl->th = 1;
-	}
-	return p;
-}
-
-
-/*
-================
-Draw_CachePic
-================
-*/
-qpic_t	*Draw_CachePic (char *path)
-{
-	cachepic_t	*pic;
-	int			i;
-	qpic_t		*dat;
-	glpic_t		*gl;
-
-	for (pic=menu_cachepics, i=0 ; i<menu_numcachepics ; pic++, i++)
-		if (!strcmp (path, pic->name))
-			return &pic->pic;
-
-	if (menu_numcachepics == MAX_CACHED_PICS)
-		Sys_Error ("menu_numcachepics == MAX_CACHED_PICS");
-	menu_numcachepics++;
-	strncpy (pic->name, path,sizeof(pic->name));
-
-//
-// load the pic from disk
-//
-	dat = (qpic_t *)COM_LoadTempFile (path);	
-	if (!dat)
-		Sys_Error ("Draw_CachePic: failed to load %s", path);
-	SwapPic (dat);
-
-	// HACK HACK HACK --- we need to keep the bytes for
-	// the translatable player picture just for the menu
-	// configuration dialog
-	if (!strcmp (path, "gfx/menuplyr.lmp"))
-		memcpy (menuplyr_pixels, dat->data, dat->width*dat->height);
-
-	pic->pic.width = dat->width;
-	pic->pic.height = dat->height;
-
-	gl = (glpic_t *)pic->pic.data;
-	gl->texnum = GL_LoadPicTexture (dat);
-	gl->sl = 0;
-	gl->sh = 1;
-	gl->tl = 0;
-	gl->th = 1;
-
-	return &pic->pic;
-}
-
-
 void Draw_CharToConback (int num, byte *dest)
 {
 	int		row, col;
@@ -315,6 +210,7 @@ void Draw_CharToConback (int num, byte *dest)
 
 	row = num>>4;
 	col = num&15;
+	/*
 	source = draw_chars + (row<<10) + (col<<3);
 
 	drawline = 8;
@@ -327,7 +223,7 @@ void Draw_CharToConback (int num, byte *dest)
 		source += 128;
 		dest += 320;
 	}
-
+	*/
 }
 
 /*
@@ -338,11 +234,11 @@ Draw_Init
 void Draw_Init (void)
 {
 	int		i;
-	qpic_t	*cb;
+	shader_t	*cb;
 	byte	*dest /*, *src*/;	// <AWE> unused because of "#if 0".
 	int		x, y;
 	char	ver[40];
-	glpic_t	*gl;
+	//glpic_t	*gl;
 	int		start;
 	byte	*ncdata;
 //	int		fstep;		// <AWE> unused because of "#if 0".
@@ -362,25 +258,25 @@ void Draw_Init (void)
 		Cvar_Set ("gl_max_size", "256");
 
 	Cmd_AddCommand ("gl_texturemode", &Draw_TextureMode_f);
+	
+
 
 	// load the console background and the charset
 	// by hand, because we need to write the version
 	// string into the background before turning
 	// it into a texture
-	draw_chars = W_GetLumpName ("conchars");
-	for (i=0 ; i<256*64 ; i++)
-		if (draw_chars[i] == 0)
-			draw_chars[i] = 255;	// proper transparent color
 
+	char_texture = EasyTgaLoad ("charset.tga");
+
+	conback = GL_ShaderForName ("screen/conback");
+	/*
 	// now turn them into textures
-	char_texture = GL_LoadTexture ("charset", 128, 128, draw_chars, false, true, false);
-
+	
 	start = Hunk_LowMark();
 
-	cb = (qpic_t *)COM_LoadTempFile ("gfx/conback.lmp");	
+	cb = GL_CacheTexture ("gfx/conback.lmp");
 	if (!cb)
 		Sys_Error ("Couldn't load gfx/conback.lmp");
-	SwapPic (cb);
 
 	// hack the version number directly into the pic
 #if defined(__linux__)
@@ -395,40 +291,9 @@ void Draw_Init (void)
 	for (x=0 ; x<y ; x++)
 		Draw_CharToConback (ver[x], dest+(x<<3));
 
-#if 0
-	conback->width = vid.conwidth;
-	conback->height = vid.conheight;
-
- 	// scale console to vid size
- 	dest = ncdata = Hunk_AllocName(vid.conwidth * vid.conheight, "conback");
- 
- 	for (y=0 ; y<vid.conheight ; y++, dest += vid.conwidth)
- 	{
- 		src = cb->data + cb->width * (y*cb->height/vid.conheight);
- 		if (vid.conwidth == cb->width)
- 			memcpy (dest, src, vid.conwidth);
- 		else
- 		{
- 			f = 0;
- 			fstep = cb->width*0x10000/vid.conwidth;
- 			for (x=0 ; x<vid.conwidth ; x+=4)
- 			{
- 				dest[x] = src[f>>16];
- 				f += fstep;
- 				dest[x+1] = src[f>>16];
- 				f += fstep;
- 				dest[x+2] = src[f>>16];
- 				f += fstep;
- 				dest[x+3] = src[f>>16];
- 				f += fstep;
- 			}
- 		}
- 	}
-#else
 	conback->width = cb->width;
 	conback->height = cb->height;
 	ncdata = cb->data;
-#endif
 
 	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
@@ -439,11 +304,12 @@ void Draw_Init (void)
 	gl->sh = 1;
 	gl->tl = 0;
 	gl->th = 1;
+
 	conback->width = vid.width;
 	conback->height = vid.height;
-
+	*/
 	// free loaded console
-	Hunk_FreeToLowMark(start);
+	//Hunk_FreeToLowMark(start);
 
 	// save a texture slot for translated picture
 	translate_texture = texture_extension_number++;
@@ -455,8 +321,8 @@ void Draw_Init (void)
 	//
 	// get the other pics we need
 	//
-	draw_disc = Draw_PicFromWad ("disc");
-	draw_backtile = Draw_PicFromWad ("backtile");
+	draw_disc = GL_ShaderForName ("disc");
+	draw_backtile = GL_ShaderForName ("backtile");
 
 	//PENTA: load fallof glow
 	glow_texture_object = GL_Load2DAttenTexture();
@@ -480,6 +346,7 @@ void Draw_Init (void)
 
 	R_InitGlare();
 }
+
 
 
 
@@ -560,68 +427,81 @@ void Draw_DebugChar (char num)
 }
 
 
-
-void Draw_GLPic (int x, int y, int xs, int ys, glpic_t *gl)
-{
-	GL_Bind (gl->texnum);
-	glBegin (GL_QUADS);
-	glTexCoord2f (gl->sl, gl->tl);
-	glVertex2f (x, y);
-	glTexCoord2f (gl->sh, gl->tl);
-	glVertex2f (xs, y);
-	glTexCoord2f (gl->sh, gl->th);
-	glVertex2f (xs, ys);
-	glTexCoord2f (gl->sl, gl->th);
-	glVertex2f (x, ys);
-	glEnd ();
-}
 /*
 =============
 Draw_AlphaPic
 =============
-*/
-void Draw_AlphaPic (int x, int y, qpic_t *pic, float alpha)
-{
-	glpic_t			*gl;
 
-	if (scrap_dirty)
-		Scrap_Upload ();
-	gl = (glpic_t *)pic->data;
+void Draw_AlphaPic (int x, int y, shader_t *pic, float alpha)
+{
 	glDisable(GL_ALPHA_TEST);
 	glEnable (GL_BLEND);
 //	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 //	glCullFace(GL_FRONT);
 	glColor4f (1,1,1,alpha);
-	Draw_GLPic (x, y, x+pic->width, y+pic->height, gl);
+	Draw_GLPic (x, y, x+pic->width, y+pic->height, pic);
 	glColor4f (1,1,1,1);
 	glEnable(GL_ALPHA_TEST);
 	glDisable (GL_BLEND);
 }
-
-
+*/
 /*
 =============
 Draw_Pic
 =============
 */
-void Draw_Pic (int x, int y, qpic_t *pic)
+void Draw_Pic (int x1, int y1, int x2, int y2, shader_t *shader)
 {
-	glpic_t			*gl;
 
-	if (scrap_dirty)
-		Scrap_Upload ();
-	gl = (glpic_t *)pic->data;
-	glColor4f (1,1,1,1);
-	Draw_GLPic (x, y, x+pic->width, y+pic->height, gl);
+	vec3_t vertices[] = {
+		{x1,y1,0.0f},
+		{x2,y1,0.0f},
+		{x1,y2,0.0f},
+		{x2,y2,0.0f}
+	};
+	float texcoords[] = {
+		0.0f,0.0f,
+		1.0f,0.0f,
+		0.0f,1.0f,
+		1.0f,1.0f
+	};	
+	float *lighmapscoords = NULL;
+	/*
+	float lighmapscoords[] = 
+	{
+		0,0,
+		0,1,
+		1,0,
+		1,1
+		};*/
+	float *tangents = NULL;
+	float *binormals = NULL;
+	float *normals = NULL;
+	unsigned char *colors = NULL;
+
+	int indecies[]={0,1,2,2,1,3};
+
+	vertexdef_t verts[]={
+		vertices,0,              // vertices
+		texcoords,0,             // texcoords
+		lighmapscoords,0,        // lightmapcoords
+		tangents,0,              // tangents
+		binormals,0,             // binormals
+		normals,0,               // normals
+		colors,0                 // colors
+	};
+	int i;
+
+	gl_bumpdriver.drawTriangleListBase ( verts, indecies, 6, shader);
+
 }
-
 
 /*
 =============
 Draw_TransPic
 =============
-*/
-void Draw_TransPic (int x, int y, qpic_t *pic)
+
+void Draw_TransPic (int x, int y, shader_t *pic)
 {
 	if (x < 0 || (unsigned)(x + pic->width) > vid.width || y < 0 ||
 		 (unsigned)(y + pic->height) > vid.height)
@@ -631,30 +511,25 @@ void Draw_TransPic (int x, int y, qpic_t *pic)
 		
 	Draw_Pic (x, y, pic);
 }
-
+*/
 
 /*
 ==============
 Draw_PicFilled
 ==============
-*/
-void Draw_PicFilled (int x, int y, int xs, int ys, qpic_t *pic)
+
+void Draw_PicFilled (int x, int y, int xs, int ys, shader_t *pic)
 {
-        glpic_t                 *gl;
-                                                                                
-        if (scrap_dirty)
-                Scrap_Upload ();
-        gl = (glpic_t *)pic->data;
         glColor4f (1,1,1,1);
-	Draw_GLPic (x, y, xs, ys, gl);
+	Draw_GLPic (x, y, xs, ys, pic);
 }
-                                                                            
+*/
 /*
 ===================
 Draw_TransPicFilled
 ===================
-*/
-void Draw_TransPicFilled (int x, int y, int xs, int ys, qpic_t *pic)
+
+void Draw_TransPicFilled (int x, int y, int xs, int ys, shader_t *pic)
 {
 	
         if (x < 0 || (unsigned)(xs) > vid.width || y < 0 ||
@@ -665,7 +540,7 @@ void Draw_TransPicFilled (int x, int y, int xs, int ys, qpic_t *pic)
 
         Draw_PicFilled (x, y, xs, ys, pic);
 }
-                                                                                
+*/                                                                                
                                                                             
 /*
 =============
@@ -673,8 +548,8 @@ Draw_TransPicTranslate
 
 Only used for the player color selection menu
 =============
-*/
-void Draw_TransPicTranslate (int x, int y, qpic_t *pic, byte *translation)
+
+void Draw_TransPicTranslate (int x, int y, shader_t *pic, byte *translation)
 {
 	int				v, u, c;
 	unsigned		trans[64*64], *dest;
@@ -716,7 +591,7 @@ void Draw_TransPicTranslate (int x, int y, qpic_t *pic, byte *translation)
 	glVertex2f (x, y+pic->height);
 	glEnd ();
 }
-
+*/
 
 /*
 ================
@@ -726,17 +601,20 @@ Draw_ConsoleBackground
 */
 void Draw_ConsoleBackground (int lines)
 {
+
 	int y = (vid.height * 3) >> 2;
 	int x, i; 
 
 	char tl[80]; //Console Clock - Eradicator
 	char timebuf[20];
 
+	Draw_Pic (0, lines - vid.height, vid.width, lines, conback);
+	/*
 	if (lines > y)
-		Draw_Pic(0, lines - vid.height, conback);
+		Draw_Pic (0, lines - vid.height, conback);
 	else
 		Draw_AlphaPic (0, lines - vid.height, conback, (float)(1.2 * lines)/y);
-
+	*/
 	if ( cg_conclock.value )
 	{
                 Sys_Strtime( timebuf );
@@ -746,10 +624,12 @@ void Draw_ConsoleBackground (int lines)
 		for (i=0 ; i < strlen(tl) ; i++) 
 		   Draw_Character (x + i * 8, y, tl[i] | 0x80);
 	}
+
 }
 
 void Draw_SpiralConsoleBackground (int lines) //Spiral Console - Eradicator
 { 
+	/*
    int x, i; 
    int y; 
    static float xangle = 0, xfactor = .3f, xstep = .01f; 
@@ -786,6 +666,7 @@ void Draw_SpiralConsoleBackground (int lines) //Spiral Console - Eradicator
 		for (i=0 ; i < strlen(tl) ; i++) 
 			Draw_Character (x + i * 8, y, tl[i] | 0x80);
 	}
+	*/
 }
 
 
@@ -797,10 +678,12 @@ This repeats a 64*64 tile graphic to fill the screen around a sized down
 refresh window.
 =============
 */
+
 void Draw_TileClear (int x, int y, int w, int h)
 {
+	/*
 	glColor3f (1,1,1);
-	GL_Bind (*(int *)draw_backtile->data);
+	GL_Bind (draw_backtile->texnum);
 	glBegin (GL_QUADS);
 	glTexCoord2f (x/64.0, y/64.0);
 	glVertex2f (x, y);
@@ -811,6 +694,8 @@ void Draw_TileClear (int x, int y, int w, int h)
 	glTexCoord2f ( x/64.0, (y+h)/64.0 );
 	glVertex2f (x, y+h);
 	glEnd ();
+	*/
+	Draw_Pic (x, y, x+w, y+h, draw_backtile);
 }
 
 
@@ -882,7 +767,7 @@ void Draw_BeginDisc (void)
 	if (!draw_disc)
 		return;
 	glDrawBuffer  (GL_FRONT);
-	Draw_Pic (vid.width - 24, 0, draw_disc);
+	Draw_Pic (vid.width - 24, 0, vid.width + 8, 32, draw_disc);
 	glDrawBuffer  (GL_BACK);
 }
 

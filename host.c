@@ -877,7 +877,6 @@ void Host_Init (quakeparms_t *parms)
 	Host_InitVCR (parms);
 	COM_Init (parms->basedir);
 	Host_InitLocal ();
-	W_LoadWadFile ("gfx.wad");
 	Key_Init ();
 	Con_Init ();	
 	PR_Init ();
@@ -908,8 +907,8 @@ void Host_Init (quakeparms_t *parms)
 		M_Init ();
 
 		Draw_Init ();
-		SCR_Init ();
 		R_Init ();
+		SCR_Init ();
 #ifndef	_WIN32
 	// on Win32, sound initialization has to come before video initialization, so we
 	// can put up a popup if the sound hardware is in use
