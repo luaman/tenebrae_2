@@ -1574,7 +1574,7 @@ typedef struct allocchain_s {
 	char data[1];//variable sized
 } allocchain_t;
 
-allocchain_t *allocChain = NULL;
+static allocchain_t *allocChain = NULL;
 
 void *GF3_getDriverMem(size_t size, drivermem_t hint) {
 	allocchain_t *r = (allocchain_t *)malloc(size+sizeof(void *));
