@@ -1033,7 +1033,7 @@ static void GL_LoadTextureFromFile(gltexture_t	*glt)
 	char *basename;
 	char *filename = glt->identifier;
 
-	Con_Printf("Loading texture %s\n", glt->identifier);
+	Con_DPrintf("Loading texture %s\n", glt->identifier);
 	if (glt->loadtype == TEXTURE_CUBEMAP) {
 		GL_LoadCubemapTexture(glt);
 		return;
@@ -1043,6 +1043,10 @@ static void GL_LoadTextureFromFile(gltexture_t	*glt)
 		//a uniform white texture
 		trans[0] = LittleLong ((255 << 24)|(255 << 16)|(255 << 8)|(255));
 		width = height = 1;
+	} else if (!strcmp(filename,"$black")) {
+			//a uniform black texture
+			trans[0] = LittleLong ((0 << 24)|(0 << 16)|(0 << 8)|(0));
+			width = height = 1;
 	} else if (!strcmp(filename,"$flat")) {
 		//a flat normal map with no gloss
 		trans[0] = LittleLong ((0 << 24)|(127 << 16)|(255 << 8)|(127));
@@ -1351,11 +1355,12 @@ void GL_SelectTexture (GLenum target)
 	oldtarget = target;
 }
 
-#define ATTEN_VOLUME_SIZE 64
-
 float sqr(float p) {
 	return p*p;
 }
+
+#define ATTEN_VOLUME_SIZE 64
+extern qboolean gl_mirroronce;
 
 /*
 ===============
@@ -1416,6 +1421,97 @@ int GL_Load2DAttenTexture(void)
 	return texture_extension_number-1;
 }
 
+/*
+===============
+PENTA:
+
+Load texture for 3d atten (on gf3)
+===============
+*/
+int GL_Load3DAttenTexture(void)
+{
+
+	float centerx, centery, centerz, radiussq;
+	int s,t,r, err, volumeSize;
+	byte *data;
+
+	if (gl_cardtype == GENERIC || gl_cardtype == GEFORCE) return 0;//PA:
+
+	//Penta we need special matrix setup with the mirror once stuff so only use it if the path supports it
+	if (gl_mirroronce && gl_cardtype == ARB) {
+		volumeSize = ATTEN_VOLUME_SIZE/2;
+		centerx = 0.0;
+		centery = 0.0;
+		centerz = 0.0;
+		radiussq = ATTEN_VOLUME_SIZE/2;
+		radiussq = radiussq*radiussq;
+	} else {
+		volumeSize = ATTEN_VOLUME_SIZE;
+		centerx = volumeSize/2.0;
+		centery = volumeSize/2.0;
+		centerz = volumeSize/2.0;
+		radiussq = volumeSize/2.0;
+		radiussq = radiussq*radiussq;
+	}
+
+
+	data = malloc(volumeSize*volumeSize*volumeSize);
+	if (!data) return 0;
+
+	for (s = 0; s < volumeSize; s++) {
+		for (t = 0; t < volumeSize; t++) {
+			for (r = 0; r < volumeSize; r++) {
+				float DistSq = sqr(s-centerx)+sqr(t-centery)+sqr(r-centerz);
+				if (DistSq < radiussq) {
+					byte value;
+					float FallOff = (radiussq - DistSq) / radiussq;
+					//FallOff *= FallOff;
+					value = FallOff*255.0;
+					data[r * volumeSize * volumeSize + t * volumeSize + s] = value;
+					//data[r * volumeSize * volumeSize + t * volumeSize + s *4+ 1] = value;
+					//data[r * volumeSize * volumeSize + t * volumeSize + s *4+ 2] = value;
+					//data[r * volumeSize * volumeSize + t * volumeSize + s *4+ 3] = value;
+				} else {
+					data[r * volumeSize * volumeSize + t * volumeSize + s] = 0;
+					//data[r * volumeSize * volumeSize + t * volumeSize + s *4+ 1] = 0;
+					//data[r * volumeSize * volumeSize + t * volumeSize + s *4+ 2] = 0;
+					//data[r * volumeSize * volumeSize + t * volumeSize + s *4+ 3] = 0;
+				}
+
+			}
+		}
+	}
+
+	glBindTexture(GL_TEXTURE_3D, texture_extension_number);
+
+	qglTexImage3DEXT(GL_TEXTURE_3D, 0, GL_LUMINANCE8,
+					volumeSize, volumeSize, volumeSize,
+					0, GL_LUMINANCE, GL_UNSIGNED_BYTE, data);
+
+	if (gl_mirroronce) {
+		glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_S, GL_MIRROR_CLAMP_TO_EDGE_ATI );
+		glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_T, GL_MIRROR_CLAMP_TO_EDGE_ATI );
+		glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_R, GL_MIRROR_CLAMP_TO_EDGE_ATI );
+	} else {
+		glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE );
+		glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE );
+		glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE );
+	}
+	glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);	
+
+	free(data);	
+	texture_extension_number++;
+
+	err  = glGetError();
+
+	if (err != GL_NO_ERROR) {
+		Con_Printf("%s",gluErrorString(err));
+	}
+
+	return texture_extension_number-1;
+}
+
 int GL_LoadBlackTexture(void)
 {
 
@@ -1433,80 +1529,6 @@ int GL_LoadBlackTexture(void)
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);	
 
-	texture_extension_number++;
-
-	err  = glGetError();
-
-	if (err != GL_NO_ERROR) {
-		Con_Printf("%s",gluErrorString(err));
-	}
-
-	return texture_extension_number-1;
-}
-
-
-/*
-===============
-PENTA:
-
-Load texture for 3d atten (on gf3)
-===============
-*/
-int GL_Load3DAttenTexture(void)
-{
-
-	float centerx, centery, centerz, radiussq;
-	int s,t,r, err;
-	byte *data;
-
-	if (gl_cardtype == GENERIC || gl_cardtype == GEFORCE) return 0;//PA:
-
-	data = malloc(ATTEN_VOLUME_SIZE*ATTEN_VOLUME_SIZE*ATTEN_VOLUME_SIZE*4);
-        if (!data) return 0;							// <AWE> check memory here!
-        
-	centerx = ATTEN_VOLUME_SIZE/2.0;
-	centery = ATTEN_VOLUME_SIZE/2.0;
-	centerz = ATTEN_VOLUME_SIZE/2.0;
-	radiussq = ATTEN_VOLUME_SIZE/2.0;
-	radiussq = radiussq*radiussq;
-
-	for (s = 0; s < ATTEN_VOLUME_SIZE; s++) {
-		for (t = 0; t < ATTEN_VOLUME_SIZE; t++) {
-			for (r = 0; r < ATTEN_VOLUME_SIZE; r++) {
-				float DistSq = sqr(s-centerx)+sqr(t-centery)+sqr(r-centerz);
-				if (DistSq < radiussq) {
-					byte value;
-					float FallOff = (radiussq - DistSq) / radiussq;
-					//FallOff *= FallOff;
-					value = FallOff*255.0;
-					data[r * ATTEN_VOLUME_SIZE * ATTEN_VOLUME_SIZE *4+ t * ATTEN_VOLUME_SIZE *4+ s *4+ 0] = value;
-					data[r * ATTEN_VOLUME_SIZE * ATTEN_VOLUME_SIZE *4+ t * ATTEN_VOLUME_SIZE *4+ s *4+ 1] = value;
-					data[r * ATTEN_VOLUME_SIZE * ATTEN_VOLUME_SIZE *4+ t * ATTEN_VOLUME_SIZE *4+ s *4+ 2] = value;
-					data[r * ATTEN_VOLUME_SIZE * ATTEN_VOLUME_SIZE *4+ t * ATTEN_VOLUME_SIZE *4+ s *4+ 3] = value;
-				} else {
-					data[r * ATTEN_VOLUME_SIZE * ATTEN_VOLUME_SIZE *4+ t * ATTEN_VOLUME_SIZE *4+ s *4+ 0] = 0;
-					data[r * ATTEN_VOLUME_SIZE * ATTEN_VOLUME_SIZE *4+ t * ATTEN_VOLUME_SIZE *4+ s *4+ 1] = 0;
-					data[r * ATTEN_VOLUME_SIZE * ATTEN_VOLUME_SIZE *4+ t * ATTEN_VOLUME_SIZE *4+ s *4+ 2] = 0;
-					data[r * ATTEN_VOLUME_SIZE * ATTEN_VOLUME_SIZE *4+ t * ATTEN_VOLUME_SIZE *4+ s *4+ 3] = 0;
-				}
-
-			}
-		}
-	}
-
-	glBindTexture(GL_TEXTURE_3D, texture_extension_number);
-
-	qglTexImage3DEXT(GL_TEXTURE_3D, 0, 4,
-					ATTEN_VOLUME_SIZE, ATTEN_VOLUME_SIZE, ATTEN_VOLUME_SIZE,
-					0, GL_RGBA, GL_UNSIGNED_BYTE, data);
-
-	glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE );
-	glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE );
-	glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE );
-	glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);	
-
-	free(data);	
 	texture_extension_number++;
 
 	err  = glGetError();
