@@ -66,6 +66,10 @@ void CrossProduct (vec3_t v1, vec3_t v2, vec3_t cross);
 float VectorNormalize (vec3_t v);		// returns vector length
 void VectorInverse (vec3_t v);
 void VectorScale (vec3_t in, vec_t scale, vec3_t out);
+
+void VectorMax(vec3_t i1, vec3_t i2, vec3_t r);
+void VectorMin(vec3_t i1, vec3_t i2, vec3_t r);
+
 int Q_log2(int val);
 
 void R_ConcatRotations (float in1[3][3], float in2[3][3], float out[3][3]);
