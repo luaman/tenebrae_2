@@ -262,7 +262,7 @@ void R_InterpolateNormals(aliashdr_t *paliashdr, aliasframeinstant_t *instant, i
 		instant->normals[i][0] = norm1[0] * blend1 + norm2[0] * blend;
 		instant->normals[i][1] = norm1[1] * blend1 + norm2[1] * blend;
 		instant->normals[i][2] = norm1[2] * blend1 + norm2[2] * blend;
-                VectorNormalize(instant->normals[i]);
+        VectorNormalize(instant->normals[i]);
 	}
 }
 
@@ -299,11 +299,32 @@ void R_InterpolateTangents(aliashdr_t *paliashdr, aliasframeinstant_t *instant, 
 /*
 R_InterpolateBinomials
 */
-void R_InterpolateBinomials(aliashdr_t *paliashdr, aliasframeinstant_t *instant) {
+void R_InterpolateBinomials(aliashdr_t *paliashdr, aliasframeinstant_t *instant, int pose1, int pose2, float blend) {
+	float 		blend1;
+	vec3_t		*verts1;
+	vec3_t		*verts2;
+	float		*binor1, *binor2;
 	int			i;
 
+	if (paliashdr->binormals == 0) return;
+
+	verts1 = (vec3_t *) ((byte *) paliashdr + paliashdr->binormals);
+	verts2 = verts1;
+
+	verts1 += pose1 * paliashdr->poseverts;
+	verts2 += pose2 * paliashdr->poseverts;
+
+	blend1 = 1-blend;
+
 	for (i=0; i<paliashdr->poseverts; i++) {
-		CrossProduct(instant->normals[i],instant->tangents[i],instant->binomials[i]);
+
+		binor1 = (float *)&verts1[i];
+		binor2 = (float *)&verts2[i];
+
+		//interpolate them
+		instant->binomials[i][0] = binor1[0] * blend1 + binor2[0] * blend;
+		instant->binomials[i][1] = binor1[1] * blend1 + binor2[1] * blend;
+		instant->binomials[i][2] = binor1[2] * blend1 + binor2[2] * blend;
 	}
 }
 
@@ -457,9 +478,9 @@ void R_SetupAliasInstantForFrame(entity_t *e, qboolean forcevis, aliashdr_t *pal
 	if (CheckUpdate(e, aliasframeinstant)) {
 		R_InterpolateVerts(paliashdr, aliasframeinstant, e->pose1, e->pose2, e->blend);
 		if (!aliasframeinstant->shadowonly) {
-			R_InterpolateNormals(paliashdr, aliasframeinstant, e->pose1, e->pose2, e->blend);
 			R_InterpolateTangents(paliashdr, aliasframeinstant, e->pose1, e->pose2, e->blend);
-			R_InterpolateBinomials(paliashdr, aliasframeinstant);
+			R_InterpolateBinomials(paliashdr, aliasframeinstant, e->pose1, e->pose2, e->blend);
+			R_InterpolateNormals(paliashdr, aliasframeinstant, e->pose1, e->pose2, e->blend);
 		}
           R_InterpolateTriPlanes(paliashdr, aliasframeinstant, e->pose1, e->pose2, e->blend);
 		aliasframeinstant->updateframe = r_framecount;
@@ -683,6 +704,7 @@ void R_CalcIndeciesForLight(aliasframeinstant_t *instant, aliaslightinstant_t *l
 	aliashdr_t *paliashdr = instant->paliashdr;
 	indecies = (int *)((byte *)paliashdr + paliashdr->indecies);
 	tris = (mtriangle_t *)((byte *)paliashdr + paliashdr->triangles);
+
 /*
 	//calculate visibility
 	linstant->numtris = paliashdr->numtris;
@@ -691,8 +713,6 @@ void R_CalcIndeciesForLight(aliasframeinstant_t *instant, aliaslightinstant_t *l
 		linstant->indecies[i*3+1] = indecies[i*3+1];
 		linstant->indecies[i*3+2] = indecies[i*3+2];
 	}
-
-	return;
 */
 
 	j = 0;
