@@ -141,7 +141,7 @@ FILE IO
 ===============================================================================
 */
 
-#define	MAX_HANDLES		10
+#define	MAX_HANDLES		256
 FILE	*sys_handles[MAX_HANDLES];
 
 int		findhandle (void)

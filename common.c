@@ -1954,6 +1954,8 @@ void COM_AddGameDirectory (char *dir)
 	char      *filename;        
 	dirdata_t dirdata;
 
+	Sys_mkdir(dir);
+
 // update current gamedir
 	strncpy (com_gamedir, dir, sizeof(com_gamedir));
 //

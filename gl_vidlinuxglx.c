@@ -352,27 +352,51 @@ static void HandleEvents(void)
 			break;
 
 		case ButtonPress:
-			b=-1;
-			if (event.xbutton.button == 1)
-				b = 0;
-			else if (event.xbutton.button == 2)
-				b = 2;
-			else if (event.xbutton.button == 3)
-				b = 1;
-			if (b>=0)
-				Key_Event(K_MOUSE1 + b, true);
+			switch(event.xbutton.button)
+			{
+			case 1:
+				Key_Event(K_MOUSE1, true);
+				break;
+			case 2:
+				Key_Event(K_MOUSE3, true);
+				break;
+			case 3:
+				Key_Event(K_MOUSE2, true);
+				break;
+			case 4:
+				Key_Event(K_MWHEELUP, true);
+				break;
+			case 5:
+				Key_Event(K_MWHEELDOWN, true);
+				break;
+			default:
+				Con_Printf("HandleEvents: ButtonPress gave value %d, 1-5 expected\n", event.xbutton.button);
+				break;
+			}
 			break;
 
 		case ButtonRelease:
-			b=-1;
-			if (event.xbutton.button == 1)
-				b = 0;
-			else if (event.xbutton.button == 2)
-				b = 2;
-			else if (event.xbutton.button == 3)
-				b = 1;
-			if (b>=0)
-				Key_Event(K_MOUSE1 + b, false);
+			switch(event.xbutton.button)
+			{
+			case 1:
+				Key_Event(K_MOUSE1, false);
+				break;
+			case 2:
+				Key_Event(K_MOUSE3, false);
+				break;
+			case 3:
+				Key_Event(K_MOUSE2, false);
+				break;
+			case 4:
+				Key_Event(K_MWHEELUP, false);
+				break;
+			case 5:
+				Key_Event(K_MWHEELDOWN, false);
+				break;
+			default:
+				Con_Printf("HandleEvents: ButtonRelease gave value %d, 1-5 expected\n", event.xbutton.button);
+				break;
+			}
 			break;
 
 		case CreateNotify :
@@ -688,6 +712,7 @@ void VID_CreateWindow(XVisualInfo *visinfo)
 	win = XCreateWindow(dpy, root, 0, 0, width, height,
 						0, visinfo->depth, InputOutput,
 						visinfo->visual, mask, &attr);
+	XStoreName(dpy, win, "Tenebrae");
 	XMapWindow(dpy, win);
 
 	if (vidmode_active) {

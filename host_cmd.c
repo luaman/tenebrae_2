@@ -520,7 +520,7 @@ void Host_Savegame_f (void)
 	f = fopen (name, "w");
 	if (!f)
 	{
-		Con_Printf ("ERROR: couldn't open.\n");
+		Con_Printf ("ERROR: couldn't open %s.\n", name);        // more info plz - tig
 		return;
 	}
 	
