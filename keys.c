@@ -1003,6 +1003,35 @@ void Key_Event (int key, qboolean down)
 	}
 }
 
+/**
+Key_MouseMoveEvent
+	
+Called by the system between frames when the mouse has MOVED
+*/
+qboolean Key_MouseMoveEvent( int x, int y, qboolean relative ) {
+
+	char cmd[128];
+
+	switch (key_dest)
+	{
+	case key_menu:
+		if (!relative)
+			M_MouseMove ( x, y );
+		return true;
+	case key_console:
+	case key_message:
+		return true;
+	case key_game:
+		if (relative && !con_forcedup) { //if the console is forced on key_dest is key_game but there isn't a game running
+			sprintf(cmd, "mousemove %i %i\n", x, y);
+			Cbuf_AddText(cmd);
+		}
+		return true;
+	default:
+		return false;
+	}
+
+}
 
 /*
 ===================

@@ -44,10 +44,11 @@ static int		originalmouseparms[3], newmouseparms[3] = {0, 0, 1};
 
 unsigned int uiWheelMessage;
 qboolean	mouseactive;
-qboolean		mouseinitialized;
+qboolean	mouseinitialized;
 static qboolean	mouseparmsvalid, mouseactivatetoggle;
 static qboolean	mouseshowtoggle = 1;
 static qboolean	dinput_acquired;
+static qboolean mouserelative;
 
 static unsigned int		mstate_di;
 
@@ -143,7 +144,7 @@ static DIOBJECTDATAFORMAT rgodf[] = {
 static DIDATAFORMAT	df = {
 	sizeof(DIDATAFORMAT),       // this structure
 	sizeof(DIOBJECTDATAFORMAT), // size of object data format
-	DIDF_RELAXIS,               // absolute axis coordinates
+	DIDF_ABSAXIS,               // absolute axis coordinates
 	sizeof(MYDATA),             // device data size
 	NUM_OBJECTS,                // number of objects
 	rgodf,                      // and here they are
@@ -165,25 +166,12 @@ void Force_CenterView_f (void)
 	cl.viewangles[PITCH] = 0;
 }
 
-
-/*
-===========
-IN_UpdateClipCursor
-===========
-*/
-void IN_UpdateClipCursor (void)
-{
-
-	if (mouseinitialized && mouseactive && !dinput)
-	{
-		ClipCursor (&window_rect);
-	}
-}
-
-
 /*
 ===========
 IN_ShowMouse
+
+PENTA: We make this much easier at startup we hide,
+at shutdown we show no more hiding and showing all the time and we render our own cursor.
 ===========
 */
 void IN_ShowMouse (void)
@@ -212,10 +200,73 @@ void IN_HideMouse (void)
 	}
 }
 
+/*
+===========
+IN_RelativeMouse()
+Mouse movements are relative (delta values since last check)
+===========
+*/
+void IN_RelativeMouse (void)
+{
+	static const DIPROPDWORD	dipdw = {
+		{
+			sizeof(DIPROPDWORD),        // diph.dwSize
+			sizeof(DIPROPHEADER),       // diph.dwHeaderSize
+			0,                          // diph.dwObj
+			DIPH_DEVICE,                // diph.dwHow
+		},
+		DIDF_RELAXIS,              // dwData
+	};
+    HRESULT		hr;
+	if (!mouserelative)
+	{
+		if (dinput) {
+			hr = IDirectInputDevice_SetProperty(g_pMouse, DIPROP_AXISMODE, &dipdw.diph);
+			if (FAILED(hr)) {
+				Con_Printf("IDirectInputDevice::SetProperty: Failed to set axis mode\n");
+			}
+		}
+		mouserelative = true;
+	}
+}
+
+/*
+===========
+IN_AbsoluteMouse()
+Mouse movements are in screen coordinates
+===========
+*/
+void IN_AbsoluteMouse (void)
+{
+	static const DIPROPDWORD	dipdw = {
+		{
+			sizeof(DIPROPDWORD),        // diph.dwSize
+			sizeof(DIPROPHEADER),       // diph.dwHeaderSize
+			0,                          // diph.dwObj
+			DIPH_DEVICE,                // diph.dwHow
+		},
+		DIDF_ABSAXIS,              // dwData
+	};
+    HRESULT		hr;
+
+	if (mouserelative)
+	{
+		if (dinput) {
+			hr = IDirectInputDevice_SetProperty(g_pMouse, DIPROP_AXISMODE, &dipdw.diph);
+			if (FAILED(hr)) {
+				Con_Printf("IDirectInputDevice::SetProperty: Failed to set axis mode\n");
+			}
+		}
+		mouserelative = false;
+	}
+}
 
 /*
 ===========
 IN_ActivateMouse
+
+  Get the mouse "exclusively"
+  Called at: startup, alt-tab activate
 ===========
 */
 void IN_ActivateMouse (void)
@@ -242,34 +293,26 @@ void IN_ActivateMouse (void)
 		}
 		else
 		{
-			if (mouseparmsvalid)
-				restore_spi = SystemParametersInfo (SPI_SETMOUSE, 0, newmouseparms, 0);
+			//if (mouseparmsvalid)
+			//	restore_spi = SystemParametersInfo (SPI_SETMOUSE, 0, newmouseparms, 0);
 
-			SetCursorPos (window_center_x, window_center_y);
-			SetCapture (mainwindow);
-			ClipCursor (&window_rect);
+			if (key_dest == key_game)
+				SetCursorPos (window_center_x, window_center_y);
+
+			//SetCapture (mainwindow);
+			//ClipCursor (&window_rect);
 		}
 
 		mouseactive = true;
 	}
 }
 
-
-/*
-===========
-IN_SetQuakeMouseState
-===========
-*/
-void IN_SetQuakeMouseState (void)
-{
-	if (mouseactivatetoggle)
-		IN_ActivateMouse ();
-}
-
-
 /*
 ===========
 IN_DeactivateMouse
+
+  Give away mouse "exclusivity"
+  Called at: shutdown, alt-tab deactivate
 ===========
 */
 void IN_DeactivateMouse (void)
@@ -292,11 +335,11 @@ void IN_DeactivateMouse (void)
 		}
 		else
 		{
-			if (restore_spi)
-				SystemParametersInfo (SPI_SETMOUSE, 0, originalmouseparms, 0);
+			//if (restore_spi)
+			//	SystemParametersInfo (SPI_SETMOUSE, 0, originalmouseparms, 0);
 
-			ClipCursor (NULL);
-			ReleaseCapture ();
+			//ClipCursor (NULL);
+			//ReleaseCapture ();
 		}
 
 		mouseactive = false;
@@ -513,6 +556,8 @@ void IN_Init (void)
 	uiWheelMessage = RegisterWindowMessage ( "MSWHEEL_ROLLMSG" );
 
 	IN_StartupMouse ();
+	IN_ActivateMouse ();
+	//IN_HideMouse();
 	IN_StartupJoystick ();
 }
 
@@ -525,7 +570,7 @@ void IN_Shutdown (void)
 {
 
 	IN_DeactivateMouse ();
-	IN_ShowMouse ();
+	//IN_ShowMouse ();
 
     if (g_pMouse)
 	{
@@ -550,7 +595,7 @@ void IN_MouseEvent (int mstate)
 {
 	int	i;
 
-	if (mouseactive && !dinput)
+	if ( (mouseactive || (key_dest == key_menu)) && !dinput )
 	{
 	// perform button actions
 		for (i=0 ; i<mouse_buttons ; i++)
@@ -572,13 +617,13 @@ void IN_MouseEvent (int mstate)
 	}
 }
 
-
+extern int		window_x, window_y;
 /*
 ===========
 IN_MouseMove
 ===========
 */
-void IN_MouseMove (usercmd_t *cmd)
+static void IN_MouseMove (void)
 {
 	int					mx, my;
 	HDC					hdc;
@@ -620,11 +665,17 @@ void IN_MouseMove (usercmd_t *cmd)
 			switch (od.dwOfs)
 			{
 				case DIMOFS_X:
-					mx += od.dwData;
+					if (mouserelative)
+						mx += od.dwData;
+					else
+						mx = od.dwData;
 					break;
 
 				case DIMOFS_Y:
-					my += od.dwData;
+					if (mouserelative)
+						my += od.dwData;
+					else
+						my = od.dwData;
 					break;
 
 				case DIMOFS_BUTTON0:
@@ -670,63 +721,41 @@ void IN_MouseMove (usercmd_t *cmd)
 	}
 	else
 	{
-		GetCursorPos (&current_pos);
-		mx = current_pos.x - window_center_x + mx_accum;
-		my = current_pos.y - window_center_y + my_accum;
-		mx_accum = 0;
-		my_accum = 0;
+		if (mouserelative) {
+			GetCursorPos (&current_pos);
+			//the m*_accum are extra polled mouse positions when we are going slow to 
+			//enhance responsiveness.
+			mx = current_pos.x - window_center_x + mx_accum;
+			my = current_pos.y - window_center_y + my_accum;
+			mx_accum = 0;
+			my_accum = 0;
+			SetCursorPos (window_center_x, window_center_y);
+		} else {
+			GetCursorPos (&current_pos);
+			mx = current_pos.x - window_x;
+			my = current_pos.y - window_y;
+		}
 	}
 
-//if (mx ||  my)
-//	Con_DPrintf("mx=%d, my=%d\n", mx, my);
+	//If it has actually moved throw an event
+	if ((mx != old_mouse_x) || (my != old_mouse_y)) {
 
-	if (m_filter.value)
-	{
-		mouse_x = (mx + old_mouse_x) * 0.5;
-		mouse_y = (my + old_mouse_y) * 0.5;
-	}
-	else
-	{
-		mouse_x = mx;
-		mouse_y = my;
+		if (m_filter.value)
+		{
+			mouse_x = (mx + old_mouse_x) * 0.5;
+			mouse_y = (my + old_mouse_y) * 0.5;
+		}
+		else
+		{
+			mouse_x = mx;
+			mouse_y = my;
+		}
+
+		Key_MouseMoveEvent( mouse_x, mouse_y, mouserelative );
 	}
 
 	old_mouse_x = mx;
 	old_mouse_y = my;
-
-	mouse_x *= sensitivity.value;
-	mouse_y *= sensitivity.value;
-
-// add mouse X/Y movement to cmd
-	if ( (in_strafe.state & 1) || (lookstrafe.value && (in_mlook.state & 1) ))
-		cmd->sidemove += m_side.value * mouse_x;
-	else
-		cl.viewangles[YAW] -= m_yaw.value * mouse_x;
-
-	if (in_mlook.state & 1)
-		V_StopPitchDrift ();
-		
-	if ( (in_mlook.state & 1) && !(in_strafe.state & 1))
-	{
-		cl.viewangles[PITCH] += m_pitch.value * mouse_y;
-		if (cl.viewangles[PITCH] > 80)
-			cl.viewangles[PITCH] = 80;
-		if (cl.viewangles[PITCH] < -70)
-			cl.viewangles[PITCH] = -70;
-	}
-	else
-	{
-		if ((in_strafe.state & 1) && noclip_anglehack)
-			cmd->upmove -= m_forward.value * mouse_y;
-		else
-			cmd->forwardmove -= m_forward.value * mouse_y;
-	}
-
-// if the mouse has moved, force it to the center, so there's room to move
-	if (mx || my)
-	{
-		SetCursorPos (window_center_x, window_center_y);
-	}
 }
 
 
@@ -740,7 +769,6 @@ void IN_Move (usercmd_t *cmd)
 
 	if (ActiveApp && !Minimized)
 	{
-		IN_MouseMove (cmd);
 		IN_JoyMove (cmd);
 	}
 }
@@ -749,6 +777,8 @@ void IN_Move (usercmd_t *cmd)
 /*
 ===========
 IN_Accumulate
+
+  If going slow so we don't loose mouse movement
 ===========
 */
 void IN_Accumulate (void)
@@ -758,14 +788,14 @@ void IN_Accumulate (void)
 
 	if (mouseactive)
 	{
-		if (!dinput)
+		//only accumulate if we do relative movement
+		if (!dinput && mouserelative)
 		{
 			GetCursorPos (&current_pos);
 
 			mx_accum += current_pos.x - window_center_x;
 			my_accum += current_pos.y - window_center_y;
 
-		// force the mouse to the center, so there's room to move
 			SetCursorPos (window_center_x, window_center_y);
 		}
 	}
@@ -955,6 +985,30 @@ void Joy_AdvancedUpdate_f (void)
 	}
 }
 
+/**
+	Sets the mouse based on the destination
+*/
+void IN_MouseForDest(void) {
+
+	if (con_forcedup) {
+		IN_ShowMouse();
+		IN_AbsoluteMouse();
+		return;
+	}
+
+	switch (key_dest)
+	{
+	case key_game:
+		IN_HideMouse();
+		IN_RelativeMouse();
+		return;
+	default:
+		IN_ShowMouse();
+		IN_AbsoluteMouse();
+		return;
+	}
+
+}
 
 /*
 ===========
@@ -965,6 +1019,12 @@ void IN_Commands (void)
 {
 	int		i, key_index;
 	DWORD	buttonstate, povstate;
+
+	//Make sure mouse is correctly set up for the destination it will go to
+	IN_MouseForDest();
+
+	//Generate mouse movement events too
+	IN_MouseMove();
 
 	if (!joy_avail)
 	{

@@ -385,21 +385,21 @@ int VID_SetMode (int modenum, unsigned char *palette)
 		if (m_windowed.value && key_dest == key_game)
 		{
 			stat = VID_SetWindowedMode(modenum);
-			IN_ActivateMouse ();
-			IN_HideMouse ();
+			//IN_ActivateMouse ();
+			//IN_HideMouse ();
 		}
 		else
 		{
-			IN_DeactivateMouse ();
-			IN_ShowMouse ();
+			//IN_DeactivateMouse ();
+			//IN_ShowMouse ();
 			stat = VID_SetWindowedMode(modenum);
 		}
 	}
 	else if (modelist[modenum].type == MS_FULLDIB)
 	{
 		stat = VID_SetFullDIBMode(modenum);
-		IN_ActivateMouse ();
-		IN_HideMouse ();
+		//IN_ActivateMouse ();
+		//IN_HideMouse ();
 	}
 	else
 	{
@@ -464,15 +464,12 @@ VID_UpdateWindowStatus
 */
 void VID_UpdateWindowStatus (void)
 {
-
 	window_rect.left = window_x;
 	window_rect.top = window_y;
 	window_rect.right = window_x + window_width;
 	window_rect.bottom = window_y + window_height;
 	window_center_x = (window_rect.left + window_rect.right) / 2;
 	window_center_y = (window_rect.top + window_rect.bottom) / 2;
-
-	IN_UpdateClipCursor ();
 }
 
 
@@ -506,25 +503,25 @@ void GL_EndRendering (void)
 		SwapBuffers(maindc);
 
 // handle the mouse state when windowed if that's changed
-	if (modestate == MS_WINDOWED)
+/*	if (modestate == MS_WINDOWED)
 	{
 		if (!m_windowed.value) {
 			if (windowed_mouse)	{
 				IN_DeactivateMouse ();
-				IN_ShowMouse ();
+				//IN_ShowMouse ();
 				windowed_mouse = false;
 			}
 		} else {
 			windowed_mouse = true;
 			if (key_dest == key_game && !mouseactive && ActiveApp) {
-				IN_ActivateMouse ();
-				IN_HideMouse ();
+				//IN_ActivateMouse ();
+				//IN_HideMouse ();
 			} else if (mouseactive && key_dest != key_game) {
-				IN_DeactivateMouse ();
-				IN_ShowMouse ();
+				//IN_DeactivateMouse ();
+				//IN_ShowMouse ();
 			}
 		}
-	}
+	}*/
 	if (fullsbardraw)
 		Sbar_Changed();
 }
@@ -739,7 +736,7 @@ void AppActivate(BOOL fActive, BOOL minimize)
 		if (modestate == MS_FULLDIB)
 		{
 			IN_ActivateMouse ();
-			IN_HideMouse ();
+			//IN_HideMouse ();
 			if (vid_canalttab && vid_wassuspended) {
 				vid_wassuspended = false;
 				ChangeDisplaySettings (&gdevmode, CDS_FULLSCREEN);
@@ -750,7 +747,7 @@ void AppActivate(BOOL fActive, BOOL minimize)
 		else if ((modestate == MS_WINDOWED) && m_windowed.value && key_dest == key_game)
 		{
 			IN_ActivateMouse ();
-			IN_HideMouse ();
+			//IN_HideMouse ();
 		}
 	}
 
@@ -759,7 +756,7 @@ void AppActivate(BOOL fActive, BOOL minimize)
 		if (modestate == MS_FULLDIB)
 		{
 			IN_DeactivateMouse ();
-			IN_ShowMouse ();
+			//IN_ShowMouse ();
 			if (vid_canalttab) { 
 				ChangeDisplaySettings (NULL, 0);
 				vid_wassuspended = true;
@@ -768,7 +765,7 @@ void AppActivate(BOOL fActive, BOOL minimize)
 		else if ((modestate == MS_WINDOWED) && m_windowed.value)
 		{
 			IN_DeactivateMouse ();
-			IN_ShowMouse ();
+			//IN_ShowMouse ();
 		}
 	}
 }
@@ -1600,7 +1597,7 @@ VID_MenuDraw
 */
 void VID_MenuDraw (void)
 {
-	qpic_t		*p;
+/*	qpic_t		*p;
 	char		*ptr;
 	int			lnummodes, i, k, column, row;
 	vmode_t		*pv;
@@ -1661,6 +1658,7 @@ void VID_MenuDraw (void)
 			 "and -bpp <bits-per-pixel>");
 	M_Print (3*8, 36 + MODE_AREA_HEIGHT * 8 + 8*6,
 			 "Select windowed mode with -window");
+*/
 }
 
 
