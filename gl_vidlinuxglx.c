@@ -853,7 +853,7 @@ void VID_LoadGlx13()
 }
 
 
-void VID_Init(unsigned char *palette)
+void VID_Init(void)
 {
 	char	gldir[MAX_OSPATH];
 	int Event, Error;
@@ -866,8 +866,6 @@ void VID_Init(unsigned char *palette)
 
 	vid.maxwarpwidth = WARP_WIDTH;
 	vid.maxwarpheight = WARP_HEIGHT;
-	vid.colormap = host_colormap;
-	vid.fullbright = 256 - LittleLong (*((int *)vid.colormap + 2048));
 
 	if (!(dpy = XOpenDisplay(NULL))) {
 		fprintf(stderr, "Error couldn't open the X display\n");
@@ -895,8 +893,6 @@ void VID_Init(unsigned char *palette)
 
 	sprintf (gldir, "%s/glquake", com_gamedir);
 	Sys_mkdir (gldir);
-
-	VID_SetPalette(palette);
 
 	Con_SafePrintf ("Video mode %dx%d initialized.\n", scr_width, scr_height);
 

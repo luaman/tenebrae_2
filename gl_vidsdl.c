@@ -95,7 +95,7 @@ static void Check_Gamma (unsigned char *pal)
 }
 
 
-void    VID_Init (unsigned char *palette)
+void    VID_Init (void)
 {
     int pnum, chunk;
     byte *cache;
@@ -131,8 +131,6 @@ void    VID_Init (unsigned char *palette)
     vid.height = BASEHEIGHT;
     vid.maxwarpwidth = WARP_WIDTH;
     vid.maxwarpheight = WARP_HEIGHT;
-    vid.colormap = host_colormap;
-    //vid.fullbright = 256 - LittleLong (*((int *)vid.colormap + 2048));
 
     if ((pnum=COM_CheckParm("-winsize")))
     {
@@ -191,7 +189,6 @@ void    VID_Init (unsigned char *palette)
     sprintf (gldir, "%s/glquake", com_gamedir);
     Sys_mkdir (gldir);
  
-    VID_SetPalette(palette);
     SDL_WM_SetCaption("tenebrae-sdl","tenebrae-sdl");
 
     // Check for 3DFX Extensions and initialize them.
