@@ -1440,7 +1440,7 @@ extern cvar_t gl_compress_textures;
 extern cvar_t willi_gray_colormaps;
 
 gltexture_t *GL_CacheTexture (char *filename,  qboolean mipmap, int type);
-shader_t *GL_ShaderForName(char *name);
+shader_t *GL_ShaderForName(const char *name);
 qboolean IsShaderBlended(shader_t *s);
 
 void Roq_Info_f(void);

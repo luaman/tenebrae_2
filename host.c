@@ -51,9 +51,6 @@ client_t	*host_client;			// current client
 
 jmp_buf 	host_abortserver;
 
-byte		*host_basepal;
-byte		*host_colormap;
-
 cvar_t	host_framerate = {"host_framerate","0"};	// set for slow motion
 cvar_t	host_speeds = {"host_speeds","0"};			// set for running times
 
@@ -854,10 +851,7 @@ Host_Init
 void Host_Init (quakeparms_t *parms)
 {
 
-	if (standard_quake)
-		minimum_memory = MINIMUM_MEMORY;
-	else
-		minimum_memory = MINIMUM_MEMORY_LEVELPAK;
+	minimum_memory = MINIMUM_MEMORY;
 
 	if (COM_CheckParm ("-minmemory"))
 		parms->memsize = minimum_memory;
@@ -893,24 +887,15 @@ void Host_Init (quakeparms_t *parms)
  
 	if (cls.state != ca_dedicated)
 	{
-		host_basepal = Hunk_Alloc(512*3);
-		host_colormap = Hunk_Alloc(512*3); 
-		/*
-		host_basepal = (byte *)COM_LoadHunkFile ("gfx/palette.lmp");
-		if (!host_basepal)
-			Sys_Error ("Couldn't load gfx/palette.lmp");
-		host_colormap = (byte *)COM_LoadHunkFile ("gfx/colormap.lmp");
-		if (!host_colormap)
-			Sys_Error ("Couldn't load gfx/colormap.lmp");
-		*/
 
 #ifndef _WIN32 // on non win32, mouse comes before video for security reasons
 		IN_Init ();
 #endif
-		VID_Init (host_basepal);
+		VID_Init ();
 		Draw_Init ();
 		SCR_Init ();		
 		R_InitShaders();	//Needs screen to be init to print debug info
+		Draw_InitFonts();	//Needs shader system for the font surfaces
 		M_Init ();
 		SCR_FindShaders();	//Needs shader system to be initialized
 		R_Init ();
