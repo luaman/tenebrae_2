@@ -1,0 +1,41 @@
+/**
+Cg code that does the delux-maps.
+
+Deluxmaps:
+These are maps with a worldspace average to light vector, so you can simulate
+any lightsource with them, area, skys.... and have some level of bumpmapping.
+So the problem is we have to put this into tangent space per pixel and renormalize!
+*/
+/*
+struct myVertexOut {
+    float4 tanVec : COLOR0;
+    float4 binVec : COLOR1;    
+    float4 matColor : TEXCOORD0; //materials color map
+	float4 matNorm  : TEXCOORD1; //materials tangentspace normal map
+    float4 luxColor : TEXCOORD2; //luxColor map (aka an ordinary lightmap)
+    float4 deLuxVec : TEXCOORD3; //"to Light" map in worldspace.
+};*/
+/*
+float4 main(myVertexOut I,
+            uniform sampler2D normalMap,
+            uniform sampler2D intensityMap,
+            uniform sampler2D colorMap) : COLOR
+{
+    // Lookup the normal map
+    float4 normal = 2 * (tex2D(normalMap, I.texCoord0.xy) - 0.5);
+
+    // Multiply
+    // 3 X 2 matrix generated using lightDir and halfAngle with
+    // scaled normal
+    // followed by lookup in intensity map with the result.
+    float2 intensCoord = float2(dot(I.lightDir.xyz, normal.xyz),
+                                dot(I.halfAngle.xyz, normal.xyz));
+    float4 intensity = tex2D(intensityMap, intensCoord);
+
+    // Lookup color
+    float4 color = tex2D(colorMap, I.texCoord3.xy);
+
+    // Blend/Modulate intensity with color
+    return color * intensity;
+}
+*/

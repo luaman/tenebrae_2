@@ -1,0 +1,46 @@
+/**
+* Geforce 4 deluxmaps, pass one 
+* compile with "-profile fp20"
+*/
+
+struct inputVertex {
+	float4 norVec : COLOR0;
+    float4 tanVec : TEXCOORD0;
+    float4 binVec : TEXCOORD1;
+    float4 deLuxCoord : TEXCOORD2;
+    float4 texCoord : TEXCOORD3;        
+};
+
+float4 main(inputVertex I, uniform samplerCUBE tangentCube, uniform samplerCUBE binormalCube,
+			uniform sampler2D deLuxMap, uniform sampler2D normalMap) : COLOR
+{
+	//normal
+    float3 normal = I.norVec.xyz;
+	normal = normal + (normal/2)*(1-dot(normal,normal));//renormalize
+
+	//tangent
+	float3 tangent = 2 * (texCUBE(tangentCube, I.tanVec.xyz).xyz - 0.5);
+
+	//binormal
+	float3 binormal = 2 * (texCUBE(binormalCube, I.binVec.xyz).xyz - 0.5);
+	
+	// Get the worldspace delux
+	float3 wDelux = 2 * (tex2D(deLuxMap, I.deLuxCoord.xy).xyz - 0.5);
+
+	//Put into tangent space
+	float3 tDelux;
+	tDelux.x = dot(wDelux,tangent);
+	tDelux.y = dot(wDelux,binormal);
+	tDelux.z = dot(wDelux,normal);
+
+	tDelux = tDelux + (tDelux/2)*(1-dot(tDelux,tDelux));//renormalize
+  	
+    // Get the normal from normal map lookup
+    float3 matNormal = 2 * (tex2D(normalMap, I.texCoord.xy).xyz - 0.5);
+
+    // normal . light vector
+	float4 res;
+	res = saturate(dot(tDelux.xyz, matNormal.xyz).x);
+    return res;
+}
+
