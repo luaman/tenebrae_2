@@ -154,6 +154,7 @@ void R_ShadowFromDlight(dlight_t *light) {
 	l->rspeed = 0;
 	l->cubescale = 1;
 	l->castShadow = true;
+	l->shader = GL_ShaderForName("textures/lights/default");
 
 	//Some people will be instulted by the mere existence of this flag.
 	if (light->pflags & PFLAG_NOSHADOW) {
@@ -267,6 +268,7 @@ void R_ShadowFromEntity(entity_t *ent) {
 
 	l->rspeed = ent->alpha*512;
 	l->cubescale = 1;
+	l->shader = GL_ShaderForName("textures/lights/default");
 
 	//Some people will be instulted by the mere existence of this flag.
 	if (ent->pflags & PFLAG_NOSHADOW) {
@@ -2502,6 +2504,9 @@ void R_StaticLightFromEnt(entity_t *ent) {
 		mbrush_t *b = &mod->brushes[mod->firstmodelbrush];
 		mbrushside_t *bs = &mod->brushsides[b->firstbrushside];
 		currentshadowlight->shader = bs->shader->shader;
+	} else if ((ent->model->type == mod_sprite)) {
+		msprite_t *psprite = ent->model->cache.data;
+		currentshadowlight->shader = psprite->frames[0].shader;
 	} else {
 		currentshadowlight->shader = GL_ShaderForName("textures/lights/default");
 	}
