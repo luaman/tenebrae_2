@@ -292,10 +292,11 @@ const float decalEpsilon = 0.001;
 
 void DecalClipLeaf(decal_t *dec, mleaf_t *leaf)
 {
-	int a;
+	int a, i, count, k;
 	vec3_t		newVertex[64], t1, t2, t3;
 	int	c;
 	msurface_t **surf;
+	float *v;
 
 	//Con_Printf("Clipleaf\n");
 	c = leaf->nummarksurfaces;
@@ -305,18 +306,8 @@ void DecalClipLeaf(decal_t *dec, mleaf_t *leaf)
 	for (c=0; c<leaf->nummarksurfaces; c++, surf++) {
 
 		glpoly_t *poly;
-		int	i,count;
-		float *v;
 	
 		poly = (*surf)->polys;
-		for (i=0 ; i<poly->numverts ; i++)
-		{
-			v = (float *)(&globalVertexTable[poly->firstvertex+i]);
-			newVertex[i][0] = v[0];
-			newVertex[i][1] = v[1];
-			newVertex[i][2] = v[2];
-		}
-
 		VectorCopy((*surf)->plane->normal,t3);		
 		
 		if ((*surf)->flags & SURF_PLANEBACK) {
@@ -327,7 +318,42 @@ void DecalClipLeaf(decal_t *dec, mleaf_t *leaf)
 		//avoid backfacing and ortogonal facing faces to recieve decal parts
 		if (DotProduct(dec->normal, t3) > decalEpsilon)
 		{
-			count = DecalClipPolygon(poly->numverts, newVertex, newVertex);
+
+			for (i=0 ; i<poly->numindecies ; i+=3)
+			{
+				int j;
+				for (j=0; j<3; j++) {
+					v = (float *)(&globalVertexTable[poly->indecies[i+j]]);
+					newVertex[j][0] = v[0];
+					newVertex[j][1] = v[1];
+					newVertex[j][2] = v[2];
+				}
+
+				count = DecalClipPolygon(3, newVertex, newVertex);
+				if ((count != 0) && (!DecalAddPolygon(dec, count, newVertex))) break;
+			}
+		}
+	}
+
+
+	//for all surfaces in the leaf
+	for (k=0; k<leaf->nummeshes; k++) {
+		mesh_t *mesh = &cl.worldmodel->meshes[cl.worldmodel->leafmeshes[leaf->firstmesh+k]];
+
+		for (i=0; i<mesh->numindecies ; i+=3)
+		{
+			int j;
+
+			if (DotProduct(dec->normal, mesh->normals[mesh->indecies[i]]) < decalEpsilon) continue;
+
+			for (j=0; j<3; j++) {
+				v = (float *)(&globalVertexTable[mesh->firstvertex+mesh->indecies[i+j]]);
+				newVertex[j][0] = v[0];
+				newVertex[j][1] = v[1];
+				newVertex[j][2] = v[2];
+			}
+
+			count = DecalClipPolygon(3, newVertex, newVertex);
 			if ((count != 0) && (!DecalAddPolygon(dec, count, newVertex))) break;
 		}
 	}
