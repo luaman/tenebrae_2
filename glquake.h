@@ -130,8 +130,7 @@ extern	PROC glVertexPointerEXT;
 
 void R_TimeRefresh_f (void);
 void R_ReadPointFile_f (void);
-texture_t *R_TextureAnimation (texture_t *base);
-
+/*
 typedef struct surfcache_s
 {
 	struct surfcache_s	*next;
@@ -159,7 +158,7 @@ typedef struct
 	int			surfwidth;	// in mipmapped texels
 	int			surfheight;	// in mipmapped texels
 } drawsurf_t;
-
+*/
 
 typedef enum {
 	pt_static, pt_grav, pt_slowgrav, pt_fire, pt_explode, pt_explode2, pt_blob, pt_blob2
@@ -289,7 +288,6 @@ extern	vec3_t	r_origin;
 //
 extern	refdef_t	r_refdef;
 extern	mleaf_t		*r_viewleaf, *r_oldviewleaf;
-extern	texture_t	*r_notexture_mip;
 extern	int		d_lightstylevalue[256];	// 8.8 fraction of base light value
 
 extern	qboolean	envmap;
@@ -306,7 +304,7 @@ extern	int	playertextures;
 extern	int	gl_filter_min;
 extern	int	gl_filter_max;
 
-extern	int	skytexturenum;		// index in cl.loadmodel, not gl texture object
+extern	int	skyshadernum;		// index in cl.loadmodel, not gl texture object
 
 extern	cvar_t	r_norefresh;
 extern	cvar_t	cg_showentities;
@@ -1095,6 +1093,9 @@ typedef struct shadowlight_s {
 	float	*volumeVerts;
 	int		numVolumeVerts;
 	lightcmd_t	*lightCmds;	//gl commands to draw the cap/lighted volumes
+	int		numlightcmds;
+	lightcmd_t	*lightCmdsMesh;	//gl commands to draw the cap/lighted volumes
+	int		numlightcmdsmesh;
 	int		 numVisSurf;
 	int		style;
 	entity_t *owner;
@@ -1104,7 +1105,8 @@ typedef struct shadowlight_s {
 	float	rspeed; //rotation speed of cube map;
 	float	cubescale; //scale factor of cube map;
 	float	haloalpha; //alpha of halo
-	vec3_t	oldlightorigin; 
+	vec3_t	oldlightorigin;
+	int		area; //area (from areaportals) light is in
 } shadowlight_t;
 
 //PENTA: new
@@ -1220,7 +1222,6 @@ typedef struct svnode_s {
 	plane_t			*splitplane;
 	struct svnode_s	*children[2];
 } svnode_t;
-
 
 extern int svBsp_NumCutPolys;
 extern int svBsp_NumKeptPolys;
@@ -1362,7 +1363,7 @@ void		R_DrawAliasModel ( float bright);
 void		GL_ModulateAlphaDrawColor (void);
 void		GL_SelectTexture (GLenum target);
 void		GL_Set2D (void);
-void		GL_SetupCubeMapMatrix (qboolean world);
+void		GL_SetupCubeMapMatrix (const transform_t *tr);
 void		GL_SubdivideSurface (msurface_t *fa);
 void		GL_Upload8_EXT (byte *data, int width, int height,  qboolean mipmap, qboolean alpha);
 int		GL_LoadLuma(char *identifier, qboolean mipmap);
@@ -1404,33 +1405,20 @@ extern qboolean skybox_hasclouds;
 
 extern qboolean is_q3map;
 
-extern mcurve_t *curvechain;
-
-void CS_Create(dq3face_t *in, mcurve_t *curve, texture_t *texture);
-void CS_DrawAmbient(mcurve_t *curve);
+void CS_Create(dq3face_t *in, mesh_t *mesh, mapshader_t *shader);
+//void CS_DrawAmbient(mcurve_t *curve);
 void CS_FillBinomials(void);
 
+extern int lightmap_textures;
+
 #include "gl_md3.h"
+#include "bumpdriver.h"
 //*******************************
 //  Shader related declarations
 //*******************************
 //
 
 #include "surfaceflags.h"
-
-//Textures
-#define TEXTURE_RGB 1
-#define TEXTURE_NORMAL 2
-#define TEXTURE_CUBEMAP 3
-
-typedef struct
-{
-	int		texnum;
-	char	identifier[64];
-	int		width, height;
-	qboolean	mipmap;
-	int		type;
-} gltexture_t;
 
 void Draw_TextureMode_f (void);
 
@@ -1442,3 +1430,5 @@ extern cvar_t gl_compress_textures;
 extern cvar_t willi_gray_colormaps;
 
 gltexture_t *GL_CacheTexture (char *filename,  qboolean mipmap, int type);
+shader_t *GL_ShaderForName(char *name);
+qboolean IsShaderBlended(shader_t *s);
