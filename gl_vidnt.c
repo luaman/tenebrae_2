@@ -520,8 +520,6 @@ void GL_EndRendering (void)
 			}
 		}
 	}*/
-//	if (fullsbardraw)
-//		Sbar_Changed();
 }
 
 void VID_SetDefaultMode (void)
@@ -1546,14 +1544,8 @@ void	VID_Init (void)
 
 	vid_realmode = vid_modenum;
 
-//	vid_menudrawfn = VID_MenuDraw;
-//	vid_menukeyfn = VID_MenuKey;
-
 	strcpy (badmode.modedesc, "Bad mode");
 	vid_canalttab = true;
-
-//	if (COM_CheckParm("-fullsbar"))
-//		fullsbardraw = true;
 }
 
 

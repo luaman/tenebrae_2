@@ -726,10 +726,10 @@ static GLuint vertex_programs[MAX_V_PROGRAM];
 static GLuint fragment_programs[MAX_F_PROGRAM];
 
 
-#define ARBDEBUG
+//#define ARBDEBUG
 
 #if defined(ARBDEBUG) && defined(_WIN32)
-static void Arb_checkerror()
+static void ARB_checkerror()
 {
     GLuint error = glGetError();
     if ( error != GL_NO_ERROR )
@@ -745,7 +745,7 @@ static void Arb_checkerror()
 }
 #else
 
-#define Arb_checkerror() do { } while(0)
+#define ARB_checkerror() do { } while(0)
 
 #endif
 
@@ -832,38 +832,38 @@ void ARB_CreateShaders()
 #endif /* !__APPLE__ && !MACOSX */
 
     glEnable(GL_VERTEX_PROGRAM_ARB);
-    Arb_checkerror();
+    ARB_checkerror();
 
     qglGenProgramsARB(MAX_V_PROGRAM, &vertex_programs[0]);
-    Arb_checkerror();
+    ARB_checkerror();
     for ( i = 0; i < MAX_V_PROGRAM; i++ )
     {
         qglBindProgramARB(GL_VERTEX_PROGRAM_ARB, vertex_programs[i]);
-        Arb_checkerror();
+        ARB_checkerror();
         qglProgramStringARB(GL_VERTEX_PROGRAM_ARB, GL_PROGRAM_FORMAT_ASCII_ARB,
 	    	            strlen(vertex_progs[i]), vertex_progs[i]);
-        Arb_checkerror();
+        ARB_checkerror();
     }
 
     glDisable(GL_VERTEX_PROGRAM_ARB);
-    Arb_checkerror();
+    ARB_checkerror();
 
     glEnable(GL_FRAGMENT_PROGRAM_ARB);
-    Arb_checkerror();
+    ARB_checkerror();
 
     qglGenProgramsARB(MAX_F_PROGRAM, &fragment_programs[0]);
-    Arb_checkerror();
+    ARB_checkerror();
     for ( i = 0; i < MAX_F_PROGRAM; i++ )
     {
         qglBindProgramARB(GL_FRAGMENT_PROGRAM_ARB, fragment_programs[i]);
-        Arb_checkerror();
+        ARB_checkerror();
         qglProgramStringARB(GL_FRAGMENT_PROGRAM_ARB, GL_PROGRAM_FORMAT_ASCII_ARB,
 	    	            strlen(fragment_progs[i]), fragment_progs[i]);
-        Arb_checkerror();
+        ARB_checkerror();
     }
 
     glDisable(GL_FRAGMENT_PROGRAM_ARB);
-    Arb_checkerror();
+    ARB_checkerror();
 }
 
 void ARB_DisableBumpShader(shader_t* shader)
@@ -917,9 +917,9 @@ void ARB_EnableBumpShader(const transform_t *tr, const lightobject_t *lo,
 
     glGetError();
     glEnable(GL_VERTEX_PROGRAM_ARB);
-    Arb_checkerror();
+    ARB_checkerror();
     glEnable(GL_FRAGMENT_PROGRAM_ARB);
-    Arb_checkerror();
+    ARB_checkerror();
 
     if (currentshadowlight->shader->numstages)
     {
@@ -928,7 +928,7 @@ void ARB_EnableBumpShader(const transform_t *tr, const lightobject_t *lo,
 	glPushMatrix();
 	glLoadIdentity();
         qglBindProgramARB( GL_VERTEX_PROGRAM_ARB, vertex_programs[V_BUMP_PROGRAM2] );
-        Arb_checkerror();
+        ARB_checkerror();
 
         if (currentshadowlight->shader->stages[0].texture[0]->gltype == GL_TEXTURE_CUBE_MAP_ARB)
         {
@@ -947,7 +947,7 @@ void ARB_EnableBumpShader(const transform_t *tr, const lightobject_t *lo,
             {
                 qglBindProgramARB( GL_FRAGMENT_PROGRAM_ARB, fragment_programs[F_BUMP_PROGRAM2] );
             }
-	    Arb_checkerror();
+	    ARB_checkerror();
         }
         else
         {
@@ -973,13 +973,13 @@ void ARB_EnableBumpShader(const transform_t *tr, const lightobject_t *lo,
             {
                 qglBindProgramARB( GL_FRAGMENT_PROGRAM_ARB, fragment_programs[F_BUMP_PROGRAM3] );
             }
-	    Arb_checkerror();
+	    ARB_checkerror();
         }
     }
     else
     {
 	qglBindProgramARB( GL_VERTEX_PROGRAM_ARB, vertex_programs[V_BUMP_PROGRAM] );
-	Arb_checkerror();
+	ARB_checkerror();
         if ( shader->glossstages[0].type == STAGE_GLOSS )
         {
 	    qglBindProgramARB( GL_FRAGMENT_PROGRAM_ARB, fragment_programs[F_BUMP_PROGRAM_COLOR] );
@@ -990,27 +990,27 @@ void ARB_EnableBumpShader(const transform_t *tr, const lightobject_t *lo,
         {
 	    qglBindProgramARB( GL_FRAGMENT_PROGRAM_ARB, fragment_programs[F_BUMP_PROGRAM] );
         }
-	Arb_checkerror();
+	ARB_checkerror();
     }
 
     GL_SelectTexture(GL_TEXTURE0_ARB);
 
     qglProgramEnvParameter4fARB( GL_VERTEX_PROGRAM_ARB, 0, lo->objectorigin[0],
 				 lo->objectorigin[1],  lo->objectorigin[2], 0.0);
-    Arb_checkerror();
+    ARB_checkerror();
     qglProgramEnvParameter4fARB( GL_VERTEX_PROGRAM_ARB, 1, lo->objectvieworg[0],
     		                 lo->objectvieworg[1],  lo->objectvieworg[2], 0.0);
-    Arb_checkerror();
+    ARB_checkerror();
 }
 
 void ARB_EnableDeluxShader(shader_t* shader)
 {
     glEnable(GL_VERTEX_PROGRAM_ARB);
-    Arb_checkerror();
+    ARB_checkerror();
     glEnable(GL_FRAGMENT_PROGRAM_ARB);
-    Arb_checkerror();
+    ARB_checkerror();
     qglBindProgramARB( GL_VERTEX_PROGRAM_ARB, vertex_programs[V_DELUX_PROGRAM] );
-    Arb_checkerror();
+    ARB_checkerror();
     if ( shader->glossstages[0].type == STAGE_GLOSS )
     {
         qglBindProgramARB( GL_FRAGMENT_PROGRAM_ARB, fragment_programs[F_DELUX_PROGRAM_COLOR] );
@@ -1021,11 +1021,11 @@ void ARB_EnableDeluxShader(shader_t* shader)
     {
         qglBindProgramARB( GL_FRAGMENT_PROGRAM_ARB, fragment_programs[F_DELUX_PROGRAM] );
     }
-    Arb_checkerror();
+    ARB_checkerror();
     qglProgramEnvParameter4fARB( GL_FRAGMENT_PROGRAM_ARB, 0,
 				 r_refdef.vieworg[0], r_refdef.vieworg[1],
 				 r_refdef.vieworg[2], 0.0);
-    Arb_checkerror();
+    ARB_checkerror();
 }
 
 void ARB_DisableDeluxShader(shader_t* shader)
