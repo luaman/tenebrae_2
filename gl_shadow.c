@@ -155,12 +155,13 @@ void R_ShadowFromDlight(dlight_t *light) {
 	l->cubescale = 1;
 	l->castShadow = true;
 
+	/*PENTA: This crashes with explosions, wich are sprite models :D
 	if (l->owner->model && (l->owner->model->type == mod_sprite)) {
 		msprite_t *psprite = l->owner->model->cache.data;
 		l->shader = psprite->frames[0].shader;
-	} else {
+	} else {*/
 		l->shader = GL_ShaderForName("textures/lights/default");
-	}
+	/*}*/
 
 	//Some people will be instulted by the mere existence of this flag.
 	if (light->pflags & PFLAG_NOSHADOW) {
@@ -1763,36 +1764,13 @@ void DrawVolumeFromCmds(int *volumeCmds, lightcmd_t *lightCmds, float *volumeVer
 		command = volumeCmds[volumePos++];
 		if (command == 0) break; //end of list
 		num = volumeCmds[volumePos++];
-		
+			
 		glDrawElements(command,num,GL_UNSIGNED_INT,&volumeCmds[volumePos]);
 		volumePos+=num;
-
-                /*glBegin(command);
-
-		if ((command == GL_QUAD_STRIP) || (command == GL_QUADS)) {
-			for (i=0; i<num; i++) {
-				ind = volumeCmds[volumePos++];
-				//	glVertex3fv((float *)(&volumeCmds[ind]));
-				glVertex3fv(&volumeVerts[ind*3]);
-			}
-		} else {
-			//caps point inwards
-			//volumePos+=num*3;
-			for (i=0; i<num; i++) {
-				ind = volumeCmds[volumePos++];
-				//extuded verts have w component
-				//glVertex3fv((float *)(volumeCmds+(volumePos-(i+1)*3)));
-				glVertex3fv(&volumeVerts[ind*3]);
-			}
-			//volumePos+=num*3;
-		}
-
-		glEnd();*/
-//		count++;			// <AWE> no longer required.
 	}
 
 	glDisableClientState(GL_VERTEX_ARRAY);
-	
+
 	//Con_Printf("%i objects drawn\n",count);
 	if (sh_visiblevolumes.value) return;
 
@@ -2484,6 +2462,7 @@ void R_StaticLightFromEnt(entity_t *ent) {
 	//Get origin / box from the model	
 	VectorAdd(ent->model->mins, ent->model-> maxs, currentshadowlight->origin);
 	VectorScale(currentshadowlight->origin, 0.5f, currentshadowlight->origin);
+	VectorCopy(ent->angles, currentshadowlight->angles);
 	VectorCopy(ent->model->mins, currentshadowlight->box.mins);
 	VectorCopy(ent->model->maxs, currentshadowlight->box.maxs);
 	VectorSubtract(ent->model->maxs,ent->model->mins,currentshadowlight->radiusv);
@@ -2659,6 +2638,8 @@ char *ParseEnt (char *data, qboolean *isLight, entity_t *ent)
 			}
 		} else if (!strcmp(keyname, "_color"))  {
 			ParseVector(com_token, ent->color);	
+		} else if (!strcmp(keyname, "angles"))  {
+			ParseVector(com_token, ent->angles);	
 		} else if (!strcmp(keyname, "origin"))  {
 			ParseVector(com_token, ent->origin);	
 		} else if (!strcmp(keyname, "light"))  {
