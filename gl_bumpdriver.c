@@ -53,6 +53,52 @@ Temp backwards compatibility
 
 **************************/
 
+void R_DrawTangents (vertexdef_t *def, int num)
+{
+	float*			vert;
+	float*			normal;
+	float*			binormal;
+	float*			tangent;
+	int				vstr, nstr, tstr, bstr;
+	vec3_t			extr;
+	int				i;
+
+	vert = def->vertices;
+	normal = def->normals;
+	binormal = def->binormals;
+	tangent = def->tangents;
+
+	vstr = (def->vertexstride == 0) ? 3 : def->vertexstride/4;
+	nstr = (def->normalstride == 0) ? 3 : def->normalstride/4;
+	tstr = (def->tangentstride == 0) ? 3 : def->tangentstride/4;
+	bstr = (def->binormalstride == 0) ? 3 : def->binormalstride/4;
+
+	for (i=0; i<num; i++, vert+=vstr, normal+=nstr, binormal+=bstr, tangent+=tstr) {
+
+		glColor3ub(255,0,0);
+		glBegin(GL_LINES);
+			glVertex3fv(&vert[0]);
+			VectorMA(vert,1,normal,extr);
+			glVertex3fv(&extr[0]);
+		glEnd();
+
+		glColor3ub(0,255,0);
+		glBegin(GL_LINES);
+			glVertex3fv(&vert[0]);
+			VectorMA(vert,1,tangent,extr);
+			glVertex3fv(&extr[0]);
+		glEnd();
+
+		glColor3ub(0,0,255);
+		glBegin(GL_LINES);
+			glVertex3fv(&vert[0]);
+			VectorMA(vert,1,binormal,extr);
+			glVertex3fv(&extr[0]);
+		glEnd();
+	}
+}
+
+
 void R_DrawMeshAmbient(mesh_t *mesh) {
 
 	vertexdef_t def;
@@ -93,6 +139,10 @@ void R_DrawMeshAmbient(mesh_t *mesh) {
 		}
 	} else {
 		gl_bumpdriver.drawTriangleListBase(&def, mesh->indecies, mesh->numindecies, mesh->shader->shader, mesh->lightmapIndex);
+	}
+
+	if (sh_showtangent.value) {
+		 R_DrawTangents(&def, mesh->numvertices);
 	}
 }
 
@@ -147,6 +197,10 @@ void R_DrawAliasAmbient(aliashdr_t *paliashdr, aliasframeinstant_t *instant) {
 	c_alias_polys += paliashdr->numtris;
 
 	gl_bumpdriver.drawTriangleListBase(&def, (int *)((byte *)paliashdr + paliashdr->indecies),paliashdr->numtris*3,paliashdr->shader, -1);
+
+	if (sh_showtangent.value) {
+		 R_DrawTangents(&def, paliashdr->numtris*3);
+	}
 }
 
 void R_DrawAliasBumped(aliashdr_t *paliashdr, aliasframeinstant_t *instant) {
