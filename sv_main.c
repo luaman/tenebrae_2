@@ -444,7 +444,7 @@ void SV_WriteEntitiesToClient (edict_t	*clent, sizebuf_t *msg)
 
 //find the client's Area Portal state
 	clientleaf = Mod_PointInLeaf(org, sv.worldmodel);
-	areabytes = CM_WriteAreaBits(areabits, clientleaf->area);
+	areabytes = CM_WriteAreaBits(sv.worldmodel, areabits, clientleaf->area);
 
 // send over all entities (excpet the client) that touch the pvs
 	ent = NEXT_EDICT(sv.edicts);

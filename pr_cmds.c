@@ -1870,7 +1870,7 @@ void PF_SetAreaPortalState(void)
 	int area1 = G_FLOAT(OFS_PARM0);
 	int area2 = G_FLOAT(OFS_PARM1);
 	int open = G_FLOAT(OFS_PARM2);
-	CM_SetAreaPortalState(area1,area2,open);
+	CM_SetAreaPortalState(sv.worldmodel, area1,area2,open);
 
 }
 

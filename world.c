@@ -253,7 +253,7 @@ SV_ClearWorld
 void SV_ClearWorld (void)
 {
 	SV_InitBoxHull ();
-	CM_InitBoxHull ();
+	CM_InitBoxHull (sv.worldmodel);
 	
 	memset (sv_areanodes, 0, sizeof(sv_areanodes));
 	sv_numareanodes = 0;
@@ -562,7 +562,7 @@ int SV_PointContents (vec3_t p)
 	int		cont;
 
 	//cont = SV_HullPointContents (&sv.worldmodel->hulls[0], 0, p);
-	cont = CM_PointContents(p,0);
+	cont = CM_PointContents(sv.worldmodel, p,0);
 	if (cont <= CONTENTS_CURRENT_0 && cont >= CONTENTS_CURRENT_DOWN)
 		cont = CONTENTS_WATER;
 	return cont;
@@ -591,7 +591,7 @@ int SV_SimplePointContents (int c)
 int SV_TruePointContents (vec3_t p)
 {
 //	return SV_HullPointContents (&sv.worldmodel->hulls[0], 0, p);
-	return CM_PointContents(p,0);
+	return CM_PointContents(sv.worldmodel, p,0);
 }
 
 //===========================================================================
@@ -845,7 +845,7 @@ trace_t SV_ClipMoveToEntity (edict_t *ent, vec3_t start, vec3_t mins, vec3_t max
 
 // trace a line through the apropriate brushes
 	//SV_RecursiveHullCheck (hull, hull->firstclipnode, 0, 1, start_l, end_l, &trace);
-		CM_TraceToBrushModel (firstbrush, numbrushes, mins, maxs, start_l, end_l, &trace, CONTENTS_SOLID);
+		CM_TraceToBrushModel (sv.worldmodel, firstbrush, numbrushes, mins, maxs, start_l, end_l, &trace, CONTENTS_SOLID);
 
 // rotate endpos back to world frame of reference
 	if (rotated && trace.fraction != 1.0)
@@ -1013,7 +1013,7 @@ trace_t SV_Move (vec3_t start, vec3_t mins, vec3_t maxs, vec3_t end, int type, e
 
 // clip to world
 	//clip.trace = SV_ClipMoveToEntity ( sv.edicts, start, mins, maxs, end );
-	clip.trace = CM_BoxTrace (start, end, mins, maxs, 0, CONTENTS_SOLID | CONTENTS_PLAYERCLIP | CONTENTS_MONSTERCLIP);
+	clip.trace = CM_BoxTrace (sv.worldmodel, start, end, mins, maxs, 0, CONTENTS_SOLID | CONTENTS_PLAYERCLIP | CONTENTS_MONSTERCLIP);
 	clip.trace.ent = &sv.edicts[0]; //world 
 
 	if (clip.trace.fraction == 0)
