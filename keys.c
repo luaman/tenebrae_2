@@ -1012,6 +1012,7 @@ qboolean Key_MouseMoveEvent( int x, int y, qboolean relative ) {
 
 	char cmd[128];
 
+	//Con_Printf("move: %i %i\n",x,y);
 	switch (key_dest)
 	{
 	case key_menu:
@@ -1024,6 +1025,7 @@ qboolean Key_MouseMoveEvent( int x, int y, qboolean relative ) {
 	case key_game:
 		if (relative && !con_forcedup) { //if the console is forced on key_dest is key_game but there isn't a game running
 			sprintf(cmd, "mousemove %i %i\n", x, y);
+			//Con_Printf(cmd);
 			Cbuf_AddText(cmd);
 		}
 		return true;

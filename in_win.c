@@ -251,6 +251,7 @@ void IN_AbsoluteMouse (void)
 
 	if (mouserelative)
 	{
+		Cbuf_AddText("mousemove 0 0\n");
 		if (dinput) {
 			hr = IDirectInputDevice_SetProperty(g_pMouse, DIPROP_AXISMODE, &dipdw.diph);
 			if (FAILED(hr)) {
@@ -266,13 +267,15 @@ void IN_AbsoluteMouse (void)
 IN_ActivateMouse
 
   Get the mouse "exclusively"
-  Called at: startup, alt-tab activate
+  Called at: startup, alt-tab, activate
 ===========
 */
 void IN_ActivateMouse (void)
 {
 
 	mouseactivatetoggle = true;
+
+	//Con_Printf("Activate mouse\n");
 
 	if (mouseinitialized)
 	{
@@ -299,7 +302,7 @@ void IN_ActivateMouse (void)
 			if (key_dest == key_game)
 				SetCursorPos (window_center_x, window_center_y);
 
-			//SetCapture (mainwindow);
+			SetCapture (mainwindow);
 			//ClipCursor (&window_rect);
 		}
 
@@ -320,6 +323,8 @@ void IN_DeactivateMouse (void)
 
 	mouseactivatetoggle = false;
 
+	//Con_Printf("Deactivate mouse\n");
+
 	if (mouseinitialized)
 	{
 		if (dinput)
@@ -339,7 +344,7 @@ void IN_DeactivateMouse (void)
 			//	SystemParametersInfo (SPI_SETMOUSE, 0, originalmouseparms, 0);
 
 			//ClipCursor (NULL);
-			//ReleaseCapture ();
+			ReleaseCapture ();
 		}
 
 		mouseactive = false;
@@ -1013,6 +1018,8 @@ void IN_MouseForDest(void) {
 /*
 ===========
 IN_Commands
+
+  Called every frame to process input
 ===========
 */
 void IN_Commands (void)
