@@ -380,6 +380,7 @@ extern  cvar_t	gl_fog;
 extern	float	fog_color[4];
 extern	cvar_t	r_tangentscale; //scale tangent/binormal by this
 extern  cvar_t  sh_delux;
+extern  cvar_t  sh_rtlights;
 
 extern	int			mirrortexturenum;	// quake texturenum, not gltexturenum
 extern	qboolean	mirror;
@@ -1143,6 +1144,7 @@ typedef struct shadowlight_s {
 	float	haloalpha; //alpha of halo
 	vec3_t	oldlightorigin;
 	int		area; //area (from areaportals) light is in
+	shader_t *shader; //shader on this light
 } shadowlight_t;
 
 //PENTA: new
@@ -1297,7 +1299,7 @@ void		R_AddRectList (screenrect_t *rec);
 void		R_AllocateMirror (msurface_t *surf);
 void		R_AnimateLight (void);
 void		R_AutomaticLightPos (void);
-void		R_CalcSvBsp (entity_t *ent);
+void		R_StaticLightFromEnt (entity_t *ent);
 qboolean	R_CheckRectList (screenrect_t *rec);
 void		R_ClearBrushInstantCaches (void);
 void		R_ClearInstantCaches (void);
@@ -1409,7 +1411,7 @@ void		GL_ModulateAlphaDrawColor (void);
 void		GL_SelectTexture (GLenum target);
 void		GL_Set2D (void);
 void		GL_SetupCubeMapMatrix (const transform_t *tr);
-void		GL_SubdivideSurface (msurface_t *fa);
+//void		GL_SubdivideSurface (msurface_t *fa);
 void		GL_Upload8_EXT (byte *data, int width, int height,  qboolean mipmap, qboolean alpha);
 void		R_DrawCaustics(void);
 int			CL_PointContents (vec3_t p);

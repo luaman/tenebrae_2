@@ -29,9 +29,9 @@ extern unsigned char d_15to8table[65536];
 
 cvar_t		gl_max_size = {"gl_max_size", "1024"};
 cvar_t		gl_picmip = {"gl_picmip", "0"};
-cvar_t          gl_gloss = {"gl_gloss", "0.3"};
-cvar_t          gl_compress_textures = {"gl_compress_textures", "0"};
-cvar_t          willi_gray_colormaps = {"willi_gray_colormaps", "0"};
+cvar_t      gl_gloss = {"gl_gloss", "0.3"};
+cvar_t		gl_compress_textures = {"gl_compress_textures", "0"};
+cvar_t		willi_gray_colormaps = {"willi_gray_colormaps", "0"};
 
 /*
 cvar_t          cg_conclock = {"cg_conclock", "1", true};
@@ -717,15 +717,13 @@ static	unsigned	scaled[1024*1024];	// [512*256];
 	if (scaled_width * scaled_height > sizeof(scaled)/4)
 		Sys_Error ("GL_LoadTexture: too big");
 
-        if ( gl_texcomp && ((int)gl_compress_textures.value) & 1 )
-        {
-            texturemode = GL_COMPRESSED_RGBA_ARB;
-        }
-        else
-        {
-            texturemode = GL_RGBA;//PENTA: Always upload rgb it doesn't make any difference for nvidia cards (& others)
-	    //texturemode = alpha ? gl_alpha_format : gl_solid_format;
-        }
+	if ( gl_texcomp && ((int)gl_compress_textures.value) & 1 ) {
+		texturemode = GL_COMPRESSED_RGBA_ARB;
+	} else {
+		texturemode = GL_RGBA;//PENTA: Always upload rgb it doesn't make any difference for nvidia cards (& others)
+		//texturemode = alpha ? gl_alpha_format : gl_solid_format;
+	}
+
 #if 0
 	if (mipmap)
 		gluBuild2DMipmaps (GL_TEXTURE_2D, texturemode, width, height, GL_RGBA, GL_UNSIGNED_BYTE, trans);
@@ -1312,6 +1310,11 @@ gltexture_t *GL_CacheTexture (char *filename,  qboolean mipmap, int type)
 	glt->mipmap = mipmap;
 	glt->dynamic = NULL;
 
+	if (type == TEXTURE_CUBEMAP) {
+		GL_LoadCubemapTexture(glt);
+		return glt;
+	}
+
 	if (!strcmp(filename,"$white")) {
 		//a uniform white texture
 		trans[0] = LittleLong ((255 << 24)|(255 << 16)|(255 << 8)|(255));
@@ -1476,6 +1479,53 @@ char *face_names[] =
 	"posz",
 	"negz",
 };
+
+/**
+	Load a cubemap into the texture cache (used for a.o. light filters)
+	glt contains a valid texture identifier where the map needs to be bound
+	glt contains a "prexix" where the cubmap files are
+*/
+int GL_LoadCubemapTexture (gltexture_t *glt)
+{
+	int			i, width, height;
+	FILE		*f;
+	char filename[MAX_OSPATH];
+	int			texturemode;
+
+	if ( gl_texcomp && ((int)gl_compress_textures.value) & 1)
+	{   
+		texturemode = GL_COMPRESSED_RGBA_ARB;
+	} else {
+		texturemode = GL_RGBA;
+	}
+
+	glEnable(GL_TEXTURE_CUBE_MAP_ARB);
+	glBindTexture(GL_TEXTURE_CUBE_MAP_ARB, glt->texnum);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP_ARB, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE );
+	glTexParameteri(GL_TEXTURE_CUBE_MAP_ARB, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE );
+	glTexParameteri(GL_TEXTURE_CUBE_MAP_ARB, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP_ARB, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	
+	for (i = 0; i < 6; i++) 
+	{
+		sprintf(filename,"%i%s.tga", glt->identifier, face_names[i]);	
+		LoadTextureInPlace(filename, 4, (unsigned char*)&trans[0], &width, &height);
+		glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X_ARB+i, 0, texturemode, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, &trans[0]);
+	}
+	
+	//glEnable(GL_TEXTURE_2D);
+	glDisable(GL_TEXTURE_CUBE_MAP_ARB);
+
+	glt->width = width;
+	glt->height = height;
+	glt->mipmap = false;
+	glt->type = GL_TEXTURE_CUBE_MAP_ARB;
+
+	texture_extension_number++;
+
+	return texture_extension_number-1;
+}
+
 
 /*
 ================
