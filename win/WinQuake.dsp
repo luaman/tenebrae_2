@@ -158,10 +158,26 @@ SOURCE=..\gl_brushinstant.c
 # Begin Source File
 
 SOURCE=..\gl_bumparb.c
+
+!IF  "$(CFG)" == "winquake - Win32 GL Debug"
+
+!ELSEIF  "$(CFG)" == "winquake - Win32 GL Release"
+
+# PROP Exclude_From_Build 1
+
+!ENDIF 
+
 # End Source File
 # Begin Source File
 
 SOURCE=..\gl_bumpdriver.c
+
+!IF  "$(CFG)" == "winquake - Win32 GL Debug"
+
+!ELSEIF  "$(CFG)" == "winquake - Win32 GL Release"
+
+!ENDIF 
+
 # End Source File
 # Begin Source File
 
@@ -174,10 +190,28 @@ SOURCE=..\gl_bumpmap.c
 # Begin Source File
 
 SOURCE=..\gl_bumpparhelia.c
+
+!IF  "$(CFG)" == "winquake - Win32 GL Debug"
+
+!ELSEIF  "$(CFG)" == "winquake - Win32 GL Release"
+
+# PROP Exclude_From_Build 1
+
+!ENDIF 
+
 # End Source File
 # Begin Source File
 
 SOURCE=..\gl_bumpradeon.c
+
+!IF  "$(CFG)" == "winquake - Win32 GL Debug"
+
+!ELSEIF  "$(CFG)" == "winquake - Win32 GL Release"
+
+# PROP Exclude_From_Build 1
+
+!ENDIF 
+
 # End Source File
 # Begin Source File
 
@@ -378,6 +412,10 @@ SOURCE=..\sbar.c
 # End Source File
 # Begin Source File
 
+SOURCE=..\shaders.c
+# End Source File
+# Begin Source File
+
 SOURCE=..\snd_dma.c
 # End Source File
 # Begin Source File
@@ -493,6 +531,10 @@ InputName=sys_wina
 # Begin Source File
 
 SOURCE=..\te_scripts.c
+# End Source File
+# Begin Source File
+
+SOURCE=..\textures.c
 # End Source File
 # Begin Source File
 
