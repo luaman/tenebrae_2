@@ -94,9 +94,12 @@ extern	cvar_t	crosshair;
 
 qboolean	scr_initialized;		// ready to draw
 
-qpic_t		*scr_ram;
-qpic_t		*scr_net;
-qpic_t		*scr_turtle;
+shader_t	*scr_ram;
+shader_t	*scr_net;
+shader_t	*scr_turtle;
+extern shader_t *draw_conback;
+extern shader_t *draw_disc; 
+extern shader_t *draw_backtile;
 
 int			scr_fullupdate;
 
@@ -194,7 +197,7 @@ void SCR_DrawCenterString (void)
 				return;
 		}
 			
-		y += 8;
+		y += 16;
 
 		while (*start && *start != '\n')
 			start++;
@@ -387,42 +390,63 @@ void SCR_Init (void)
 	Cmd_AddCommand ("sizeup",SCR_SizeUp_f);
 	Cmd_AddCommand ("sizedown",SCR_SizeDown_f);
 
-	scr_ram = Draw_PicFromWad ("ram");
-	scr_net = Draw_PicFromWad ("net");
-	scr_turtle = Draw_PicFromWad ("turtle");
-
 	scr_initialized = true;
 }
 
+/*
+==================
+SCR_FindShaders
+
+	PENTA: Find needed shaders, called after the shader system comes up
+==================
+*/
+void SCR_FindShaders() {
+
+	scr_ram = GL_ShaderForName ("screen/ram"); 
+	scr_net = GL_ShaderForName ("screen/net"); 
+	scr_turtle = GL_ShaderForName ("screen/turtle"); 
+
+	draw_conback = GL_ShaderForName ("screen/conback");
+	draw_disc = GL_ShaderForName ("screen/disc"); 
+	draw_backtile = GL_ShaderForName ("screen/backtile");
+
+}
 
 
 /*
 ==============
 SCR_DrawRam
+
+  PENTA: Using a window for this is probably overkill
 ==============
 */
 void SCR_DrawRam (void)
 {
-	/*
+	if (!scr_ram) return;
+
 	if (!scr_showram.value)
 		return;
-	*/
+	
 	if (!r_cache_thrash)
 		return;
 
 	Con_Printf("Thrash cache\n");
 
-	Draw_Pic (scr_vrect.x+32, scr_vrect.y, scr_ram);
+	Draw_Pic (scr_vrect.x+32, scr_vrect.y, scr_vrect.x+64, scr_vrect.y+32, scr_ram);
 }
 
 /*
 ==============
 SCR_DrawTurtle
+
+  PENTA: Using a window for this is probably overkill
 ==============
 */
 void SCR_DrawTurtle (void)
 {
 	static int	count;
+
+	if (!scr_turtle) return;
 	
 	if (!scr_showturtle.value)
 		return;
@@ -437,22 +461,26 @@ void SCR_DrawTurtle (void)
 	if (count < 3)
 		return;
 
-	Draw_Pic (scr_vrect.x, scr_vrect.y, scr_turtle);
+	Draw_Pic (scr_vrect.x, scr_vrect.y, scr_vrect.x+32, scr_vrect.y+32, scr_turtle);
 }
 
 /*
 ==============
 SCR_DrawNet
+
+  PENTA: Using a window for this is probably overkill
 ==============
 */
 void SCR_DrawNet (void)
 {
+	if (!scr_net) return;
+
 	if (realtime - cl.last_received_message < 0.3)
 		return;
 	if (cls.demoplayback)
 		return;
 
-	Draw_Pic (scr_vrect.x+64, scr_vrect.y, scr_net);
+	Draw_Pic (scr_vrect.x+64, scr_vrect.y, scr_vrect.x+96, scr_vrect.y+32, scr_net);
 }
 
 /*
@@ -462,17 +490,13 @@ DrawPause
 */
 void SCR_DrawPause (void)
 {
-	qpic_t	*pic;
-
 	if (!scr_showpause.value)		// turn off for screenshots
 		return;
 
 	if (!cl.paused)
 		return;
 
-	pic = Draw_CachePic ("gfx/pause.lmp");
-	Draw_Pic ( (vid.width - pic->width)/2, 
-		(vid.height - 48 - pic->height)/2, pic);
+	M_DrawNamedWindow("paused");
 }
 
 
@@ -484,14 +508,11 @@ SCR_DrawLoading
 */
 void SCR_DrawLoading (void)
 {
-	qpic_t	*pic;
-
 	if (!scr_drawloading)
 		return;
-		
-	pic = Draw_CachePic ("gfx/loading.lmp");
-	Draw_Pic ( (vid.width - pic->width)/2, 
-		(vid.height - 48 - pic->height)/2, pic);
+	
+	M_DrawNamedWindow("loading");
+
 }
 
 /*
@@ -819,9 +840,10 @@ void SCR_BeginLoadingPlaque (void)
 
 	if (cls.state != ca_connected)
 		return;
+
 	if (cls.signon != SIGNONS)
 		return;
-	
+
 // redraw with no console and the loading plaque
 	Con_ClearNotify ();
 	scr_centertime_off = 0;
@@ -877,7 +899,7 @@ void SCR_DrawNotifyString (void)
 		for (j=0 ; j<l ; j++, x+=8)
 			Draw_Character (x, y, start[j]);	
 			
-		y += 8;
+		y += 16;
 
 		while (*start && *start != '\n')
 			start++;
