@@ -256,8 +256,11 @@ void R_Init (void)
 	Cvar_RegisterVariable (&gl_caustics);
 	Cvar_RegisterVariable (&gl_truform);
 	Cvar_RegisterVariable (&gl_truform_tesselation);
+	Cvar_RegisterVariable (&r_tangentscale);
 
 	R_InitParticleEffects();
+	R_InitShaders();
+
 	R_InitParticles ();
 	R_InitDecals ();
 	R_InitParticleTexture ();
@@ -368,6 +371,7 @@ void R_TranslatePlayerSkin (int playernum)
 	scaled_width >>= (int)gl_playermip.value;
 	scaled_height >>= (int)gl_playermip.value;
 
+	/*
 	if (VID_Is8bit() && gl_palettedtex == true) { // 8bit texture upload <AWE> requires EXT_paletted_texture
 		byte *out2;
 
@@ -394,6 +398,7 @@ void R_TranslatePlayerSkin (int playernum)
 		GL_Upload8_EXT ((byte *)pixels, scaled_width, scaled_height, false, false);
 		return;
 	}
+	*/
 
 	for (i=0 ; i<256 ; i++)
 		translate32[i] = d_8to24table[translate[i]];
