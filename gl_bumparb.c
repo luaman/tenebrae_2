@@ -1295,7 +1295,7 @@ void ARB_drawTriangleListBase (vertexdef_t *verts, int *indecies,
             qglClientActiveTextureARB(GL_TEXTURE0_ARB);
 	    glTexCoordPointer(2, GL_FLOAT, verts->texcoordstride, verts->texcoords);
 	    glEnableClientState(GL_TEXTURE_COORD_ARRAY);
-	    glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
+	    glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
 
 	    GL_SelectTexture(GL_TEXTURE1_ARB);
 	    glEnable(GL_TEXTURE_2D);
