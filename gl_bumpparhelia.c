@@ -902,8 +902,6 @@ void Parhelia_CreateShaders()
 */
 void Parhelia_EnableDiffuseShader(const transform_t *tr, vec3_t lightOrig)
 {
-    float invrad = 1/currentshadowlight->radius;
-
     //tex 0 = normal map
     //tex 1 = normalization cube map (tangent space light vector)
     //tex 2 = color map
@@ -945,7 +943,9 @@ void Parhelia_EnableDiffuseShader(const transform_t *tr, vec3_t lightOrig)
 
 	glTranslatef(0.5,0.5,0.5);
 	glScalef(0.5,0.5,0.5);
-	glScalef(invrad, invrad, invrad);
+        glScalef(1.0f/(currentshadowlight->radiusv[0]),
+                 1.0f/(currentshadowlight->radiusv[1]),
+	         1.0f/(currentshadowlight->radiusv[2]));
 	glTranslatef(-lightOrig[0], -lightOrig[1], -lightOrig[2]);
 
         qglBindFragShaderMTX( fragment_shaders );
@@ -991,7 +991,6 @@ void Parhelia_EnableSpecularShader(const transform_t *tr, vec3_t lightOrig,
 				   qboolean alias)
 {
     vec3_t scaler = {0.5f, 0.5f, 0.5f};
-    float invrad = 1/currentshadowlight->radius;
     glEnable(GL_VERTEX_SHADER_EXT);
     qglBindVertexShaderEXT( vertex_shaders+1 );
     checkerror();
@@ -1031,7 +1030,9 @@ void Parhelia_EnableSpecularShader(const transform_t *tr, vec3_t lightOrig,
 
 	glTranslatef(0.5,0.5,0.5);
 	glScalef(0.5,0.5,0.5);
-	glScalef(invrad, invrad, invrad);
+        glScalef(1.0f/(currentshadowlight->radiusv[0]),
+                 1.0f/(currentshadowlight->radiusv[1]),
+	         1.0f/(currentshadowlight->radiusv[2]));
 	glTranslatef(-lightOrig[0], -lightOrig[1], -lightOrig[2]);
 
         qglBindFragShaderMTX( fragment_shaders + 2 );
@@ -1044,13 +1045,14 @@ void Parhelia_EnableSpecularShader(const transform_t *tr, vec3_t lightOrig,
 
 void Parhelia_EnableAttentShader(vec3_t lightOrig)
 {
-    float invrad = 1/currentshadowlight->radius;
     glMatrixMode(GL_TEXTURE);
     glPushMatrix();
     glLoadIdentity();
     glTranslatef(0.5,0.5,0.5);
     glScalef(0.5,0.5,0.5);
-    glScalef(invrad, invrad, invrad);
+    glScalef(1.0f/(currentshadowlight->radiusv[0]),
+             1.0f/(currentshadowlight->radiusv[1]),
+             1.0f/(currentshadowlight->radiusv[2]));
     glTranslatef(-lightOrig[0],
 		 -lightOrig[1],
 		 -lightOrig[2]);

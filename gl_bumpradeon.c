@@ -882,7 +882,6 @@ void Radeon_EnableBumpShader(const transform_t *tr, vec3_t lightOrig,
                              qboolean alias)
 {
     GLfloat temp[4];
-    float invrad = 1/currentshadowlight->radius;
 
     //tex 0 = normal map
     //tex 1 = normalization cube map (tangent space light vector)
@@ -940,7 +939,9 @@ void Radeon_EnableBumpShader(const transform_t *tr, vec3_t lightOrig,
 
     glTranslatef(0.5,0.5,0.5);
     glScalef(0.5,0.5,0.5);
-    glScalef(invrad, invrad, invrad);
+    glScalef(1.0f/(currentshadowlight->radiusv[0]),
+             1.0f/(currentshadowlight->radiusv[1]),
+	     1.0f/(currentshadowlight->radiusv[2]));
     glTranslatef(-lightOrig[0], -lightOrig[1], -lightOrig[2]);
 
     GL_SelectTexture(GL_TEXTURE0_ARB);
@@ -1376,15 +1377,6 @@ void Radeon_sendSurfacesTA(msurface_t** surfs, int numSurfaces)
 	qglMultiTexCoord3fvARB(GL_TEXTURE1_ARB, &surf->tangent[0]);
 	qglMultiTexCoord3fvARB(GL_TEXTURE2_ARB, &surf->binormal[0]);
 	qglMultiTexCoord3fvARB(GL_TEXTURE3_ARB, &surf->plane->normal[0]);
-	/*
-	  glBegin(GL_POLYGON);
-	  v = (float *)(&globalVertexTable[surf->polys->firstvertex]);
-	  for (j=0; j<p->numverts; j++, v+= VERTEXSIZE) {
-	  qglMultiTexCoord2fARB(GL_TEXTURE0_ARB, v[3], v[4]);
-	  glVertex3fv(&v[0]);
-	  }
-	  glEnd();
-	*/
 	glDrawElements(GL_TRIANGLES, p->numindecies, GL_UNSIGNED_INT, &p->indecies[0]);
     }
 
@@ -1435,15 +1427,6 @@ void Radeon_sendSurfacesPlain(msurface_t** surfs, int numSurfaces)
 	    }
 	    lastshader = shader;
 	}
-	/*		
-		glBegin(GL_POLYGON);
-		v = (float *)(&globalVertexTable[surf->polys->firstvertex]);
-		for (j=0; j<p->numverts; j++, v+= VERTEXSIZE) {
-		//qglMultiTexCoord2fARB(GL_TEXTURE0_ARB, v[3], v[4]);
-		glVertex3fv(&v[0]);
-		}
-		glEnd();
-	*/
 	glDrawElements(GL_TRIANGLES, p->numindecies, GL_UNSIGNED_INT,
 		       &p->indecies[0]);
     }

@@ -850,8 +850,6 @@ void ARB_DisableBumpShader(shader_t* shader)
 void ARB_EnableBumpShader(const transform_t *tr, vec3_t lightOrig,
                           qboolean alias, shader_t* shader)
 {
-    float invrad = 1/currentshadowlight->radius;
-
     //tex 0 = normal map
     //tex 1 = color map
     //tex 2 = attenuation
@@ -870,7 +868,9 @@ void ARB_EnableBumpShader(const transform_t *tr, vec3_t lightOrig,
 
     glTranslatef(0.5,0.5,0.5);
     glScalef(0.5,0.5,0.5);
-    glScalef(invrad, invrad, invrad);
+    glScalef(1.0f/(currentshadowlight->radiusv[0]),
+             1.0f/(currentshadowlight->radiusv[1]),
+	     1.0f/(currentshadowlight->radiusv[2]));
     glTranslatef(-lightOrig[0], -lightOrig[1], -lightOrig[2]);
 
     glGetError();
@@ -1046,9 +1046,6 @@ void ARB_drawTriangleListBump (const vertexdef_t *verts, int *indecies,
 			       int numIndecies, shader_t *shader,
 			       const transform_t *tr)
 {
-    int foo;
-    void* foo2;
-
     glEnableClientState(GL_VERTEX_ARRAY);
     glVertexPointer(3, GL_FLOAT, verts->vertexstride, verts->vertices);
 
