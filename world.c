@@ -851,7 +851,7 @@ trace_t SV_ClipMoveToEntity (edict_t *ent, vec3_t start, vec3_t mins, vec3_t max
 
 // trace a line through the apropriate brushes
 	//SV_RecursiveHullCheck (hull, hull->firstclipnode, 0, 1, start_l, end_l, &trace);
-		CM_TraceToBrushModel (sv.worldmodel, firstbrush, numbrushes, mins, maxs, start_l, end_l, &trace, CONTENTS_SOLID);
+	CM_TraceToBrushModel (sv.worldmodel, firstbrush, numbrushes, mins, maxs, start_l, end_l, &trace, CONTENTS_SOLID  | CONTENTS_PLAYERCLIP | CONTENTS_MONSTERCLIP);
 
 // rotate endpos back to world frame of reference
 	if (rotated && trace.fraction != 1.0)
