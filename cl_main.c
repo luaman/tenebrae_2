@@ -407,12 +407,13 @@ float	CL_LerpPoint (void)
 
 /*
 ===============
-CL_RelinkEntities
+CL_UpdateEntities
 
-PENTA: Modifications in dynamic light handling.
+This updates the client side entity lists.
+Called every frame.
 ===============
 */
-void CL_RelinkEntities (void)
+void CL_UpdateEntities (void)
 {
 	entity_t	*ent;
 	int			i, j;
@@ -450,17 +451,17 @@ void CL_RelinkEntities (void)
 	
 	bobjrotate = anglemod(100*cl.time);
 	
-// start on the entity after the world
+	//Start on the entity after the world
 	for (i=1,ent=cl_entities+1 ; i<cl.num_entities ; i++,ent++)
 	{
-		if (!ent->model)
-		{	// empty slot
+		//Empty slot
+		if (!ent->model) {
 			if (ent->forcelink)
-				R_RemoveEfrags (ent);	// just became empty
+				R_RemoveEfrags (ent);	// Free any entity framents use by this entity
 			continue;
 		}
 
-// if the object wasn't included in the last packet, remove it
+		//If the object wasn't included in the last packet, remove it
 		if (ent->msgtime != cl.mtime[0])
 		{
 			ent->model = NULL;
@@ -477,7 +478,7 @@ void CL_RelinkEntities (void)
 			R_FillEntityLeafs (ent);
 		}
 		else
-		{	// if the delta is large, assume a teleport and don't lerp
+		{	//If the delta is large, assume a teleport and don't lerp
 			f = frac;
 			for (j=0 ; j<3 ; j++)
 			{
@@ -486,7 +487,8 @@ void CL_RelinkEntities (void)
 					f = 1;		// assume a teleportation, not a motion
 			}
 
-		// interpolate the origin and angles
+			//Interpolate the origin and angles between the last to updates
+			//from the server
 			for (j=0 ; j<3 ; j++)
 			{
 				ent->origin[j] = ent->msg_origins[1][j] + f*delta[j];
@@ -743,7 +745,7 @@ int CL_ReadFromServer (void)
 	if (cl_shownet.value)
 		Con_Printf ("\n");
 
-	CL_RelinkEntities ();
+	CL_UpdateEntities ();
 	CL_UpdateTEnts ();
 
 //
