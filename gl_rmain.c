@@ -327,6 +327,9 @@ void R_DrawSpriteModel (entity_t *e)
 	def.lightmapcoords = NULL;
 	def.colors = NULL;
 
+
+	if (frame->shader->flags & SURF_NODRAW) return;
+
 	gl_bumpdriver.drawTriangleListBase(&def, indecies, 6, frame->shader, -1);
 }
 
@@ -1330,12 +1333,7 @@ void R_DrawLightSprites (void)
     if ( currentshadowlight->filtercube )
     {
         glMatrixMode(GL_TEXTURE);
-        glPushMatrix();
-        VectorCopy(currententity->origin,trans.origin);
-        VectorCopy(currententity->angles,trans.angles);
-        trans.scale[0] = trans.scale[1] = trans.scale[2] = 1.0f;
-        GL_SetupCubeMapMatrix(&trans);
-
+		glPushMatrix();
         GL_EnableColorShader (false);
     }
     else
@@ -1375,6 +1373,15 @@ void R_DrawLightSprites (void)
                           currentshadowlight->color[1]*colorscale,
                           currentshadowlight->color[2]*colorscale);
 
+				VectorCopy(currententity->origin,trans.origin);
+				VectorCopy(currententity->angles,trans.angles);
+				trans.scale[0] = trans.scale[1] = trans.scale[2] = 1.0f;
+
+				if ( currentshadowlight->filtercube ) {
+					glLoadIdentity();
+					GL_SetupCubeMapMatrix(&trans);
+				}
+
                 if ( currentshadowlight->filtercube )
                     R_DrawSpriteModelLightWV(currententity);
                 else
@@ -1389,6 +1396,7 @@ void R_DrawLightSprites (void)
     {
         GL_DisableColorShader (false);
 
+		GL_SelectTexture(GL_TEXTURE0_ARB);
         glPopMatrix();
         glMatrixMode(GL_MODELVIEW);
     }
