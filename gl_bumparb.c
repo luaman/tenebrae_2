@@ -449,7 +449,7 @@ static GLuint fragment_programs[2];
 static GLuint vertex_programs[2];
 
 
-#define ARBDEBUG
+//#define ARBDEBUG
 
 #if defined(ARBDEBUG) && defined(_WIN32)
 static void checkerror()
