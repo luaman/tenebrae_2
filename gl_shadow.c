@@ -329,6 +329,10 @@ qboolean R_MarkShadowSurf(msurface_t *surf, shadowlight_t *light)
 		return false;
 	}
 
+	if (!( surf->flags & SURF_PPLIGHT)) {
+		return false;
+	}
+
 	plane = surf->plane;
 
 	poly = surf->polys;
