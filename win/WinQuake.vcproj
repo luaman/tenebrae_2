@@ -232,8 +232,7 @@
 			<File
 				RelativePath="..\gl_bumpgf.c">
 				<FileConfiguration
-					Name="GL Debug|Win32"
-					ExcludedFromBuild="TRUE">
+					Name="GL Debug|Win32">
 					<Tool
 						Name="VCCLCompilerTool"/>
 				</FileConfiguration>
@@ -247,8 +246,7 @@
 			<File
 				RelativePath="..\gl_bumpgl2.c">
 				<FileConfiguration
-					Name="GL Debug|Win32"
-					ExcludedFromBuild="TRUE">
+					Name="GL Debug|Win32">
 					<Tool
 						Name="VCCLCompilerTool"/>
 				</FileConfiguration>
@@ -265,8 +263,7 @@
 			<File
 				RelativePath="..\gl_bumpnv3x.c">
 				<FileConfiguration
-					Name="GL Debug|Win32"
-					ExcludedFromBuild="TRUE">
+					Name="GL Debug|Win32">
 					<Tool
 						Name="VCCLCompilerTool"/>
 				</FileConfiguration>
@@ -280,8 +277,7 @@
 			<File
 				RelativePath="..\gl_bumpparhelia.c">
 				<FileConfiguration
-					Name="GL Debug|Win32"
-					ExcludedFromBuild="TRUE">
+					Name="GL Debug|Win32">
 					<Tool
 						Name="VCCLCompilerTool"/>
 				</FileConfiguration>
@@ -295,8 +291,7 @@
 			<File
 				RelativePath="..\gl_bumpradeon.c">
 				<FileConfiguration
-					Name="GL Debug|Win32"
-					ExcludedFromBuild="TRUE">
+					Name="GL Debug|Win32">
 					<Tool
 						Name="VCCLCompilerTool"/>
 				</FileConfiguration>
