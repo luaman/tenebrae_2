@@ -141,6 +141,10 @@ extern	PROC glVertexPointerEXT;
 
 #define BACKFACE_EPSILON	0.01
 
+#ifndef M_PI_F
+#define M_PI_F 3.14159265358979323846f
+#endif
+
 
 void R_TimeRefresh_f (void);
 void R_ReadPointFile_f (void);
