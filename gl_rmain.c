@@ -118,13 +118,15 @@ cvar_t	gl_doubleeyes = {"gl_doubleeys", "1"};
 cvar_t	gl_watershader = {"gl_watershader","1"};//PENTA: water shaders ON/OFF
 cvar_t	gl_calcdepth = {"gl_calcdepth","0"};
 
-cvar_t	sh_lightmapbright = {"sh_lightmapbright","0.5"};//PENTA: brightness of lightmaps
-cvar_t	sh_radiusscale = {"sh_radiusscale","0.5"};//PENTA: brightness of lightmaps
+cvar_t	sh_lightmapbright = {"sh_lightmapbright","1.0"};//PENTA: brightness of lightmaps
+cvar_t	sh_radiusscale = {"sh_radiusscale","0.0"};//PENTA: brightness of lightmaps
 cvar_t	sh_visiblevolumes = {"sh_visiblevolumes","0"};//PENTA: draw shadow volumes on/off
 cvar_t  sh_entityshadows = {"sh_entityshadows","1"};//PENTA: entities cast shadows on/off
 cvar_t  sh_meshshadows = {"sh_meshshadows","1"};//PENTA: entities cast shadows on/off
 cvar_t  sh_worldshadows = {"sh_worldshadows","1"};//PENTA: brushes cast shadows on/off
-cvar_t  sh_showlightnum = {"sh_showlightnum","0"};//PENTA: draw numer of lights used this frame
+cvar_t  sh_showlightsciss = {"sh_showlightsciss","0"};//PENTA: draw numer of lights used this frame
+cvar_t  sh_showlightvolume = {"sh_showlightvolume","0"};//PENTA: draw numer of lights used this frame
+cvar_t  sh_occlusiontest = {"sh_occlusiontest","0"};//PENTA: draw numer of lights used this frame
 cvar_t  sh_glows = {"sh_glows","1"};//PENTA: draw glows around some light sources
 cvar_t	cg_showfps = {"cg_showfps","0", true};	// set for running times - muff
 cvar_t	sh_debuginfo = {"sh_debuginfo","0"};
@@ -331,7 +333,7 @@ void R_DrawSpriteModel (entity_t *e) //Oriented Sprite Fix - Eradicator
 		right = vright;
 	}
 
-	glColor3f (1,1,1);
+	//glColor3f (1,1,1);
 
 	GL_DisableMultitexture();
 
@@ -1386,7 +1388,7 @@ void R_DrawLightSprites (void)
     {
         GL_SelectTexture(GL_TEXTURE0_ARB);
         glEnable(GL_TEXTURE_2D);
-        glTexEnvf (GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_COMBINE_ARB);
+      	glTexEnvf (GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_COMBINE_ARB);
         glTexEnvf (GL_TEXTURE_ENV, GL_SOURCE0_RGB_ARB, GL_PREVIOUS_ARB);
         glTexEnvf (GL_TEXTURE_ENV, GL_SOURCE1_RGB_ARB, GL_TEXTURE);
         glTexEnvf (GL_TEXTURE_ENV, GL_COMBINE_RGB_ARB, GL_MODULATE);
@@ -1772,6 +1774,9 @@ void R_SetupFrame (void)
 
 	c_brush_polys = 0;
 	c_alias_polys = 0;
+	occlusion_cut_meshes = 0;
+	occlusion_cut_entities = 0;
+	occlusion_cut_lights = 0;
 
 }
 
@@ -2152,44 +2157,15 @@ void R_RenderScene (void)
 
 	for (i=0; i<numUsedShadowLights; i++) {
 
-		//find a lights that still fits on our current screen plane
-		//using the first fit method.
-		//Other methods may give better results (exhaustive for example)
-		//but i'm convinced you can't save more clears than those that you
-		//save with this.
-		if ((!sh_nocleversave.value) && (!sh_noscissor.value)) {
-			qboolean foundone = false;
-			for (j=0; j<numUsedShadowLights; j++) {
-
-				if (!usedshadowlights[j]->visible) continue;
-
-				l = usedshadowlights[j];
-				currentshadowlight = l;
-				if (R_CheckRectList(&l->scizz)) {
-					foundone = true;
-					break;
-				}
-			}
-			
-			if (!foundone) {
-				R_SetTotalRect(); //Only clear dirty part
-				glClear(GL_STENCIL_BUFFER_BIT);
-				R_ClearRectList();
-				for (j=0; j<numUsedShadowLights; j++) {
-					l = usedshadowlights[j];
-					currentshadowlight = l;
-					if (usedshadowlights[j]->visible) break;
-				}
-			}
-
-		} else {
-			l = usedshadowlights[i];
-			currentshadowlight = l;
-		}
+		l = usedshadowlights[i];
+		currentshadowlight = l;
 
 		//Find the polygons that cast shadows for this light
-		if (!R_FillShadowChain(l))
+		if (!(l->shadowchainfilled = R_FillLightChains(l)))
 			continue;
+
+		glScissor(l->scizz.coords[0], l->scizz.coords[1],
+			l->scizz.coords[2]-l->scizz.coords[0],  l->scizz.coords[3]-l->scizz.coords[1]);
 
 		if (sh_visiblevolumes.value) {
 			glDepthFunc(GL_LEQUAL);
@@ -2200,31 +2176,13 @@ void R_RenderScene (void)
 			if (l->castShadow) {
   				glDepthFunc(GL_LESS);
   				glEnable(GL_STENCIL_TEST);
-				//glClear(GL_STENCIL_BUFFER_BIT);
 				glColorMask(false, false, false, false);
 				glStencilFunc(GL_ALWAYS, 1, 0xffffffff);
-				if (!sh_noscissor.value) {
-					if (R_CheckRectList(&l->scizz)) {
-							//we can have another go without clearing
-						R_AddRectList(&l->scizz);
-						numClearsSaved++;
-
-					} else {
-						R_SetTotalRect(); //Only clear dirty part
-						glClear(GL_STENCIL_BUFFER_BIT);
-						R_ClearRectList();
-						R_AddRectList(&l->scizz);
-					}
-				} else {
-					glClear(GL_STENCIL_BUFFER_BIT);
-				}
+				glClear(GL_STENCIL_BUFFER_BIT);
 			}
 		}
 
 		//All right now the shadow stuff
-
-		glScissor(l->scizz.coords[0], l->scizz.coords[1],
-			l->scizz.coords[2]-l->scizz.coords[0],  l->scizz.coords[3]-l->scizz.coords[1]);
 
 		R_MarkEntitiesOnList();
 
@@ -2232,7 +2190,6 @@ void R_RenderScene (void)
 		if (l->castShadow) {
 			//Calculate the shadow volume (does nothing when static)
 			R_ConstructShadowVolume(l);
-
 #if 1
 			//Pass 1 increase
 			glCullFace(GL_BACK);
@@ -2287,7 +2244,9 @@ void R_RenderScene (void)
  			glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
 			glDepthFunc(GL_LEQUAL);
 			glStencilFunc(GL_EQUAL, 0, 0xffffffff);
+
 		}
+
 		if (!sh_visiblevolumes.value) {
 			R_DrawWorldBumped();
 			glPolygonOffset(0,-5);
@@ -2880,6 +2839,9 @@ void R_RenderView (void)
 	// render normal view
 
 	R_RenderScene ();
+	
+	DrawLightVolumeInfo();
+
 	//R_DrawViewModel ();
 
 	/*Rendering fog in black for particles is done to stop triangle effect on the 
