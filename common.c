@@ -1132,8 +1132,19 @@ skipwhite:
 	return data;
 }
 
+/*
+==============
+COM_SkipLine
 
-
+PENTA:
+Skip until the next newline
+==============
+*/
+char *COM_SkipLine(char *data) {
+	while (*data && *data != '\n')
+		data++;
+	return data;
+}
 
 /*
 ================
