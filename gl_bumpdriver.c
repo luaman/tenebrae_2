@@ -47,12 +47,11 @@ void R_DrawLightEntitiesRadeon (shadowlight_t *l); //PA:
 void R_DrawLightEntitiesParhelia (shadowlight_t *l); //PA:
 void R_DrawLightEntitiesARB (shadowlight_t *l); //PA:
 
-/*************************
+/**
 
-Temp backwards compatibility
+	Draw tangent space for a vertexdef
 
-**************************/
-
+*/
 void R_DrawTangents (vertexdef_t *def, int num)
 {
 	float*			vert;
@@ -102,7 +101,6 @@ void R_DrawTangents (vertexdef_t *def, int num)
 void R_DrawMeshAmbient(mesh_t *mesh) {
 
 	vertexdef_t def;
-	transform_t trans;
 	int	res;
 
 	def.vertices = &globalVertexTable[mesh->firstvertex].position[0];
@@ -149,6 +147,7 @@ void R_DrawMeshAmbient(mesh_t *mesh) {
 void R_DrawMeshBumped(mesh_t *mesh) {
 
 	vertexdef_t def;
+	lightobject_t lo;
 
 	if (mesh->visframe != r_framecount)
 		return;
@@ -170,15 +169,17 @@ void R_DrawMeshBumped(mesh_t *mesh) {
 
 	def.lightmapcoords = NULL; // no lightmaps on aliasses
 
+	VectorCopy(currentshadowlight->origin, lo.objectorigin);
+	VectorCopy(r_refdef.vieworg, lo.objectvieworg);
+
 	c_alias_polys += mesh->numtriangles;
 
-	gl_bumpdriver.drawTriangleListBump(&def, mesh->indecies, mesh->numindecies, mesh->shader->shader, &mesh->trans);
+	gl_bumpdriver.drawTriangleListBump(&def, mesh->indecies, mesh->numindecies, mesh->shader->shader, &mesh->trans, &lo);
 }
 
 void R_DrawAliasAmbient(aliashdr_t *paliashdr, aliasframeinstant_t *instant) {
 
 	vertexdef_t def;
-	transform_t trans;
 
 	def.vertices = &instant->vertices[0][0];
 	def.vertexstride = 0;
@@ -208,6 +209,7 @@ void R_DrawAliasBumped(aliashdr_t *paliashdr, aliasframeinstant_t *instant) {
 	vertexdef_t def;
 	transform_t trans;
 	aliaslightinstant_t *linstant = instant->lightinstant;
+	lightobject_t lo;
 
 	def.vertices = &instant->vertices[0][0];
 	def.vertexstride = 0;
@@ -226,9 +228,11 @@ void R_DrawAliasBumped(aliashdr_t *paliashdr, aliasframeinstant_t *instant) {
 	VectorCopy(currententity->angles,trans.angles);
 	trans.scale[0] = trans.scale[1] = trans.scale[2] = 1.0f;
 
+	VectorCopy(linstant->lightpos, lo.objectorigin);
+	VectorCopy(linstant->vieworg, lo.objectvieworg);
 	c_alias_polys += paliashdr->numtris;
 
-	gl_bumpdriver.drawTriangleListBump(&def,&linstant->indecies[0],linstant->numtris*3,paliashdr->shader, &trans);
+	gl_bumpdriver.drawTriangleListBump(&def,&linstant->indecies[0],linstant->numtris*3,paliashdr->shader, &trans, &lo);
 }
 
 void R_SetupWorldVertexDef(vertexdef_t *def) {
@@ -299,6 +303,7 @@ void R_DrawBrushBumped (entity_t *e) {
 	shader_t *runshader , *s;
 	model_t	*model;
 	transform_t trans;
+	lightobject_t lo;
 
 	model = e->model;
 	R_SetupWorldVertexDef(&def);
@@ -317,8 +322,12 @@ void R_DrawBrushBumped (entity_t *e) {
 	VectorCopy(e->origin,trans.origin);
 	VectorCopy(e->angles,trans.angles);
 	trans.scale[0] = trans.scale[1] = trans.scale[2] = 1.0f;
+
+	VectorCopy(((brushlightinstant_t *)e->brushlightinstant)->lightpos, lo.objectorigin);
+	VectorCopy(((brushlightinstant_t *)e->brushlightinstant)->vieworg, lo.objectvieworg);
+
 	c_brush_polys += runlength;
-	gl_bumpdriver.drawSurfaceListBump(&def, surfArray, runlength, &trans);
+	gl_bumpdriver.drawSurfaceListBump(&def, surfArray, runlength, &trans, &lo);
 }
 
 void R_DrawWorldAmbientChain(msurface_t *first) {
@@ -353,6 +362,7 @@ void R_DrawWorldBumped() {
 	vertexdef_t def;
 	transform_t trans;
 	int i;
+	lightobject_t lo;
 
 	if (!currentshadowlight->visible)
 		return;
@@ -367,8 +377,11 @@ void R_DrawWorldBumped() {
 	trans.origin[0] = trans.origin[1]  = trans.origin[2] = 0.0f;
 	trans.scale[0] = trans.scale[1] = trans.scale[2] = 1.0f;
 
+	VectorCopy(currentshadowlight->origin, lo.objectorigin);
+	VectorCopy(r_refdef.vieworg, lo.objectvieworg);
+
 	c_brush_polys += (currentshadowlight->numlightcmds-1);
-	gl_bumpdriver.drawSurfaceListBump(&def, (msurface_t **)(&currentshadowlight->lightCmds[0]), currentshadowlight->numlightcmds-1, &trans);
+	gl_bumpdriver.drawSurfaceListBump(&def, (msurface_t **)(&currentshadowlight->lightCmds[0]), currentshadowlight->numlightcmds-1, &trans, &lo);
 
 	for (i=0; i<currentshadowlight->numlightcmdsmesh-1; i++) {
 		R_DrawMeshBumped((mesh_t *)currentshadowlight->lightCmdsMesh[i].asVoid);
@@ -590,180 +603,3 @@ void R_DrawLightEntities (shadowlight_t *l)
     glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glDepthMask (1);
 }
-/*
-//PA:
-void R_DrawLightEntitiesRadeon (shadowlight_t *l)
-{
-    int		i;
-
-    if (!cg_showentities.value)
-	return;
-
-    if (!currentshadowlight->visible)
-	return;
-
-    glDepthMask (0);
-    glShadeModel (GL_SMOOTH);
-
-    //Alias models
-
-    for (i=0 ; i<cl_numlightvisedicts ; i++)
-    {
-	currententity = cl_lightvisedicts[i];
-
-	if (currententity->model->type == mod_alias)
-	{
-	    //these models are full bright 
-	    if (currententity->model->flags & EF_FULLBRIGHT) continue;
-	    if (!currententity->aliasframeinstant) continue;
-	    if ( ((aliasframeinstant_t *)currententity->aliasframeinstant)->shadowonly) continue;
-
-	    R_DrawAliasObjectLight(currententity, R_DrawAliasBumpedRadeon);
-	}
-    }
-
-    if (R_ShouldDrawViewModel()) {
-	R_DrawAliasObjectLight(&cl.viewent, R_DrawAliasBumpedRadeon);
-    }
-
-    //Brush models
-    for (i=0 ; i<cl_numlightvisedicts ; i++)
-    {
-	currententity = cl_lightvisedicts[i];
-
-	if (currententity->model->type == mod_brush)
-	{
-	    if (!currententity->brushlightinstant) continue;
-	    if ( ((brushlightinstant_t *)currententity->brushlightinstant)->shadowonly) continue;
-	    R_DrawBrushObjectLight(currententity, R_DrawBrushBumpedRadeon);
-	}
-
-    }
-
-    //Cleanup state
-    glColor3f (1,1,1);
-    glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
-    glDisable (GL_BLEND);
-    glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    glDepthMask (1);
-}
-
-#ifndef __glx__
-
-//PA:
-void R_DrawLightEntitiesParhelia (shadowlight_t *l)
-{
-    int		i;
-
-    if (!cg_showentities.value)
-	return;
-
-    if (!currentshadowlight->visible)
-	return;
-
-    glDepthMask (0);
-    glShadeModel (GL_SMOOTH);
-
-    //Alias models
-
-    for (i=0 ; i<cl_numlightvisedicts ; i++)
-    {
-	currententity = cl_lightvisedicts[i];
-
-	if (currententity->model->type == mod_alias)
-	{
-	    //these models are full bright 
-	    if (currententity->model->flags & EF_FULLBRIGHT) continue;
-	    if (!currententity->aliasframeinstant) continue;
-	    if ( ((aliasframeinstant_t *)currententity->aliasframeinstant)->shadowonly) continue;
-
-	    R_DrawAliasObjectLight(currententity, R_DrawAliasBumpedParhelia);
-	}
-    }
-
-    if (R_ShouldDrawViewModel())
-    {
-	R_DrawAliasObjectLight(&cl.viewent, R_DrawAliasBumpedParhelia);
-    }
-
-    //Brush models
-    for (i=0 ; i<cl_numlightvisedicts ; i++)
-    {
-	currententity = cl_lightvisedicts[i];
-
-	if (currententity->model->type == mod_brush)
-	{
-	    if (!currententity->brushlightinstant) continue;
-	    if ( ((brushlightinstant_t *)currententity->brushlightinstant)->shadowonly) continue;
-	    R_DrawBrushObjectLight(currententity, R_DrawBrushBumpedParhelia);
-	}
-
-    }
-
-    //Cleanup state
-    glColor3f (1,1,1);
-    glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
-    glDisable (GL_BLEND);
-    glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    glDepthMask (1);
-}
-
-#endif
-
-void R_DrawLightEntitiesARB (shadowlight_t *l)
-{
-    int		i;
-
-    if (!cg_showentities.value)
-	return;
-
-    if (!currentshadowlight->visible)
-	return;
-
-    glDepthMask (0);
-    glShadeModel (GL_SMOOTH);
-
-    //Alias models
-
-    for (i=0 ; i<cl_numlightvisedicts ; i++)
-    {
-	currententity = cl_lightvisedicts[i];
-
-	if (currententity->model->type == mod_alias)
-	{
-	    //these models are full bright 
-	    if (currententity->model->flags & EF_FULLBRIGHT) continue;
-	    if (!currententity->aliasframeinstant) continue;
-	    if ( ((aliasframeinstant_t *)currententity->aliasframeinstant)->shadowonly) continue;
-
-	    R_DrawAliasObjectLight(currententity, R_DrawAliasBumpedARB);
-	}
-    }
-
-    if (R_ShouldDrawViewModel())
-    {
-	R_DrawAliasObjectLight(&cl.viewent, R_DrawAliasBumpedARB);
-    }
-
-    //Brush models
-    for (i=0 ; i<cl_numlightvisedicts ; i++)
-    {
-	currententity = cl_lightvisedicts[i];
-
-	if (currententity->model->type == mod_brush)
-	{
-	    if (!currententity->brushlightinstant) continue;
-	    if ( ((brushlightinstant_t *)currententity->brushlightinstant)->shadowonly) continue;
-	    R_DrawBrushObjectLight(currententity, R_DrawBrushBumpedARB);
-	}
-
-    }
-
-    //Cleanup state
-    glColor3f (1,1,1);
-    glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
-    glDisable (GL_BLEND);
-    glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    glDepthMask (1);
-}
-*/
