@@ -83,8 +83,7 @@ BSC32=bscmake.exe
 LINK32=link.exe
 # ADD BASE LINK32 winmm.lib wsock32.lib opengl32.lib glu32.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib ..\scitech\lib\win32\vc\mgllt.lib /nologo /subsystem:windows /profile /machine:I386
 # SUBTRACT BASE LINK32 /map /debug
-# ADD LINK32 comctl32.lib ..\dxsdk\sdk\lib\dxguid.lib winmm.lib wsock32.lib opengl32.lib glu32.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib libpng.lib zlib.lib /nologo /subsystem:windows /profile /debug /machine:I386 /out:"C:\Games\QUAKE\tenebrae2.exe" /libpath:"..\extlibs-w32"
-# SUBTRACT LINK32 /map /nodefaultlib
+# ADD LINK32 comctl32.lib ..\dxsdk\sdk\lib\dxguid.lib winmm.lib wsock32.lib opengl32.lib glu32.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib libpng.lib zlib.lib ..\nvparse\nvparse.lib /nologo /subsystem:windows /profile /debug /machine:I386 /nodefaultlib:"LIBCD" /out:"C:\Games\tenebrae\tenebrae2.exe" /libpath:"..\extlibs-w32"
 
 !ENDIF 
 
@@ -171,13 +170,6 @@ SOURCE=..\gl_bumparb.c
 # Begin Source File
 
 SOURCE=..\gl_bumpdriver.c
-
-!IF  "$(CFG)" == "winquake - Win32 GL Debug"
-
-!ELSEIF  "$(CFG)" == "winquake - Win32 GL Release"
-
-!ENDIF 
-
 # End Source File
 # Begin Source File
 
@@ -767,6 +759,50 @@ SOURCE=..\quake.ico
 # Begin Source File
 
 SOURCE=.\splash.bmp
+# End Source File
+# End Group
+# Begin Group "cg"
+
+# PROP Default_Filter ".cg"
+# Begin Source File
+
+SOURCE=..\cg\deluxe.cg
+
+!IF  "$(CFG)" == "winquake - Win32 GL Debug"
+
+!ELSEIF  "$(CFG)" == "winquake - Win32 GL Release"
+
+# Begin Custom Build
+InputPath=..\cg\deluxe.cg
+InputName=deluxe
+
+"..\cg\$(InputName).reg" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
+	"C:\Program Files\NVIDIA Corporation\Cg\bin\cgc" -profile fp20 $(InputPath) -o ..\cg\$(InputName).reg
+
+# End Custom Build
+
+!ENDIF 
+
+# End Source File
+# Begin Source File
+
+SOURCE=..\cg\deluxe1.cg
+
+!IF  "$(CFG)" == "winquake - Win32 GL Debug"
+
+!ELSEIF  "$(CFG)" == "winquake - Win32 GL Release"
+
+# Begin Custom Build
+InputPath=..\cg\deluxe1.cg
+InputName=deluxe1
+
+"..\cg\$(InputName).reg" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
+	"C:\Program Files\NVIDIA Corporation\Cg\bin\cgc" -profile arbfp1 $(InputPath) -o ..\cg\$(InputName).reg
+
+# End Custom Build
+
+!ENDIF 
+
 # End Source File
 # End Group
 # Begin Source File

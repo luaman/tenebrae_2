@@ -15,6 +15,18 @@ Package=<4>
 
 ###############################################################################
 
+Project: "nvparse"=..\nvparse\nvparse\nvparse.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+}}}
+
+###############################################################################
+
 Project: "winquake"=.\WinQuake.dsp - Package Owner=<4>
 
 Package=<5>
