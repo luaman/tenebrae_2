@@ -179,45 +179,91 @@ int findneighbourmd3(int index, int edgei, int numtris, mtriangle_t *triangles) 
 	return -1;
 }
 
-void TangentForTrimd3(mtriangle_t *tri, vec3_t norm, ftrivertx_t *verts, fstvert_t *texcos, vec3_t res) {
+void TangentForTrimd3(int *index, ftrivertx_t *vertices, fstvert_t *texcos, vec3_t Tangent, vec3_t Binormal) {
+//see:
+//http://members.rogers.com/deseric/tangentspace.htm
+	vec3_t stvecs [3];
+	float *v0, *v1, *v2;
+	float *st0, *st1, *st2;
+	vec3_t vec1, vec2;
+	vec3_t planes[3];
+	int i;
 
-	vec3_t	vec1, vec2, dirv, tz;
-	float	delta1, delta2, t;
-	vec3_t	*v[3];
-	float	st[3][2];
-	int		j;
+	v0 = &vertices[index[0]].v[0];
+	v1 = &vertices[index[1]].v[0];
+	v2 = &vertices[index[2]].v[0];
+	st0 = &texcos[index[0]].s;
+	st1 = &texcos[index[1]].s;
+	st2 = &texcos[index[2]].s;
 
-	for (j=0; j<3; j++) {
-		v[j] = &verts[tri->vertindex[j]].v;
-
-		st[j][0] = texcos[tri->vertindex[j]].s;
-		st[j][1] = texcos[tri->vertindex[j]].t;
+	for (i=0; i<3; i++) {
+		vec1[0] = v1[i]-v0[i];
+		vec1[1] = st1[0]-st0[0];
+		vec1[2] = st1[1]-st0[1];
+		vec2[0] = v2[i]-v0[i];
+		vec2[1] = st2[0]-st0[0];
+		vec2[2] = st2[1]-st0[1];
+		VectorNormalize(vec1);
+		VectorNormalize(vec2);
+		CrossProduct(vec1,vec2,planes[i]);
 	}
 
-	vec1[0] = *v[1][0] - *v[0][0];
-	vec1[1] = *v[1][1] - *v[0][1];
-	vec1[2] = *v[1][2] - *v[0][2];
-	delta1 = st[1][0] - st[0][0];
-      
-	vec2[0] = *v[2][0] - *v[0][0];
-	vec2[1] = *v[2][1] - *v[0][1];
-	vec2[2] = *v[2][2] - *v[0][2];
-	delta2 = st[2][0] - st[0][0];
+	Tangent[0] = -planes[0][1]/planes[0][0];
+	Tangent[1] = -planes[1][1]/planes[1][0];
+	Tangent[2] = -planes[2][1]/planes[2][0];
+	Binormal[0] = -planes[0][2]/planes[0][0];
+	Binormal[1] = -planes[1][2]/planes[1][0];
+	Binormal[2] = -planes[2][2]/planes[2][0];
+	VectorNormalize(Tangent); //is this needed?
+	VectorNormalize(Binormal);
+}
 
-	//if  ((!delta1) && (!delta2)) Con_Printf("%s: warning: Degenerate tangent space\n",loadname);
+void ClosestPointOnLine(vec3_t a, vec3_t b, vec3_t p, vec3_t res)
+{
+	vec3_t c,V;
+	float d,t ;
 
+	// a-b is the line, p the point in question
+	VectorSubtract(p, a, c);
+	VectorSubtract(b, a, V);
+	d = Length(V);
+	VectorNormalize(V); // normalize V
+	t = DotProduct(V,c);
 
-	dirv[0] = (delta1 * vec2[0] - vec1[0] * delta2);
-	dirv[1] = (delta1 * vec2[1] - vec1[1] * delta2);
-	dirv[2] = (delta1 * vec2[2] - vec1[2] * delta2);
+	// Check to see if t is beyond the extents of the line segment
+	if (t < 0.0f)
+	{
+		VectorCopy(a, res);
+	}
+	if (t > d)
+	{
+		VectorCopy(b, res);
+	}
+	// Return the point between a and b
+	VectorScale(V, t, V); //set length of V to t.
+	VectorAdd(a, V, res);
+}
 
-	VectorNormalize(dirv);
+void Orthogonalize(vec3_t v1, vec3_t v2, vec3_t res)
+{
+	vec3_t v2ProjV1;
+	vec3_t iV1;
+	VectorScale(v1, -1.0f, iV1);
+	ClosestPointOnLine(v1, iV1, v2, v2ProjV1);
+	VectorSubtract(v2, v2ProjV1, res);
+	VectorNormalize(res);
+}
 
-	VectorCopy(norm,tz);
-	t = dirv[0]*tz[0]+dirv[1]*tz[1]+dirv[2]*tz[2];
-	res[0] = dirv[0]-t*tz[0];
-	res[1] = dirv[1]-t*tz[1];
-	res[2] = dirv[2]-t*tz[2];
+void DecodeNormal(int quant, vec3_t norm) {
+	
+	float lat = ( quant >> 8 ) & 0xff;
+	float lng = ( quant & 0xff );
+	lat *= M_PI/128;
+	lng *= M_PI/128;
+
+	norm[0] = cos(lat) * sin(lng);
+	norm[1] = sin(lat) * sin(lng);
+	norm[2] = cos(lng);
 }
 
 /*
@@ -252,14 +298,14 @@ void Mod_LoadMd3Model (model_t *mod, void *buffer)
 	int					*indecies;
 	vec3_t				v1, v2, normal;
 	vec3_t				triangle[3];
-	vec3_t				*tangents;
+	vec3_t				*tangents, *binormals;
 	md3Shader_t			*shader;
 	byte				fake[16];
 	char				shadername[MAX_QPATH];
         alias3data_t			*palias3;
         int				surfcount;
-        
-
+    int					unexpindecies[MAXALIASTRIS*3];    
+	
 	start = Hunk_LowMark ();
 
 	//Con_Printf("Loading md3 from %s\n",mod->name);
@@ -541,10 +587,14 @@ for (surfcount = 0; surfcount < pinmodel->numSurfaces; ++surfcount) {
 			indecies++;
 		}
 	}
+	indecies = (int *)((byte *)pheader+pheader->indecies);
 
 	//Calculate tangents for vertices
 	tangents = Hunk_Alloc (pheader->poseverts * pheader->numposes * sizeof(vec3_t));
 	pheader->tangents = (byte *)tangents - (byte *)pheader;
+
+	binormals = Hunk_Alloc (pheader->poseverts * pheader->numposes * sizeof(vec3_t));
+	pheader->binormals = (byte *)binormals - (byte *)pheader;
 	//for all frames
 	for (i=0; i<pheader->numposes; i++) {
 
@@ -553,32 +603,53 @@ for (surfcount = 0; surfcount < pinmodel->numSurfaces; ++surfcount) {
 			tangents[i*pheader->poseverts+j][0] = 0;
 			tangents[i*pheader->poseverts+j][1] = 0;
 			tangents[i*pheader->poseverts+j][2] = 0;
+			binormals[i*pheader->poseverts+j][0] = 0;
+			binormals[i*pheader->poseverts+j][1] = 0;
+			binormals[i*pheader->poseverts+j][2] = 0;
 			numNormals[j] = 0;
 		}
 
-		
 		//for all tris
 		for (j=0; j<pheader->numtris; j++) {
 			vec3_t tangent;
-			TangentForTrimd3(&tris[j],norms[i*pheader->numtris+j].normal,
-						  &verts[i*pheader->poseverts],texcoords,tangent);
+			vec3_t binormal;
+			vec3_t tangent_vert;
+			vec3_t binormal_vert;
+			vec3_t normal;
+			TangentForTrimd3(&indecies[j*3],&verts[i*pheader->poseverts],texcoords,tangent,binormal);
 			//for all vertices in the tri
 			for (k=0; k<3; k++) {
-				l = tris[j].vertindex[k];
+				l = indecies[j*3+k];
+				DecodeNormal(verts[i*pheader->poseverts+l].lightnormalindex, normal);
+
+				Orthogonalize(normal, tangent, tangent_vert);
+				Orthogonalize(normal, binormal, binormal_vert);
+
 				VectorAdd(tangents[i*pheader->poseverts+l],tangent,
 							tangents[i*pheader->poseverts+l]); 
+				VectorAdd(binormals[i*pheader->poseverts+l],binormal,
+							binormals[i*pheader->poseverts+l]); 
 				numNormals[l]++;
 			}
 		}
 		
 		//calculate average
 		for (j=0; j<pheader->poseverts; j++) {
+			vec3_t norm;
+			float lat, lng;
 			if (!numNormals[j]) continue;
 			tangents[i*pheader->poseverts+j][0] = tangents[i*pheader->poseverts+j][0]/numNormals[j];
 			tangents[i*pheader->poseverts+j][1] = tangents[i*pheader->poseverts+j][1]/numNormals[j];
 			tangents[i*pheader->poseverts+j][2] = tangents[i*pheader->poseverts+j][2]/numNormals[j];
+
+			binormals[i*pheader->poseverts+j][0] = binormals[i*pheader->poseverts+j][0]/numNormals[j];
+			binormals[i*pheader->poseverts+j][1] = binormals[i*pheader->poseverts+j][1]/numNormals[j];
+			binormals[i*pheader->poseverts+j][2] = binormals[i*pheader->poseverts+j][2]/numNormals[j];
+
 			VectorNormalize(tangents[i*pheader->poseverts+j]);
+			VectorNormalize(binormals[i*pheader->poseverts+j]);
 		}
+
 	}
 
 
