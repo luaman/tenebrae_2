@@ -1,6 +1,6 @@
 /*
 Copyright (C) 2001-2002 Charles Hollemeersch
-Copyright (C) 2002-2003 Jarno Paananen
+Parhelia version Copyright (C) 2002-2003 Jarno Paananen
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -312,7 +312,7 @@ extern PFNGLGETLOCALCONSTANTINTEGERVEXTPROC    qglGetLocalConstantIntegervEXT;
 extern PFNGLGETLOCALCONSTANTFLOATVEXTPROC      qglGetLocalConstantFloatvEXT;
 
 
-void GL_CreateShadersParhelia()
+void Parhelia_CreateShaders()
 {
     GLuint mvp, modelview, zcomp, tempvec;
     GLuint texturematrix;
@@ -900,7 +900,7 @@ void GL_CreateShadersParhelia()
   Pixel shader for diffuse bump mapping does diffuse bumpmapping with norm
   cube, self shadowing & dist attent in 1 pass
 */
-void GL_EnableDiffuseShaderParhelia(const transform_t *tr, vec3_t lightOrig)
+void Parhelia_EnableDiffuseShader(const transform_t *tr, vec3_t lightOrig)
 {
     float invrad = 1/currentshadowlight->radius;
 
@@ -956,7 +956,7 @@ void GL_EnableDiffuseShaderParhelia(const transform_t *tr, vec3_t lightOrig)
 
 }
 
-void GL_DisableDiffuseShaderParhelia()
+void Parhelia_DisableDiffuseShader()
 {
     //tex 0 = normal map
     //tex 1 = normalization cube map (tangent space light vector)
@@ -987,8 +987,8 @@ void GL_DisableDiffuseShaderParhelia()
     GL_SelectTexture(GL_TEXTURE0_ARB);
 }
 
-void GL_EnableSpecularShaderParhelia(const transform_t *tr, vec3_t lightOrig,
-				     qboolean alias)
+void Parhelia_EnableSpecularShader(const transform_t *tr, vec3_t lightOrig,
+				   qboolean alias)
 {
     vec3_t scaler = {0.5f, 0.5f, 0.5f};
     float invrad = 1/currentshadowlight->radius;
@@ -1042,12 +1042,7 @@ void GL_EnableSpecularShaderParhelia(const transform_t *tr, vec3_t lightOrig,
 
 }
 
-/*
-  GL_DisableSpecularShaderParhelia() ??
-  Same as GL_DisableDiffuseShaderParhelia()
-*/
-
-void GL_EnableAttentShaderParhelia(vec3_t lightOrig)
+void Parhelia_EnableAttentShader(vec3_t lightOrig)
 {
     float invrad = 1/currentshadowlight->radius;
     glMatrixMode(GL_TEXTURE);
@@ -1065,7 +1060,7 @@ void GL_EnableAttentShaderParhelia(vec3_t lightOrig)
     glBindTexture(GL_TEXTURE_3D, atten3d_texture_object);
 }
 
-void GL_DisableAttentShaderParhelia()
+void Parhelia_DisableAttentShader()
 {
     glPopMatrix();
     glMatrixMode(GL_MODELVIEW);
@@ -1219,9 +1214,9 @@ void Parhelia_drawTriangleListBump (const vertexdef_t *verts, int *indecies,
     {
 	//draw attent into dest alpha
 	GL_DrawAlpha();
-	GL_EnableAttentShaderParhelia(currentshadowlight->origin);
+	Parhelia_EnableAttentShader(currentshadowlight->origin);
 	Parhelia_sendTriangleListWV(verts,indecies,numIndecies);
-	GL_DisableAttentShaderParhelia();
+	Parhelia_DisableAttentShader();
 	GL_ModulateAlphaDrawColor();
     }
     else
@@ -1230,7 +1225,7 @@ void Parhelia_drawTriangleListBump (const vertexdef_t *verts, int *indecies,
     }
     glColor3fv(&currentshadowlight->color[0]);
 
-    GL_EnableSpecularShaderParhelia(tr,currentshadowlight->origin,true);
+    Parhelia_EnableSpecularShader(tr,currentshadowlight->origin,true);
     //bind the correct texture
     GL_SelectTexture(GL_TEXTURE0_ARB);
     if (shader->numbumpstages > 0)
@@ -1240,9 +1235,9 @@ void Parhelia_drawTriangleListBump (const vertexdef_t *verts, int *indecies,
 	GL_Bind(shader->colorstages[0].texture[0]->texnum);
 
     Parhelia_sendTriangleListTA(verts,indecies,numIndecies);
-    GL_DisableDiffuseShaderParhelia();
+    Parhelia_DisableDiffuseShader();
 
-    GL_EnableDiffuseShaderParhelia(tr,currentshadowlight->origin);
+    Parhelia_EnableDiffuseShader(tr,currentshadowlight->origin);
     //bind the correct texture
     GL_SelectTexture(GL_TEXTURE0_ARB);
     if (shader->numbumpstages > 0)
@@ -1252,11 +1247,12 @@ void Parhelia_drawTriangleListBump (const vertexdef_t *verts, int *indecies,
 	GL_Bind(shader->colorstages[0].texture[0]->texnum);
 
     Parhelia_sendTriangleListTA(verts,indecies,numIndecies);
-    GL_DisableDiffuseShaderParhelia();
+    Parhelia_DisableDiffuseShader();
 }
 
 void Parhelia_drawTriangleListBase (vertexdef_t *verts, int *indecies,
-				    int numIndecies, shader_t *shader)
+				    int numIndecies, shader_t *shader,
+                                    int lightMapIndex)
 {
     int i;
 
@@ -1603,12 +1599,12 @@ void Parhelia_drawSurfaceListBump (vertexdef_t *verts, msurface_t **surfs,
     {
 	//draw attent into dest alpha
 	GL_DrawAlpha();
-	GL_EnableAttentShaderParhelia(currentshadowlight->origin);
+	Parhelia_EnableAttentShader(currentshadowlight->origin);
 		
 	glTexCoordPointer(3, GL_FLOAT, verts->vertexstride, verts->vertices);
 	Parhelia_sendSurfacesPlain(surfs,numSurfaces);
 
-	GL_DisableAttentShaderParhelia();
+	Parhelia_DisableAttentShader();
 	GL_ModulateAlphaDrawColor();
     }
     else
@@ -1617,15 +1613,15 @@ void Parhelia_drawSurfaceListBump (vertexdef_t *verts, msurface_t **surfs,
     }
     glColor3fv(&currentshadowlight->color[0]);
 
-    GL_EnableSpecularShaderParhelia(tr,currentshadowlight->origin,true);
+    Parhelia_EnableSpecularShader(tr,currentshadowlight->origin,true);
 
     glTexCoordPointer(2, GL_FLOAT, verts->texcoordstride, verts->texcoords);
     Parhelia_sendSurfacesTA(surfs,numSurfaces);
-    GL_DisableDiffuseShaderParhelia();
+    Parhelia_DisableDiffuseShader();
 
-    GL_EnableDiffuseShaderParhelia(tr,currentshadowlight->origin);
+    Parhelia_EnableDiffuseShader(tr,currentshadowlight->origin);
     Parhelia_sendSurfacesTA(surfs,numSurfaces);
-    GL_DisableDiffuseShaderParhelia();
+    Parhelia_DisableDiffuseShader();
 
     glDisableClientState(GL_VERTEX_ARRAY);
     glDisableClientState(GL_TEXTURE_COORD_ARRAY);
@@ -1674,8 +1670,7 @@ void BUMP_InitParhelia(void)
 
     if ( gl_cardtype != PARHELIA ) return;
 
-    GL_CreateShadersParhelia();
-
+    Parhelia_CreateShaders();
 
     //bind the correct stuff to the bump mapping driver
     gl_bumpdriver.drawSurfaceListBase = Parhelia_drawSurfaceListBase;

@@ -123,7 +123,7 @@ void checkerror()
 
 extern void *	GL_GetProcAddress (const char *theName, qboolean theSafeMode);
 
-qboolean	GL_LookupRadeonSymbols (void)
+qboolean	Radeon_LookupSymbols (void)
 {
     qglGenFragmentShadersATI = GL_GetProcAddress ("glGenFragmentShadersATI", false);
     qglBindFragmentShaderATI = GL_GetProcAddress ("glBindFragmentShaderATI", false);
@@ -247,7 +247,7 @@ qboolean	GL_LookupRadeonSymbols (void)
 
 #endif /* __APPLE__ || MACOSX */
 
-void GL_CreateShadersRadeon()
+void Radeon_CreateShaders()
 {
     float scaler[4] = {0.5f, 0.5f, 0.5f, 0.5f};
     int i;
@@ -844,7 +844,7 @@ void GL_CreateShadersRadeon()
 }
 
 
-void GL_DisableDiffuseShaderRadeon()
+void Radeon_DisableBumpShader()
 {
     //tex 0 = normal map
     //tex 1 = normalization cube map (tangent space light vector)
@@ -878,8 +878,8 @@ void GL_DisableDiffuseShaderRadeon()
     GL_SelectTexture(GL_TEXTURE0_ARB);
 }
 
-void GL_EnableDiffuseSpecularShaderRadeon(const transform_t *tr,
-					  vec3_t lightOrig, qboolean alias)
+void Radeon_EnableBumpShader(const transform_t *tr, vec3_t lightOrig,
+                             qboolean alias)
 {
     GLfloat temp[4];
     float invrad = 1/currentshadowlight->radius;
@@ -969,21 +969,21 @@ void Radeon_SetupTcMod(tcmod_t *tc)
 {
     switch (tc->type)
     {
-    case TCMOD_ROTATE:
-	glTranslatef(0.5,0.5,0.0);
-	glRotatef(cl.time * tc->params[0],0,0,1);
-	glTranslatef(-0.5, -0.5, 0.0);
-	break;
-    case TCMOD_SCROLL:
-	glTranslatef(cl.time * tc->params[0], cl.time * tc->params[1], 0.0);
-	break;
-    case TCMOD_SCALE:
-	glScalef(tc->params[0],tc->params[1],1.0);
-	break;
-    case TCMOD_STRETCH:
-	//PENTA: fixme
-	glScalef(1.0, 1.0, 1.0);
-	break;
+        case TCMOD_ROTATE:
+            glTranslatef(0.5,0.5,0.0);
+            glRotatef(cl.time * tc->params[0],0,0,1);
+            glTranslatef(-0.5, -0.5, 0.0);
+            break;
+        case TCMOD_SCROLL:
+            glTranslatef(cl.time * tc->params[0], cl.time * tc->params[1], 0.0);
+            break;
+        case TCMOD_SCALE:
+            glScalef(tc->params[0],tc->params[1],1.0);
+            break;
+        case TCMOD_STRETCH:
+            //PENTA: fixme
+            glScalef(1.0, 1.0, 1.0);
+            break;
     }
 }
 
@@ -1020,7 +1020,7 @@ void Radeon_SetupSimpleStage(stage_t *s)
     }
 
     if ((s->numtextures > 0) && (s->texture[0]))
-	GL_Bind(s->texture[0]->texnum);
+	GL_BindAdvanced(s->texture[0]);
 }
 
 /************************
@@ -1103,21 +1103,22 @@ void Radeon_drawTriangleListBump (const vertexdef_t *verts, int *indecies,
     GL_AddColor();
     glColor3fv(&currentshadowlight->color[0]);
 
-    GL_EnableDiffuseSpecularShaderRadeon(tr,currentshadowlight->origin,true);
+    Radeon_EnableBumpShader(tr,currentshadowlight->origin,true);
     //bind the correct texture
     GL_SelectTexture(GL_TEXTURE0_ARB);
     if (shader->numbumpstages > 0)
-	GL_Bind(shader->bumpstages[0].texture[0]->texnum);
+	GL_BindAdvanced(shader->bumpstages[0].texture[0]);
     GL_SelectTexture(GL_TEXTURE3_ARB);
     if (shader->numcolorstages > 0)
-	GL_Bind(shader->colorstages[0].texture[0]->texnum);
+	GL_BindAdvanced(shader->colorstages[0].texture[0]);
 
     Radeon_sendTriangleListTA(verts,indecies,numIndecies);
-    GL_DisableDiffuseShaderRadeon();
+    Radeon_DisableBumpShader();
 }
 
 void Radeon_drawTriangleListBase (vertexdef_t *verts, int *indecies,
-				  int numIndecies, shader_t *shader)
+				  int numIndecies, shader_t *shader,
+                                  int lightMapIndex)
 {
     int i;
 
@@ -1169,7 +1170,7 @@ void Radeon_drawTriangleListBase (vertexdef_t *verts, int *indecies,
 	if (shader->numcolorstages)
 	{
 	    if (shader->colorstages[0].numtextures)
-		GL_Bind(shader->colorstages[0].texture[0]->texnum);
+		GL_BindAdvanced(shader->colorstages[0].texture[0]);
 
 	    if (shader->colorstages[0].alphatresh > 0)
 	    {
@@ -1289,7 +1290,7 @@ void Radeon_drawSurfaceListBase (vertexdef_t* verts, msurface_t** surfs,
 	if (shader->numcolorstages)
 	{
 	    if (shader->colorstages[0].numtextures)
-		GL_Bind(shader->colorstages[0].texture[0]->texnum);
+		GL_BindAdvanced(shader->colorstages[0].texture[0]);
 
 	    if (shader->colorstages[0].alphatresh > 0)
 	    {
@@ -1364,10 +1365,10 @@ void Radeon_sendSurfacesTA(msurface_t** surfs, int numSurfaces)
 	    //bind the correct texture
 	    GL_SelectTexture(GL_TEXTURE0_ARB);
 	    if (shader->numbumpstages > 0)
-		GL_Bind(shader->bumpstages[0].texture[0]->texnum);
+		GL_BindAdvanced(shader->bumpstages[0].texture[0]);
 	    GL_SelectTexture(GL_TEXTURE3_ARB);
 	    if (shader->numcolorstages > 0)
-		GL_Bind(shader->colorstages[0].texture[0]->texnum);
+		GL_BindAdvanced(shader->colorstages[0].texture[0]);
 	    lastshader = shader;
 	}
 
@@ -1463,11 +1464,11 @@ void Radeon_drawSurfaceListBump (vertexdef_t *verts, msurface_t **surfs,
     GL_AddColor();
     glColor3fv(&currentshadowlight->color[0]);
 
-    GL_EnableDiffuseSpecularShaderRadeon(tr,currentshadowlight->origin,true);
+    Radeon_EnableBumpShader(tr,currentshadowlight->origin,true);
 
     glTexCoordPointer(2, GL_FLOAT, verts->texcoordstride, verts->texcoords);
     Radeon_sendSurfacesTA(surfs,numSurfaces);
-    GL_DisableDiffuseShaderRadeon();
+    Radeon_DisableBumpShader();
 
     glDisableClientState(GL_VERTEX_ARRAY);
     glDisableClientState(GL_TEXTURE_COORD_ARRAY);
@@ -1514,8 +1515,8 @@ void BUMP_InitRadeon(void)
     const GLubyte *errString;
 
     if ( gl_cardtype != RADEON ) return;
-
-    GL_CreateShadersRadeon();
+    
+    Radeon_CreateShaders();
 
 
     //bind the correct stuff to the bump mapping driver
