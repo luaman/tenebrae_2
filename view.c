@@ -493,10 +493,7 @@ void V_CalcBlend (void)
 	{
 		if (!gl_cshiftpercent.value)
 			continue;
-
-                a2 = (cl.cshifts[j].percent * gl_cshiftpercent.value) * 0.000039215686; //Speedup - Eradicator
-//		a2 = ((cl.cshifts[j].percent * gl_cshiftpercent.value) / 100.0) / 255.0;
-
+		a2 = ((cl.cshifts[j].percent * gl_cshiftpercent.value) / 100.0) / 255.0;
 //		a2 = cl.cshifts[j].percent/255.0;
 		if (!a2)
 			continue;
@@ -508,13 +505,9 @@ void V_CalcBlend (void)
 		b = b*(1-a2) + cl.cshifts[j].destcolor[2]*a2;
 	}
 
-        /*v_blend[0] = r/255.0;
+    v_blend[0] = r/255.0;
 	v_blend[1] = g/255.0;
-	v_blend[2] = b/255.0;*/
-
-	v_blend[0] = r*0.0039215686; //Speedup - Eradicator
-	v_blend[1] = g*0.0039215686;
-	v_blend[2] = b*0.0039215686;
+	v_blend[2] = b/255.0;
 	v_blend[3] = a;
 	if (v_blend[3] > 1)
 		v_blend[3] = 1;
@@ -523,168 +516,58 @@ void V_CalcBlend (void)
 }
 #endif
 
-/*
-=============
-V_UpdatePalette
-=============
-*/
-#ifdef	GLQUAKE
-void V_UpdatePalette (void)
-{
-	int		i, j;
-	qboolean	new;
-	byte	*basepal, *newpal;
-	byte	pal[768];
-	float	r,g,b,a;
-	int		ir, ig, ib;
-	qboolean force;
+ /*
+ =============
+ V_UpdatePalette
+ =============
+ */
+ void V_UpdateFlashes (void)
+ {
+ 	int		i, j;
+ 	qboolean	new;
+ 	byte	*basepal, *newpal;
+ 	byte	pal[768];
+ 	float	r,g,b,a;
+ 	int		ir, ig, ib;
+ 	qboolean force;
+ 
+ 	V_CalcPowerupCshift ();
+ 	
+ 	new = false;
+ 	
+ 	for (i=0 ; i<NUM_CSHIFTS ; i++)
+ 	{
+ 		if (cl.cshifts[i].percent != cl.prev_cshifts[i].percent)
+ 		{
+ 			new = true;
+ 			cl.prev_cshifts[i].percent = cl.cshifts[i].percent;
+ 		}
+ 		for (j=0 ; j<3 ; j++)
+ 			if (cl.cshifts[i].destcolor[j] != cl.prev_cshifts[i].destcolor[j])
+ 			{
+ 				new = true;
+ 				cl.prev_cshifts[i].destcolor[j] = cl.cshifts[i].destcolor[j];
+ 			}
+ 	}
+ 	
+ // drop the damage value
+ 	cl.cshifts[CSHIFT_DAMAGE].percent -= host_frametime*150;
+ 	if (cl.cshifts[CSHIFT_DAMAGE].percent <= 0)
+ 		cl.cshifts[CSHIFT_DAMAGE].percent = 0;
+ 
+ // drop the bonus value
+ 	cl.cshifts[CSHIFT_BONUS].percent -= host_frametime*100;
+ 	if (cl.cshifts[CSHIFT_BONUS].percent <= 0)
+ 		cl.cshifts[CSHIFT_BONUS].percent = 0;
+ 
+ 	force = V_CheckGamma ();
+ 	if (!new && !force)
+ 		return;
+ 
+//Calculate the color of the polygon to blend
+ 	V_CalcBlend ();
 
-	V_CalcPowerupCshift ();
-	
-	new = false;
-	
-	for (i=0 ; i<NUM_CSHIFTS ; i++)
-	{
-		if (cl.cshifts[i].percent != cl.prev_cshifts[i].percent)
-		{
-			new = true;
-			cl.prev_cshifts[i].percent = cl.cshifts[i].percent;
-		}
-		for (j=0 ; j<3 ; j++)
-			if (cl.cshifts[i].destcolor[j] != cl.prev_cshifts[i].destcolor[j])
-			{
-				new = true;
-				cl.prev_cshifts[i].destcolor[j] = cl.cshifts[i].destcolor[j];
-			}
-	}
-	
-// drop the damage value
-	cl.cshifts[CSHIFT_DAMAGE].percent -= host_frametime*150;
-	if (cl.cshifts[CSHIFT_DAMAGE].percent <= 0)
-		cl.cshifts[CSHIFT_DAMAGE].percent = 0;
-
-// drop the bonus value
-	cl.cshifts[CSHIFT_BONUS].percent -= host_frametime*100;
-	if (cl.cshifts[CSHIFT_BONUS].percent <= 0)
-		cl.cshifts[CSHIFT_BONUS].percent = 0;
-
-	force = V_CheckGamma ();
-	if (!new && !force)
-		return;
-
-	V_CalcBlend ();
-
-	a = v_blend[3];
-	r = 255*v_blend[0]*a;
-	g = 255*v_blend[1]*a;
-	b = 255*v_blend[2]*a;
-
-	a = 1-a;
-	for (i=0 ; i<256 ; i++)
-	{
-		ir = i*a + r;
-		ig = i*a + g;
-		ib = i*a + b;
-		if (ir > 255)
-			ir = 255;
-		if (ig > 255)
-			ig = 255;
-		if (ib > 255)
-			ib = 255;
-
-		ramps[0][i] = gammatable[ir];
-		ramps[1][i] = gammatable[ig];
-		ramps[2][i] = gammatable[ib];
-	}
-
-	basepal = host_basepal;
-	newpal = pal;
-	
-	for (i=0 ; i<256 ; i++)
-	{
-		ir = basepal[0];
-		ig = basepal[1];
-		ib = basepal[2];
-		basepal += 3;
-		
-		newpal[0] = ramps[0][ir];
-		newpal[1] = ramps[1][ig];
-		newpal[2] = ramps[2][ib];
-		newpal += 3;
-	}
-
-	VID_ShiftPalette (pal);	
 }
-#else	// !GLQUAKE
-void V_UpdatePalette (void)
-{
-	int		i, j;
-	qboolean	new;
-	byte	*basepal, *newpal;
-	byte	pal[768];
-	int		r,g,b;
-	qboolean force;
-
-	V_CalcPowerupCshift ();
-	
-	new = false;
-	
-	for (i=0 ; i<NUM_CSHIFTS ; i++)
-	{
-		if (cl.cshifts[i].percent != cl.prev_cshifts[i].percent)
-		{
-			new = true;
-			cl.prev_cshifts[i].percent = cl.cshifts[i].percent;
-		}
-		for (j=0 ; j<3 ; j++)
-			if (cl.cshifts[i].destcolor[j] != cl.prev_cshifts[i].destcolor[j])
-			{
-				new = true;
-				cl.prev_cshifts[i].destcolor[j] = cl.cshifts[i].destcolor[j];
-			}
-	}
-	
-// drop the damage value
-	cl.cshifts[CSHIFT_DAMAGE].percent -= host_frametime*150;
-	if (cl.cshifts[CSHIFT_DAMAGE].percent <= 0)
-		cl.cshifts[CSHIFT_DAMAGE].percent = 0;
-
-// drop the bonus value
-	cl.cshifts[CSHIFT_BONUS].percent -= host_frametime*100;
-	if (cl.cshifts[CSHIFT_BONUS].percent <= 0)
-		cl.cshifts[CSHIFT_BONUS].percent = 0;
-
-	force = V_CheckGamma ();
-	if (!new && !force)
-		return;
-			
-	basepal = host_basepal;
-	newpal = pal;
-	
-	for (i=0 ; i<256 ; i++)
-	{
-		r = basepal[0];
-		g = basepal[1];
-		b = basepal[2];
-		basepal += 3;
-	
-		for (j=0 ; j<NUM_CSHIFTS ; j++)	
-		{
-			r += (cl.cshifts[j].percent*(cl.cshifts[j].destcolor[0]-r))>>8;
-			g += (cl.cshifts[j].percent*(cl.cshifts[j].destcolor[1]-g))>>8;
-			b += (cl.cshifts[j].percent*(cl.cshifts[j].destcolor[2]-b))>>8;
-		}
-		
-		newpal[0] = gammatable[r];
-		newpal[1] = gammatable[g];
-		newpal[2] = gammatable[b];
-		newpal += 3;
-	}
-
-	VID_ShiftPalette (pal);	
-}
-#endif	// !GLQUAKE
-
 
 /* 
 ============================================================================== 
@@ -958,7 +841,6 @@ void V_CalcRefdef (void)
 
 	view->model = cl.model_precache[cl.stats[STAT_WEAPON]];
 	view->frame = cl.stats[STAT_WEAPONFRAME];
-	view->colormap = vid.colormap;
 
 // set up the refresh position
 	VectorAdd (r_refdef.viewangles, cl.punchangle, r_refdef.viewangles);
