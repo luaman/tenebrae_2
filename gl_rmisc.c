@@ -218,6 +218,7 @@ void R_Init (void)
 	Cvar_RegisterVariable (&sh_radiusscale);
 	Cvar_RegisterVariable (&sh_visiblevolumes);
 	Cvar_RegisterVariable (&sh_entityshadows);
+	Cvar_RegisterVariable (&sh_meshshadows);
 	Cvar_RegisterVariable (&sh_worldshadows);
 	Cvar_RegisterVariable (&sh_showlightnum);
 	Cvar_RegisterVariable (&sh_glows);
